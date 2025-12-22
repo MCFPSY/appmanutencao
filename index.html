@@ -2546,6 +2546,80 @@
         }
         
         /* ============================================
+           LOADING SPINNER - Feedback visual durante carregamento
+           ============================================ */
+        
+        .loading-spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        
+        .loading-spinner-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .loading-spinner-content {
+            background: white;
+            padding: 40px 60px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .spinner-circle {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .spinner-message {
+            margin: 0;
+            font-size: 16px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        @media (max-width: 768px) {
+            .loading-spinner-content {
+                padding: 30px 40px;
+            }
+            
+            .spinner-circle {
+                width: 50px;
+                height: 50px;
+                border-width: 4px;
+            }
+            
+            .spinner-message {
+                font-size: 14px;
+            }
+        }
+        
+        /* ============================================
            LOGIN SCREEN - APPLE CLEAN STYLE
            ============================================ */
         
@@ -4738,7 +4812,11 @@ async function syncWithGoogleSheets() {
                 // 🛡️ NÃO guardar artigos no localStorage (ocupam muito espaço)
                 // Artigos são sempre carregados do servidor
             } else {
-                console.warn('⚠️ Nenhum artigo recebido!');
+                console.error('❌ ERRO CRÍTICO: data.artigos é null/undefined!');
+                console.error('📋 Resposta completa do servidor:', JSON.stringify(data, null, 2));
+                // 🔥 FORÇAR chamada direta a loadArtigosFromGoogleSheets
+                console.warn('🔄 Tentando loadArtigosFromGoogleSheets() como fallback...');
+                await loadArtigosFromGoogleSheets();
             }
             
             // Movimentos (NÃO guardar no localStorage - sempre do servidor)
@@ -5060,6 +5138,46 @@ function showToast(message, type = 'info') {
     }, 4000);
 }
 
+// ⚡ LOADING SPINNER - Feedback visual durante carregamento do Google Sheets
+function showLoadingSpinner(message = 'Carregando...') {
+    let spinner = document.getElementById('loadingSpinner');
+    
+    // Se não existe, criar
+    if (!spinner) {
+        spinner = document.createElement('div');
+        spinner.id = 'loadingSpinner';
+        spinner.className = 'loading-spinner-overlay';
+        spinner.innerHTML = `
+            <div class="loading-spinner-content">
+                <div class="spinner-circle"></div>
+                <p class="spinner-message">${message}</p>
+            </div>
+        `;
+        document.body.appendChild(spinner);
+    } else {
+        // Atualizar mensagem
+        const messageEl = spinner.querySelector('.spinner-message');
+        if (messageEl) messageEl.textContent = message;
+    }
+    
+    // Mostrar com animação
+    setTimeout(() => spinner.classList.add('active'), 10);
+    console.log('⚡ Loading spinner MOSTRADO:', message);
+}
+
+function hideLoadingSpinner() {
+    const spinner = document.getElementById('loadingSpinner');
+    if (spinner) {
+        spinner.classList.remove('active');
+        setTimeout(() => {
+            if (spinner.parentNode) {
+                spinner.parentNode.removeChild(spinner);
+            }
+        }, 300); // Aguarda animação
+        console.log('⚡ Loading spinner ESCONDIDO');
+    }
+}
+
 // UTILS
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -5306,11 +5424,58 @@ function hidePdfViewer() {
 // SINCRONIZAÇÃO COM GOOGLE SHEETS
 // ============================================
 
-// Carregar artigos do Google Sheets (com retry automático)
-async function loadArtigosFromGoogleSheets(retryCount = 0) {
+// ⚡ CACHE DE ARTIGOS (24h)
+function getCachedArtigos() {
+    try {
+        const cached = localStorage.getItem('artigos_cache');
+        const cacheTime = localStorage.getItem('artigos_cache_time');
+        
+        if (cached && cacheTime) {
+            const age = Date.now() - parseInt(cacheTime);
+            const maxAge = 24 * 60 * 60 * 1000; // 24 horas
+            
+            if (age < maxAge) {
+                console.log('⚡ Usando artigos do cache (idade: ' + (age / 1000 / 60).toFixed(0) + ' min)');
+                return JSON.parse(cached);
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Erro ao ler cache:', error);
+    }
+    return null;
+}
+
+function setCachedArtigos(artigos) {
+    try {
+        localStorage.setItem('artigos_cache', JSON.stringify(artigos));
+        localStorage.setItem('artigos_cache_time', Date.now().toString());
+        console.log('💾 Artigos guardados em cache para 24h');
+    } catch (error) {
+        console.warn('⚠️ Não foi possível guardar cache:', error);
+    }
+}
+
+// Carregar artigos do Google Sheets (com cache e retry)
+async function loadArtigosFromGoogleSheets(retryCount = 0, forceReload = false) {
     if (!AppState.isOnline) {
         console.log('⚠️ Offline - usando dados locais');
         return;
+    }
+    
+    // ⚡ TENTAR CACHE PRIMEIRO (se não for reload forçado)
+    if (!forceReload) {
+        const cached = getCachedArtigos();
+        if (cached && cached.length > 0) {
+            AppState.artigos = cached;
+            console.log('⚡ Artigos carregados do cache:', cached.length);
+            hideLoadingSpinner(); // ⚡ Esconder spinner se veio do cache
+            return;
+        }
+    }
+    
+    // ⚡ MOSTRAR LOADING SPINNER
+    if (retryCount === 0) {
+        showLoadingSpinner('Carregando artigos do Google Sheets...');
     }
     
     try {
@@ -5336,8 +5501,13 @@ async function loadArtigosFromGoogleSheets(retryCount = 0) {
         
         if (data.success && data.artigos) {
             AppState.artigos = data.artigos;
+            setCachedArtigos(data.artigos); // ⚡ Guardar em cache
             console.log('✅ Artigos carregados do Google Sheets:', data.artigos.length);
             console.log('📋 Artigos detalhados:', JSON.stringify(data.artigos, null, 2));
+            
+            // ⚡ ESCONDER LOADING SPINNER
+            hideLoadingSpinner();
+            showToast(`✅ ${data.artigos.length} artigos carregados com sucesso!`, 'success');
             
             // Atualizar interface se já estiver no tab stock
             const stockTab = document.getElementById('tab-stock');
@@ -5359,6 +5529,7 @@ async function loadArtigosFromGoogleSheets(retryCount = 0) {
                 setTimeout(() => loadArtigosFromGoogleSheets(retryCount + 1), 2000);
             } else {
                 AppState.artigos = [];
+                hideLoadingSpinner(); // ⚡ Esconder spinner
                 showToast('❌ Nenhum artigo encontrado no Google Sheets. Adicione artigos na sheet "Artigos".', 'error');
             }
         }
@@ -5373,6 +5544,7 @@ async function loadArtigosFromGoogleSheets(retryCount = 0) {
             setTimeout(() => loadArtigosFromGoogleSheets(retryCount + 1), 2000);
         } else {
             AppState.artigos = [];
+            hideLoadingSpinner(); // ⚡ Esconder spinner
             showToast('❌ Erro ao conectar com Google Sheets. Verifique a configuração.', 'error');
         }
     }
@@ -5782,16 +5954,37 @@ async function eliminarMovimento(movId) {
     saveToLocalStorage();
 }
 
-function openNovoMovimentoModal() {
+async function openNovoMovimentoModal() {
     console.log('🚀 openNovoMovimentoModal() INICIADO');
     console.log('📊 Total de artigos em AppState:', AppState.artigos.length);
     console.log('📦 Artigos completos:', JSON.stringify(AppState.artigos, null, 2));
     
-    // Verificar se há artigos
+    // 🔥 SE VAZIO → FORÇAR RELOAD DO SERVIDOR!
     if (AppState.artigos.length === 0) {
-        console.error('❌ ERRO: AppState.artigos está VAZIO!');
-        showToast('❌ Nenhum artigo disponível. Adicione artigos na sheet "Artigos" do Google Sheets.', 'error');
-        return;
+        console.warn('⚠️ Artigos vazios! Forçando reload do Google Sheets...');
+        
+        // 🎨 Mostrar loading spinner
+        const loadingToast = showToast('⏳ Carregando artigos... Pode demorar alguns segundos.', 'info');
+        
+        try {
+            const startTime = Date.now();
+            await loadArtigosFromGoogleSheets(0, true); // forceReload = true
+            const loadTime = ((Date.now() - startTime) / 1000).toFixed(1);
+            
+            // Verificar novamente após reload
+            if (AppState.artigos.length === 0) {
+                console.error('❌ ERRO CRÍTICO: Artigos continuam vazios após reload!');
+                showToast('❌ Nenhum artigo encontrado no Google Sheets. Verifique a sheet "Artigos".', 'error');
+                return;
+            }
+            
+            console.log('✅ Artigos carregados com sucesso após reload:', AppState.artigos.length, '(tempo:', loadTime + 's)');
+            showToast('✅ ' + AppState.artigos.length + ' artigos carregados! (' + loadTime + 's)', 'success');
+        } catch (error) {
+            console.error('❌ Erro ao carregar artigos:', error);
+            showToast('❌ Erro ao carregar artigos. Tente novamente.', 'error');
+            return;
+        }
     }
     
     // Preencher dropdown de famílias
@@ -6128,3 +6321,4 @@ window.openNovoMovimentoModal = openNovoMovimentoModal;
     </script>
 </body>
 </html>
+
