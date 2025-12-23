@@ -4799,15 +4799,16 @@ function renderRequestsList() {
 }
 
 function applyFilters() {
-    console.log('🔍 Aplicando filtros...');
-    console.log('📊 Total de pedidos:', AppState.requests.length);
-    console.log('🎯 Filtros ativos:', AppState.currentFilters);
-    
     AppState.filteredRequests = AppState.requests.filter(request => {
-        // Log de cada pedido
-        const passaTipo = AppState.currentFilters.tipo.length === 0 || AppState.currentFilters.tipo.includes(request.tipo);
-        const passaPrioridade = AppState.currentFilters.prioridade.length === 0 || AppState.currentFilters.prioridade.includes(request.prioridade);
-        const passaEstado = AppState.currentFilters.estado.length === 0 || AppState.currentFilters.estado.includes(request.estado);
+        // ⚡ NORMALIZAR valores para evitar problemas com espaços/maiúsculas
+        const estadoPedido = (request.estado || '').trim();
+        const tipoPedido = (request.tipo || '').trim();
+        const prioridadePedido = (request.prioridade || '').trim();
+        
+        // Filtros
+        const passaTipo = AppState.currentFilters.tipo.length === 0 || AppState.currentFilters.tipo.includes(tipoPedido);
+        const passaPrioridade = AppState.currentFilters.prioridade.length === 0 || AppState.currentFilters.prioridade.includes(prioridadePedido);
+        const passaEstado = AppState.currentFilters.estado.length === 0 || AppState.currentFilters.estado.includes(estadoPedido);
         
         const empresaPedido = request.empresa || 'MCF';
         const passaEmpresa = AppState.currentFilters.empresa.length === 0 || AppState.currentFilters.empresa.includes(empresaPedido);
@@ -4828,25 +4829,10 @@ function applyFilters() {
         const passaParagem = AppState.currentFilters.paragemProducao.length === 0 || 
                             (AppState.currentFilters.paragemProducao.includes('true') && request.paragemProducao === true);
         
-        const passou = passaTipo && passaPrioridade && passaEstado && passaEmpresa && passaEquipamento && passaTipoIntervencao && passaUrgente && passaParagem;
-        
-        if (!passou) {
-            console.log(`❌ Pedido ${request.id} bloqueado:`, {
-                tipo: passaTipo ? '✅' : `❌ ${request.tipo}`,
-                prioridade: passaPrioridade ? '✅' : `❌ ${request.prioridade}`,
-                estado: passaEstado ? '✅' : `❌ ${request.estado}`,
-                empresa: passaEmpresa ? '✅' : `❌ ${empresaPedido}`,
-                equipamento: passaEquipamento ? '✅' : `❌ ${request.areaEquipamento || '-'}`,
-                tipoIntervencao: passaTipoIntervencao ? '✅' : `❌ ${tipoIntervencaoPedido}`,
-                urgente: passaUrgente ? '✅' : `❌ ${request.urgente}`,
-                paragem: passaParagem ? '✅' : `❌ ${request.paragemProducao}`
-            });
-        }
-        
-        return passou;
+        return passaTipo && passaPrioridade && passaEstado && passaEmpresa && passaEquipamento && passaTipoIntervencao && passaUrgente && passaParagem;
     });
     
-    console.log('✅ Pedidos após filtro:', AppState.filteredRequests.length);
+    console.log(`✅ Filtros aplicados: ${AppState.filteredRequests.length} de ${AppState.requests.length} pedidos`);
 }
 
 function applySorting() {
@@ -5108,7 +5094,6 @@ async function syncWithGoogleSheets() {
     }
     try {
         console.log('🔄 Sincronizando com Google Sheets...');
-        console.log('🌐 URL:', CONFIG.GOOGLE_SHEETS_URL);
         
         const response = await fetch(`${CONFIG.GOOGLE_SHEETS_URL}?timestamp=${Date.now()}`, {
             method: 'GET',
@@ -5116,49 +5101,39 @@ async function syncWithGoogleSheets() {
             credentials: 'omit'
         });
         
-        console.log('📡 Sync Response status:', response.status);
         const data = await response.json();
         
-        console.log('📦 DADOS RECEBIDOS - data.success:', data.success);
-        console.log('📦 DADOS RECEBIDOS - data.requests:', data.requests ? data.requests.length : 'undefined');
-        console.log('📦 DADOS RECEBIDOS - Todos os pedidos:', data.requests);
-        
         if (data && data.success) {
-            // Pedidos
+            // ⚡ OTIMIZAÇÃO: Limitar a últimos 200 pedidos (ordenados por data)
             if (data.requests) {
-                console.log('✅ SYNC - Recebidos ' + data.requests.length + ' pedidos do servidor');
-                
-                // Mostrar cada pedido
-                data.requests.forEach((req, idx) => {
-                    console.log(`📝 Pedido ${idx + 1}:`, {
-                        id: req.id,
-                        tipo: req.tipo,
-                        prioridade: req.prioridade,
-                        estado: req.estado,
-                        empresa: req.empresa,
-                        nome: req.nome,
-                        descricao: req.descricao.substring(0, 30)
-                    });
+                // Ordenar por data (mais recentes primeiro)
+                const sortedRequests = data.requests.sort((a, b) => {
+                    return new Date(b.dataHora) - new Date(a.dataHora);
                 });
                 
-                AppState.requests = data.requests;
-                console.log('✅ AppState.requests atualizado com', AppState.requests.length, 'pedidos');
+                // Limitar a 200 pedidos
+                const MAX_REQUESTS = 200;
+                AppState.requests = sortedRequests.slice(0, MAX_REQUESTS);
+                
+                console.log(`✅ ${data.requests.length} pedidos recebidos, mostrando últimos ${AppState.requests.length}`);
+                
+                // Avisar se houver muitos pedidos
+                if (data.requests.length > MAX_REQUESTS) {
+                    console.log(`ℹ️ Total de ${data.requests.length} pedidos. Mostrando apenas os ${MAX_REQUESTS} mais recentes para melhor performance.`);
+                }
             } else {
                 console.warn('⚠️ Nenhum pedido recebido!');
             }
             
             // Artigos
             if (data.artigos) {
-                console.log('🔧 Artigos recebidos:', data.artigos.length);
-                console.log('🔧 Artigos detalhados:', JSON.stringify(data.artigos, null, 2));
                 AppState.artigos = data.artigos;
                 console.log('✅ Artigos sincronizados:', data.artigos.length);
                 
                 // 🛡️ NÃO guardar artigos no localStorage (ocupam muito espaço)
                 // Artigos são sempre carregados do servidor
             } else {
-                console.error('❌ ERRO CRÍTICO: data.artigos é null/undefined!');
-                console.error('📋 Resposta completa do servidor:', JSON.stringify(data, null, 2));
+                console.warn('⚠️ Nenhum artigo recebido');
                 // 🔥 FORÇAR chamada direta a loadArtigosFromGoogleSheets
                 console.warn('🔄 Tentando loadArtigosFromGoogleSheets() como fallback...');
                 await loadArtigosFromGoogleSheets();
