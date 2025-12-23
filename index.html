@@ -3106,6 +3106,24 @@
                             </select>
                         </div>
 
+                        <!-- ⚡ NOVO: Área/Equipamento -->
+                        <div class="form-group">
+                            <label class="form-label" for="areaEquipamento">Área/Equipamento *</label>
+                            <select class="form-input" id="areaEquipamento" name="areaEquipamento" required>
+                                <option value="">Selecione a área/equipamento</option>
+                                <!-- Preenchido dinamicamente via JavaScript -->
+                            </select>
+                        </div>
+
+                        <!-- ⚡ NOVO: Componente (desabilitado até escolher Área) -->
+                        <div class="form-group">
+                            <label class="form-label" for="componente">Componente *</label>
+                            <select class="form-input" id="componente" name="componente" required disabled>
+                                <option value="">Escolha primeiro a área/equipamento</option>
+                                <!-- Preenchido dinamicamente via JavaScript -->
+                            </select>
+                        </div>
+
                         <!-- Checkboxes: Urgente e Paragem Produção -->
                         <div class="form-group">
                             <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 12px;">
@@ -3249,6 +3267,15 @@
                                     <span>PSY</span>
                                 </label>
                             </div>
+                        </div>
+
+                        <!-- ⚡ NOVO: Filtro de Equipamento -->
+                        <div class="filter-group">
+                            <label class="filter-label">🔧 Área/Equipamento</label>
+                            <select id="filterEquipamento" class="form-input" style="width: 100%; margin-top: 8px;">
+                                <option value="">Todos os equipamentos</option>
+                                <!-- Populado dinamicamente via JavaScript -->
+                            </select>
                         </div>
 
                         <div class="filter-group">
@@ -3764,6 +3791,190 @@ const CONFIG = {
         'l03-paletizadora': { name: 'L03 - Paletizadora', url: 'https://drive.google.com/file/d/14BuEGLBx_JXMWVCeUGKbr_t_L-6fe6mY/view', embedUrl: 'https://drive.google.com/file/d/14BuEGLBx_JXMWVCeUGKbr_t_L-6fe6mY/preview' },
         'l03-retestadeira': { name: 'L03 - Retestadeira', url: 'https://drive.google.com/file/d/1X4L2M8KInJMRUaGheGjLcRKHV0vbqUuv/view', embedUrl: 'https://drive.google.com/file/d/1X4L2M8KInJMRUaGheGjLcRKHV0vbqUuv/preview' },
         'tinas': { name: 'Tinas impregnante', url: 'https://drive.google.com/file/d/16dwf9DGaiGrNI2xF1LfoRw1wVA1nZQP-/view', embedUrl: 'https://drive.google.com/file/d/16dwf9DGaiGrNI2xF1LfoRw1wVA1nZQP-/preview' }
+    },
+    
+    // ⚡ EQUIPAMENTOS - Estrutura HARDCODED para performance máxima (INSTANTÂNEO - 0ms)
+    // Total: 146 linhas organizadas em 22 áreas/equipamentos
+    EQUIPAMENTOS: {
+        'Triagem': [
+            'Redler superior Silo Casca',
+            'Redler transporte para Silo Casca',
+            'Rampa Entrada principal Triagem',
+            'Descascadeira',
+            'Corrente Saída Descascadeira',
+            'Rampa Entrada Pós-Descascadeira',
+            'Raixo X',
+            'Corrente Saída Raio X',
+            'Redler Principal Triagem',
+            'Redler Cascas Descascador Charriot',
+            'Corrente Transporte Triagem',
+            'Box 1',
+            'Box 2',
+            'Box 3',
+            'Box 4',
+            'Box 5',
+            'Box 6',
+            'Box 7',
+            'Box 8 - Rampa Linha Principal',
+            'Triagem Outros'
+        ],
+        'L01 - Linha Principal': [
+            'Tapete desperdicio L01',
+            'Quadro Eléctrico/Autómato L01',
+            'Tapete Costaneiros L01-L03',
+            'Tapete Superior de Escolha L01',
+            'Tapete Escolha L01',
+            'Progrow',
+            'Estrutura L01',
+            'Separador do Traçador L01',
+            'Rampa Entrada Exterior Traçador L01',
+            'Redler Entrada Traçador L01',
+            'Traçador L01',
+            'Tapete Saída Traçador L01',
+            'Rampa saída Traçador L01',
+            'Comandos Controlo Dupla L01',
+            'Separador Dupla L1',
+            'Rolos rotação Dupla L01',
+            'Calcador Dupla L01',
+            'Serra Esquerda Dupla L01',
+            'Serra Direita Dupla L01',
+            'Corrente de tração Dupla L01',
+            'Tapete Saída Dupla L01',
+            'Rolos Tração Centrador L01',
+            'Centrador L01',
+            'Tapete Entrada 3/4 Face L01',
+            '3/4 Face L01',
+            'Rolos tração 3/4 Face L01',
+            'Rolos tração Retestadeira L01',
+            'Retestadeira L01',
+            'Rolos tração Multiserra L01',
+            'Multiserra L01',
+            'Tapete saida Multiserra L01',
+            'Tapete entrada Paletizador L01',
+            'Paletizador L01',
+            'Descarga Paletizador L01',
+            'L01 - Linha Principal - Outros'
+        ],
+        'L03 - Linha Aproveitamentos': [
+            'Tapete desperdicio L03.01',
+            'Tapete desperdicio L03.02',
+            'Tapete inferior da Escolha L03.01',
+            'Tapete Escolha L03.02',
+            'Plataforma elevatoria L03',
+            'Estrutura L03',
+            'Tapete Entrada Alinhadeira L03',
+            'Alinhadeira L03',
+            'Tapete Entrada Retestadeira L03',
+            'Retestadeira L03',
+            'Corrente de saída Retestadeira L03',
+            'Tapete Transporte Retest. L03-Multiserra',
+            'Corrente entrada Multis.L03.01',
+            'Multiserra L03.01',
+            'Corrente entrada Multis.L03.02',
+            'Multiserra L03.02',
+            'Tapete entrada-Mesa de Escolha L03.01',
+            'Paletizador L03',
+            'L03 - Linha Aproveitamentos - Outros'
+        ],
+        'L02 - Charriot': [
+            'Rampa Entrada Descascadeira Charriot L02',
+            'Descascadeira Charriot L02',
+            'Corrente Transporte Desc. - Charriot L02',
+            'Redler Charriot L02',
+            'Rampa Entrada Charriot L02',
+            'Charriot L02',
+            'Cabine Comando Charriot L02',
+            'Tapete Desperdicio Charriot L02',
+            'Rampa Descarga Charriot L02',
+            'Rampa Carga-Descarga Charriot L02',
+            'Rolos tração Charriot - Multiserra L02',
+            'Mesa entrada Multiserra L02',
+            'Cabine Comando Multiserra L02',
+            'Tapete Saida Multiserra L02',
+            'Mesa Escolha do Paletizador L02',
+            'Tapete inferior Escolha Paletizador L02',
+            'Retestadeira L02',
+            'Rolos Entrada Retestadeira L02',
+            'L02 - Charriot - Outros'
+        ],
+        'Destroçador': [
+            'Quadro Eléctrico/Automato',
+            'Tapete  Desperdicio',
+            'Tapete Entrada',
+            'Destroçador',
+            'Tapete Saida Destroçador',
+            'Crivos',
+            'Tapete Finos',
+            'Tapete Estilha',
+            'Destroçador - Outros'
+        ],
+        'Aspiração': [
+            'Tubagem Aspiração',
+            'Ventilador',
+            'Ciclones',
+            'Aspiração - Outros'
+        ],
+        'Redlers Interiores': [
+            'Redler Dupla L01',
+            'Redler 3/4 Face',
+            'Redler Dupla-3/4 Face',
+            'Redler Retestadeira L01-Alinh. L03',
+            'Redler Multiserra L01',
+            'Redler Retest. L01-Multis.L01',
+            'Redler Linha Principal - Silo',
+            'Redler L03',
+            'Redler Destroçador - Charriot',
+            'Redler Charriot-Silo'
+        ],
+        'Empilhadores': [
+            'Nissan',
+            'Linde',
+            'Caterpillar'
+        ],
+        'Pás Carregadoras': [
+            'Caterpillar 1',
+            'Caterpillar 2',
+            'Case'
+        ],
+        'High-Liflts': [
+            'Volvo C',
+            'Volvo D',
+            'Volvo E'
+        ],
+        'Tinas Tratamento': [
+            'Tina 1',
+            'Tina 2',
+            'Tina 3'
+        ],
+        'Bomba Gasóleo': [
+            'Bomba Gasóleo'
+        ],
+        'Estufa': [
+            'Estufa Secagem'
+        ],
+        'Caldeiras': [
+            'Caldeira 1',
+            'Caldeira 2'
+        ],
+        'Rede Ar comprimido': [
+            'Compressor 1',
+            'Compressor 2',
+            'Compressor 3',
+            'Secador 1',
+            'Secador 2',
+            'Rede Distribuição Ar Comprimido'
+        ],
+        'Edificio': [
+            'Electricidade',
+            'Canalização Água',
+            'Saneamento',
+            'Rede Informática',
+            'Estrutura',
+            'Edificio - Outros'
+        ],
+        'MCF': [
+            'MCF - Outros'
+        ]
     }
 };
 
@@ -4330,6 +4541,14 @@ function setupEventListeners() {
     document.getElementById('clearBtn').addEventListener('click', clearForm);
     document.getElementById('foto').addEventListener('change', handlePhotoUpload);
     document.querySelectorAll('.filter-tipo, .filter-prioridade, .filter-estado, .filter-empresa, .filter-tipoIntervencao, .filter-urgente, .filter-paragemProducao').forEach(checkbox => checkbox.addEventListener('change', handleFilterChange));
+    
+    // ⚡ NOVO: Event listener para filtro de equipamento
+    const filterEquipamento = document.getElementById('filterEquipamento');
+    if (filterEquipamento) {
+        filterEquipamento.addEventListener('change', handleFilterChange);
+        populateEquipamentoFilter(); // Popular dropdown ao carregar
+    }
+    
     document.getElementById('clearFilters').addEventListener('click', clearFilters);
     document.getElementById('sortBtn').addEventListener('click', toggleSortOrder);
     document.getElementById('closeModal').addEventListener('click', closeModal);
@@ -4340,6 +4559,70 @@ function setupEventListeners() {
     document.getElementById('savePlanningBtn').addEventListener('click', savePlanning);
     document.getElementById('exportPlanningBtn').addEventListener('click', exportPlanningToExcel);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+    
+    // ⚡ Event listeners para Equipamentos/Componentes
+    const areaSelect = document.getElementById('areaEquipamento');
+    const componenteSelect = document.getElementById('componente');
+    
+    if (areaSelect) {
+        areaSelect.addEventListener('change', handleAreaEquipamentoChange);
+        // Popular dropdown de áreas ao carregar
+        populateAreaEquipamento();
+    }
+}
+
+// ⚡ EQUIPAMENTOS - Popular dropdown de Áreas/Equipamentos
+function populateAreaEquipamento() {
+    const areaSelect = document.getElementById('areaEquipamento');
+    if (!areaSelect) return;
+    
+    // Limpar opções existentes (exceto a primeira)
+    areaSelect.innerHTML = '<option value="">Selecione a área/equipamento</option>';
+    
+    // Adicionar todas as áreas do CONFIG.EQUIPAMENTOS
+    const areas = Object.keys(CONFIG.EQUIPAMENTOS).sort(); // Ordenar alfabeticamente
+    
+    areas.forEach(area => {
+        const option = document.createElement('option');
+        option.value = area;
+        option.textContent = area;
+        areaSelect.appendChild(option);
+    });
+    
+    console.log('⚡ Áreas/Equipamentos populadas:', areas.length);
+}
+
+// ⚡ EQUIPAMENTOS - Filtrar componentes ao escolher área
+function handleAreaEquipamentoChange(e) {
+    const areaSelected = e.target.value;
+    const componenteSelect = document.getElementById('componente');
+    
+    if (!componenteSelect) return;
+    
+    // Limpar e desabilitar se não houver área selecionada
+    if (!areaSelected) {
+        componenteSelect.innerHTML = '<option value="">Escolha primeiro a área/equipamento</option>';
+        componenteSelect.disabled = true;
+        return;
+    }
+    
+    // Obter componentes da área selecionada
+    const componentes = CONFIG.EQUIPAMENTOS[areaSelected] || [];
+    
+    // Limpar e popular dropdown de componentes
+    componenteSelect.innerHTML = '<option value="">Selecione o componente</option>';
+    
+    componentes.forEach(componente => {
+        const option = document.createElement('option');
+        option.value = componente;
+        option.textContent = componente;
+        componenteSelect.appendChild(option);
+    });
+    
+    // Habilitar dropdown
+    componenteSelect.disabled = false;
+    
+    console.log('⚡ Componentes filtrados para "' + areaSelected + '":', componentes.length);
 }
 
 function handleTabChange(e) {
@@ -4369,6 +4652,8 @@ async function handleFormSubmit(e) {
             prioridade: document.querySelector('input[name="prioridade"]:checked').value,
             empresa: document.getElementById('empresa').value,
             tipoIntervencao: document.getElementById('tipoIntervencao').value || '-',
+            areaEquipamento: document.getElementById('areaEquipamento').value,
+            componente: document.getElementById('componente').value,
             urgente: document.getElementById('urgente').checked,
             paragemProducao: document.getElementById('paragemProducao').checked,
             departamento: document.getElementById('departamento').value || '-',
@@ -4403,6 +4688,13 @@ async function handleFormSubmit(e) {
 function clearForm() {
     document.getElementById('maintenanceForm').reset();
     clearImagePreview();
+    
+    // ⚡ Resetar campos de Equipamento/Componente
+    const componenteSelect = document.getElementById('componente');
+    if (componenteSelect) {
+        componenteSelect.innerHTML = '<option value="">Escolha primeiro a área/equipamento</option>';
+        componenteSelect.disabled = true;
+    }
 }
 
 function loadSavedUserName() {
@@ -4503,7 +4795,7 @@ function renderRequestsList() {
         return;
     }
     emptyState.classList.remove('active');
-    container.innerHTML = AppState.filteredRequests.map(request => `<div class="request-card" onclick="openRequestDetails('${request.id}')"><div class="request-header"><div class="request-badges"><span class="badge badge-tipo">${request.tipo}</span><span class="badge badge-prioridade ${request.prioridade.toLowerCase()}">${request.prioridade}</span><span class="badge badge-estado ${request.estado.toLowerCase().replace(' ', '')}">${request.estado}</span></div><span class="request-date">${formatDate(request.dataHora)}</span></div><div class="request-body"><h4>${request.tipo} - ${request.prioridade}</h4><p>${request.descricao}</p></div><div class="request-footer"><div class="request-meta"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${request.nome}</span>${request.departamento !== '-' ? `<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${request.departamento}</span>` : ''}</div><div class="request-actions" onclick="event.stopPropagation()">${request.estado !== 'Resolvido' ? `<button class="btn-icon" onclick="changeRequestState('${request.id}')" title="Mudar estado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>` : ''}<button class="btn-icon" onclick="deleteRequest('${request.id}')" title="Eliminar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div></div></div>`).join('');
+    container.innerHTML = AppState.filteredRequests.map(request => `<div class="request-card" onclick="openRequestDetails('${request.id}')"><div class="request-header"><div class="request-badges"><span class="badge badge-tipo">${request.tipo}</span><span class="badge badge-prioridade ${request.prioridade.toLowerCase()}">${request.prioridade}</span><span class="badge badge-estado ${request.estado.toLowerCase().replace(' ', '')}">${request.estado}</span>${request.areaEquipamento && request.areaEquipamento !== '-' ? `<span class="badge" style="background: #667eea; color: white; font-size: 11px;" title="${request.componente || ''}">🔧 ${request.areaEquipamento}</span>` : ''}</div><span class="request-date">${formatDate(request.dataHora)}</span></div><div class="request-body"><h4>${request.tipo} - ${request.prioridade}</h4><p>${request.descricao}</p></div><div class="request-footer"><div class="request-meta"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${request.nome}</span>${request.departamento !== '-' ? `<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${request.departamento}</span>` : ''}</div><div class="request-actions" onclick="event.stopPropagation()">${request.estado !== 'Resolvido' ? `<button class="btn-icon" onclick="changeRequestState('${request.id}')" title="Mudar estado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>` : ''}<button class="btn-icon" onclick="deleteRequest('${request.id}')" title="Eliminar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div></div></div>`).join('');
 }
 
 function applyFilters() {
@@ -4520,6 +4812,11 @@ function applyFilters() {
         const empresaPedido = request.empresa || 'MCF';
         const passaEmpresa = AppState.currentFilters.empresa.length === 0 || AppState.currentFilters.empresa.includes(empresaPedido);
         
+        // ⚡ NOVO: Filtro de Equipamento
+        const filterEquipamento = document.getElementById('filterEquipamento')?.value || '';
+        const passaEquipamento = !filterEquipamento || 
+                                (request.areaEquipamento && request.areaEquipamento === filterEquipamento);
+        
         // Novos filtros
         const tipoIntervencaoPedido = request.tipoIntervencao || '-';
         const passaTipoIntervencao = AppState.currentFilters.tipoIntervencao.length === 0 || 
@@ -4531,7 +4828,7 @@ function applyFilters() {
         const passaParagem = AppState.currentFilters.paragemProducao.length === 0 || 
                             (AppState.currentFilters.paragemProducao.includes('true') && request.paragemProducao === true);
         
-        const passou = passaTipo && passaPrioridade && passaEstado && passaEmpresa && passaTipoIntervencao && passaUrgente && passaParagem;
+        const passou = passaTipo && passaPrioridade && passaEstado && passaEmpresa && passaEquipamento && passaTipoIntervencao && passaUrgente && passaParagem;
         
         if (!passou) {
             console.log(`❌ Pedido ${request.id} bloqueado:`, {
@@ -4539,6 +4836,7 @@ function applyFilters() {
                 prioridade: passaPrioridade ? '✅' : `❌ ${request.prioridade}`,
                 estado: passaEstado ? '✅' : `❌ ${request.estado}`,
                 empresa: passaEmpresa ? '✅' : `❌ ${empresaPedido}`,
+                equipamento: passaEquipamento ? '✅' : `❌ ${request.areaEquipamento || '-'}`,
                 tipoIntervencao: passaTipoIntervencao ? '✅' : `❌ ${tipoIntervencaoPedido}`,
                 urgente: passaUrgente ? '✅' : `❌ ${request.urgente}`,
                 paragem: passaParagem ? '✅' : `❌ ${request.paragemProducao}`
@@ -4570,12 +4868,41 @@ function handleFilterChange(e) {
     renderRequestsList();
 }
 
+// ⚡ EQUIPAMENTOS - Popular filtro de equipamento
+function populateEquipamentoFilter() {
+    const select = document.getElementById('filterEquipamento');
+    if (!select) return;
+    
+    // Limpar opções existentes (exceto a primeira "Todos")
+    select.innerHTML = '<option value="">Todos os equipamentos</option>';
+    
+    // Adicionar todas as áreas do CONFIG.EQUIPAMENTOS (ordenadas alfabeticamente)
+    const areas = Object.keys(CONFIG.EQUIPAMENTOS).sort();
+    
+    areas.forEach(area => {
+        const componentesCount = CONFIG.EQUIPAMENTOS[area].length;
+        const option = document.createElement('option');
+        option.value = area;
+        option.textContent = `${area} (${componentesCount})`;
+        select.appendChild(option);
+    });
+    
+    console.log('⚡ Filtro de Equipamento populado com', areas.length, 'áreas');
+}
+
 function clearFilters() {
     AppState.currentFilters = { tipo: [], prioridade: [], estado: ['Novo', 'Em curso'], empresa: [], tipoIntervencao: [], urgente: [], paragemProducao: [] };
     document.querySelectorAll('.filter-tipo, .filter-prioridade, .filter-estado, .filter-empresa, .filter-tipoIntervencao, .filter-urgente, .filter-paragemProducao').forEach(checkbox => checkbox.checked = false);
     document.querySelectorAll('.filter-estado').forEach(checkbox => {
         if (checkbox.value === 'Novo' || checkbox.value === 'Em curso') checkbox.checked = true;
     });
+    
+    // ⚡ NOVO: Limpar filtro de equipamento
+    const filterEquipamento = document.getElementById('filterEquipamento');
+    if (filterEquipamento) {
+        filterEquipamento.value = '';
+    }
+    
     renderRequestsList();
 }
 
@@ -4624,6 +4951,24 @@ function openRequestDetails(id) {
         <div class="detail-group">
             <div class="detail-label">Tipo de Intervenção</div>
             <div class="detail-value">${request.tipoIntervencao}</div>
+        </div>`;
+    }
+    
+    // ⚡ NOVO: Área/Equipamento
+    if (request.areaEquipamento && request.areaEquipamento !== '-') {
+        html += `
+        <div class="detail-group">
+            <div class="detail-label">Área/Equipamento</div>
+            <div class="detail-value"><strong>${request.areaEquipamento}</strong></div>
+        </div>`;
+    }
+    
+    // ⚡ NOVO: Componente
+    if (request.componente && request.componente !== '-') {
+        html += `
+        <div class="detail-group">
+            <div class="detail-label">Componente</div>
+            <div class="detail-value">${request.componente}</div>
         </div>`;
     }
     
@@ -6321,4 +6666,3 @@ window.openNovoMovimentoModal = openNovoMovimentoModal;
     </script>
 </body>
 </html>
-
