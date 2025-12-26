@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.6.3
+    📦 Versão: v3.6.5
     📅 Data: 2025-01-23
-    🐛 Bug Fix: "Resolvido" agora atualiza linha existente (não cria duplicados)
-    ⚡ Performance: 35x mais rápido
+    ✨ Novo: Dropdown responsável no planeamento
+    ⚡ Performance: Cache inteligente 1min + invalidação automática
+    🐛 Bug Fix v3.6.3: "Resolvido" agora atualiza linha existente (não cria duplicados)
+    ⚡ Performance v3.6.2: 35x mais rápido
 -->
 <html lang="pt">
 <head>
@@ -1367,6 +1369,30 @@
             background: var(--color-white);
             color: var(--color-text-primary);
             font-weight: var(--font-weight-medium);
+            padding: var(--spacing-xs);
+        }
+        
+        /* ✅ NOVO: Estilo para select de responsável */
+        .planning-grid .responsible-select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-size: 0.875rem;
+            background-color: var(--color-white);
+            color: var(--color-text-primary);
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+        
+        .planning-grid .responsible-select:hover {
+            border-color: var(--color-primary);
+        }
+        
+        .planning-grid .responsible-select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
         }
         
         .planning-grid td.hours-cell {
@@ -4047,6 +4073,7 @@ const AppState = {
     planning: { allocations: {}, startDate: null, endDate: null },
     artigos: [],
     movimentos: [],
+    utilizadores: [],  // ✅ NOVO: Lista de utilizadores para dropdown
     artigoSelecionado: null,
     currentUser: null  // { username, nomeCompleto, departamento, role, podeEditarPlaneamento, token }
 };
@@ -5157,6 +5184,14 @@ async function syncWithGoogleSheets() {
                 console.warn('⚠️ Nenhum movimento recebido!');
             }
             
+            // ✅ Utilizadores (para dropdown de responsável no planeamento)
+            if (data.utilizadores) {
+                AppState.utilizadores = data.utilizadores.filter(u => u.ativo !== false);
+                console.log('✅ Utilizadores carregados:', AppState.utilizadores.length);
+            } else {
+                console.warn('⚠️ Nenhum utilizador recebido!');
+            }
+            
             // 💾 Guardar APENAS pedidos (sem fotos, limitados a 30)
             saveToLocalStorage();
             console.log('✅ Sincronizado com Google Sheets - TUDO OK!');
@@ -5589,7 +5624,16 @@ function renderPlanningGrid() {
         html += `<td class="task-cell"><div class="task-info"><div class="task-title">${task.descricao}</div><div class="task-meta"><span class="badge badge-tipo">${task.tipo}</span><span class="badge badge-prioridade ${task.prioridade.toLowerCase()}">${task.prioridade}</span>`;
         if (task.responsavel && task.responsavel !== '-') html += `<span class="task-responsible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${task.responsavel}</span>`;
         html += `</div></div></td>`;
-        html += `<td class="responsible-cell">${task.responsavel || '-'}</td>`;
+        
+        // ✅ NOVO: Select dropdown para Responsável (em vez de texto estático)
+        html += `<td class="responsible-cell">`;
+        html += `<select class="responsible-select" data-task-id="${task.id}" onchange="updateTaskResponsible('${task.id}', this.value)">`;
+        html += `<option value="">-</option>`;
+        AppState.utilizadores.forEach(user => {
+            const selected = task.responsavel === user.nomeCompleto ? 'selected' : '';
+            html += `<option value="${user.nomeCompleto}" ${selected}>${user.nomeCompleto}</option>`;
+        });
+        html += `</select></td>`;
         const taskHours = task.horasEstimadas || '';
         html += `<td class="hours-cell"><input type="number" class="hours-input" value="${taskHours}" min="0" step="0.5" placeholder="0" data-task-id="${task.id}" onchange="updateTaskHours('${task.id}', this.value)"></td>`;
         dates.forEach(date => {
@@ -5618,6 +5662,17 @@ function updateTaskHours(taskId, hours) {
         task.horasEstimadas = hours ? parseFloat(hours) : 0;
         saveToLocalStorage();
         showToast(`Horas atualizadas: ${hours || 0}h`, 'success');
+    }
+}
+
+// ✅ NOVO: Atualizar responsável da tarefa no planeamento
+function updateTaskResponsible(taskId, responsavel) {
+    const task = AppState.requests.find(r => r.id === taskId);
+    if (task) {
+        task.responsavel = responsavel || '';
+        saveToLocalStorage();
+        renderPlanningGrid();  // Re-render para atualizar badge de responsável
+        showToast(`Responsável atualizado: ${responsavel || 'Nenhum'}`, 'success');
     }
 }
 function savePlanning() {
