@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.6.5
-    📅 Data: 2025-01-23
-    ✨ Novo: Dropdown responsável no planeamento
-    ⚡ Performance: Cache inteligente 1min + invalidação automática
-    🐛 Bug Fix v3.6.3: "Resolvido" agora atualiza linha existente (não cria duplicados)
-    ⚡ Performance v3.6.2: 35x mais rápido
+    📦 Versão: v3.6.7
+    📅 Data: 2025-12-26
+    🧹 v3.6.7: Limpeza profunda (↓25% ficheiros, ↓30% tamanho, zero 404)
+    ⚠️ v3.6.6: Alertas de Stock Mínimo ACIMA do histórico (reordenado)
+    ✨ v3.6.5: Dropdown responsável no planeamento
+    ⚡ v3.6.4: Cache inteligente 1min + invalidação automática
+    🐛 v3.6.3: "Resolvido" agora atualiza linha existente
 -->
 <html lang="pt">
 <head>
@@ -23,26 +24,19 @@
     <link rel="manifest" href="/appmanutencao/manifest.json">
     
     <!-- Favicons -->
-    <link rel="icon" type="image/x-icon" href="/appmanutencao/icons/favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="/appmanutencao/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/appmanutencao/icons/favicon-16x16.png">
-    <link rel="shortcut icon" href="/appmanutencao/icons/favicon.ico">
     
     <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" href="/appmanutencao/icons/apple-touch-icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/appmanutencao/icons/apple-touch-icon-180x180.png">
     <link rel="apple-touch-icon" sizes="152x152" href="/appmanutencao/icons/apple-touch-icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="/appmanutencao/icons/apple-touch-icon-144x144.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="/appmanutencao/icons/apple-touch-icon-120x120.png">
     <link rel="apple-touch-icon" sizes="114x114" href="/appmanutencao/icons/apple-touch-icon-114x114.png">
     <link rel="apple-touch-icon" sizes="76x76" href="/appmanutencao/icons/apple-touch-icon-76x76.png">
     <link rel="apple-touch-icon" sizes="72x72" href="/appmanutencao/icons/apple-touch-icon-72x72.png">
     <link rel="apple-touch-icon" sizes="60x60" href="/appmanutencao/icons/apple-touch-icon-60x60.png">
     
     <!-- Microsoft Tiles -->
-    <meta name="msapplication-TileImage" content="/appmanutencao/icons/mstile-150x150.png">
     <meta name="msapplication-TileColor" content="#000000">
-    <link rel="browserconfig" href="/appmanutencao/browserconfig.xml">
     
     <!-- Preload logo for faster loading -->
     <link rel="preload" href="./icons/android-chrome-192x192.png" as="image" type="image/png">
@@ -241,6 +235,42 @@
         
         .tab-btn:hover:not(.active) {
             background: var(--color-background);
+        }
+        
+        /* ✅ NOVO: Badge de alertas no botão tab */
+        .alert-badge {
+            background: #d32f2f;
+            color: white;
+            border-radius: 10px;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            margin-left: 6px;
+            font-weight: var(--font-weight-semibold);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* ✅ NOVO: Badges de status de stock */
+        .badge-critico {
+            background: #d32f2f;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: var(--font-weight-semibold);
+        }
+        
+        .badge-alerta {
+            background: #f57c00;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: var(--font-weight-semibold);
         }
         
         /* Tab Content */
@@ -3061,6 +3091,7 @@
                     <line x1="12" y1="22.08" x2="12" y2="12"/>
                 </svg>
                 Stock
+                <span class="alert-badge" id="stockAlertBadge" style="display: none;">0</span>
             </button>
         </nav>
 
@@ -3571,7 +3602,17 @@
                     </button>
                 </div>
                 
-                <!-- SECÇÃO 3: HISTÓRICO DE MOVIMENTOS -->
+                <!-- SECÇÃO 3: ⚠️ ALERTAS DE STOCK MÍNIMO -->
+                <div class="card" style="margin-top: var(--spacing-lg);">
+                    <h2 class="card-title">⚠️ Alertas de Stock Mínimo</h2>
+                    <p class="card-description">Artigos com stock abaixo do mínimo definido</p>
+                    
+                    <div id="stockMinimoContent">
+                        <!-- Preenchido dinamicamente -->
+                    </div>
+                </div>
+                
+                <!-- SECÇÃO 4: HISTÓRICO DE MOVIMENTOS -->
                 <div class="card" style="margin-top: var(--spacing-lg);">
                     <h2 class="card-title">📋 Histórico de Movimentos</h2>
                     
@@ -4665,7 +4706,14 @@ function handleTabChange(e) {
     e.currentTarget.classList.add('active');
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     document.getElementById(`tab-${tab}`).classList.add('active');
+    
     if (tab === 'planeamento') renderPlanningGrid();
+    
+    // ✅ NOVO: Renderizar alertas de stock mínimo ao abrir tab Stock
+    if (tab === 'stock') {
+        renderStockMinimo();
+        renderMovimentos();
+    }
     
     // Re-aplicar auto-preenchimento quando mudar de tab
     if (tab === 'novo') {
@@ -5164,6 +5212,9 @@ async function syncWithGoogleSheets() {
             if (data.artigos) {
                 AppState.artigos = data.artigos;
                 console.log('✅ Artigos sincronizados:', data.artigos.length);
+                
+                // ✅ NOVO: Atualizar badge de alertas após carregar artigos
+                renderStockMinimo();
                 
                 // 🛡️ NÃO guardar artigos no localStorage (ocupam muito espaço)
                 // Artigos são sempre carregados do servidor
@@ -6252,6 +6303,107 @@ function renderMovimentos() {
             </tr>
         `;
     }).join('');
+}
+
+// ✅ NOVO: Renderizar alertas de stock mínimo
+function renderStockMinimo() {
+    const container = document.getElementById('stockMinimoContent');
+    if (!container) return;
+    
+    // Filtrar artigos abaixo do mínimo (só os que têm stockMinimo definido)
+    const alertas = AppState.artigos.filter(a => 
+        a.stockMinimo > 0 && a.stockAtual < a.stockMinimo
+    );
+    
+    // Atualizar badge no botão da tab Stock
+    const badge = document.getElementById('stockAlertBadge');
+    if (badge) {
+        if (alertas.length > 0) {
+            badge.textContent = alertas.length;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    
+    // Se não há alertas, mostrar mensagem positiva
+    if (alertas.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state-small" style="color: var(--color-success); background: #e8f5e9; padding: var(--spacing-lg); border-radius: 8px; text-align: center;">
+                <div style="font-size: 2rem; margin-bottom: 8px;">✅</div>
+                <strong>Todos os stocks estão acima do mínimo!</strong>
+                <p style="margin-top: 8px; color: var(--color-text-secondary);">Nenhum artigo requer atenção imediata.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Ordenar por criticidade: stock=0 primeiro, depois por % de falta
+    alertas.sort((a, b) => {
+        if (a.stockAtual === 0 && b.stockAtual !== 0) return -1;
+        if (a.stockAtual !== 0 && b.stockAtual === 0) return 1;
+        const faltaA = (a.stockMinimo - a.stockAtual) / a.stockMinimo;
+        const faltaB = (b.stockMinimo - b.stockAtual) / b.stockMinimo;
+        return faltaB - faltaA;
+    });
+    
+    // Renderizar tabela
+    let html = `
+        <div style="margin-bottom: var(--spacing-md); padding: var(--spacing-sm); background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+            <strong>⚠️ ${alertas.length} artigo(s) abaixo do stock mínimo</strong>
+        </div>
+        <div class="stock-table-container" style="max-height: 500px; overflow-y: auto;">
+            <table class="stock-table">
+                <thead>
+                    <tr>
+                        <th style="min-width: 200px;">Artigo</th>
+                        <th style="min-width: 120px;">Família</th>
+                        <th style="text-align: center; min-width: 100px;">Stock Atual</th>
+                        <th style="text-align: center; min-width: 100px;">Stock Mínimo</th>
+                        <th style="text-align: center; min-width: 80px;">Falta</th>
+                        <th style="text-align: center; min-width: 100px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    alertas.forEach(artigo => {
+        const falta = artigo.stockMinimo - artigo.stockAtual;
+        const isCritico = artigo.stockAtual === 0;
+        const statusClass = isCritico ? 'badge-critico' : 'badge-alerta';
+        const statusIcon = isCritico ? '🔴' : '⚠️';
+        const statusText = isCritico ? 'Crítico' : 'Baixo';
+        
+        html += `
+            <tr style="${isCritico ? 'background: #ffebee;' : ''}">
+                <td>
+                    <strong>${artigo.designacao}</strong><br>
+                    <small style="color: var(--color-text-secondary);">Ref: ${artigo.referencia}</small>
+                </td>
+                <td>${artigo.familia}</td>
+                <td style="text-align: center;">
+                    <strong style="color: ${isCritico ? '#d32f2f' : '#f57c00'}; font-size: 1.1rem;">
+                        ${artigo.stockAtual}
+                    </strong>
+                </td>
+                <td style="text-align: center;">${artigo.stockMinimo}</td>
+                <td style="text-align: center;">
+                    <strong style="color: #d32f2f;">-${falta}</strong>
+                </td>
+                <td style="text-align: center;">
+                    <span class="badge ${statusClass}">${statusIcon} ${statusText}</span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
 }
 
 function formatDateTime(date) {
