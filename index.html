@@ -3216,7 +3216,7 @@
 
                         <!-- Upload de Foto -->
                         <div class="form-group">
-                            <label class="form-label" for="foto">Fotografia (opcional, máx. 2MB)</label>
+                            <label class="form-label" for="foto">Fotografia (opcional, máx. 5MB)</label>
                             <div class="file-upload">
                                 <input type="file" id="foto" name="foto" accept="image/*" class="file-input">
                                 <label for="foto" class="file-label">
@@ -3951,6 +3951,77 @@ async function deletePlaneamento(id) {
     });
 }
 
+// 📸 v3.6.18: Storage para Fotos
+async function uploadFoto(pedidoId, file) {
+    try {
+        console.log('📸 Iniciando upload...', file.name, (file.size / 1024 / 1024).toFixed(2) + ' MB');
+        
+        // Nome do ficheiro = ID do pedido + extensão
+        const ext = file.type.split('/')[1] || 'jpg';
+        const fileName = `${pedidoId}.${ext}`;
+        
+        // Upload via REST API do Supabase Storage
+        const url = `${SUPABASE_CONFIG.URL}/storage/v1/object/pedidos-fotos/${fileName}`;
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'apikey': SUPABASE_CONFIG.ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+                'Content-Type': file.type,
+                'x-upsert': 'true'  // Substituir se já existir
+            },
+            body: file  // Enviar File diretamente
+        });
+        
+        if (!response.ok) {
+            const error = await response.text();
+            console.error('❌ Erro upload Storage:', error);
+            throw new Error('Erro ao fazer upload da foto');
+        }
+        
+        // Retornar URL pública
+        const publicUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/pedidos-fotos/${fileName}`;
+        console.log('✅ Foto enviada:', publicUrl);
+        return publicUrl;
+        
+    } catch (error) {
+        console.error('❌ Erro ao fazer upload:', error);
+        return null;  // Retornar null em vez de falhar
+    }
+}
+
+async function deleteFoto(pedidoId) {
+    try {
+        // Tentar deletar jpg, jpeg, png, webp (não sabemos a extensão)
+        const extensions = ['jpg', 'jpeg', 'png', 'webp'];
+        
+        for (const ext of extensions) {
+            const fileName = `${pedidoId}.${ext}`;
+            const url = `${SUPABASE_CONFIG.URL}/storage/v1/object/pedidos-fotos/${fileName}`;
+            
+            await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'apikey': SUPABASE_CONFIG.ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`
+                }
+            });
+        }
+        
+        console.log('✅ Foto eliminada (tentado todas extensões)');
+        
+    } catch (error) {
+        console.error('⚠️ Erro ao eliminar foto:', error);
+        // Não falhar se não conseguir deletar
+    }
+}
+
+function getFotoUrl(pedidoId, extensao = 'jpg') {
+    if (!pedidoId) return null;
+    return `${SUPABASE_CONFIG.URL}/storage/v1/object/public/pedidos-fotos/${pedidoId}.${extensao}`;
+}
+
 // Exportar para uso global
 window.SupabaseAPI = {
     getArtigos,
@@ -3965,7 +4036,10 @@ window.SupabaseAPI = {
     getPlaneamento,
     addPlaneamento,
     updatePlaneamento,
-    deletePlaneamento
+    deletePlaneamento,
+    uploadFoto,
+    deleteFoto,
+    getFotoUrl
 };
 
 console.log('✅ Supabase API inicializada (INLINE)');
@@ -3982,10 +4056,12 @@ console.log('✅ Supabase API inicializada (INLINE)');
 const CONFIG = {
     // ❌ DESATIVADO - Migrado para Supabase v3.6.8
     // GOOGLE_SHEETS_URL: 'https://script.google.com/macros/s/AKfycbxsgLa1qTwDRg13sItlTHg5cqhFaxrvjj_Oq-7f7VCBUcMNog_qPvRDrYm1vgAkoB-w-g/exec',
-    MAX_IMAGE_SIZE: 2 * 1024 * 1024,
-    IMAGE_QUALITY: 0.8,
-    MAX_IMAGE_WIDTH: 1920,
-    MAX_IMAGE_HEIGHT: 1920,
+    
+    // 📸 v3.6.18: Aumentar limites para fotos (Storage)
+    MAX_IMAGE_SIZE: 5 * 1024 * 1024,  // 5 MB (era 2 MB)
+    IMAGE_QUALITY: 0.85,               // 85% (era 80%)
+    MAX_IMAGE_WIDTH: 2560,             // 2560px (era 1920px)
+    MAX_IMAGE_HEIGHT: 2560,            // 2560px (era 1920px),
     LOGO_PATHS: [
         'icons/android-chrome-192x192.png',
         './icons/android-chrome-192x192.png',
@@ -4922,8 +4998,31 @@ async function handleFormSubmit(e) {
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
     try {
+        const pedidoId = generateUUID();
+        
+        // 📸 v3.6.18: Upload foto ANTES de criar pedido
+        let fotoUrl = '';
+        const fotoFile = await getImageData();
+        
+        if (fotoFile) {
+            console.log('📸 A fazer upload da foto...');
+            showToast('A enviar foto...', 'info');
+            
+            try {
+                fotoUrl = await window.SupabaseAPI.uploadFoto(pedidoId, fotoFile);
+                if (fotoUrl) {
+                    console.log('✅ Foto enviada:', fotoUrl);
+                } else {
+                    console.warn('⚠️ Foto não foi enviada, pedido será criado sem foto');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao enviar foto:', error);
+                // Continuar mesmo se foto falhar
+            }
+        }
+        
         const formData = {
-            id: generateUUID(),
+            id: pedidoId,
             tipo: document.getElementById('tipo').value,
             prioridade: document.querySelector('input[name="prioridade"]:checked').value,
             empresa: document.getElementById('empresa').value,
@@ -4934,24 +5033,28 @@ async function handleFormSubmit(e) {
             paragemProducao: document.getElementById('paragemProducao').checked,
             departamento: document.getElementById('departamento').value || '-',
             descricao: document.getElementById('descricao').value,
-            foto: await getImageData(),
+            foto: fotoUrl,  // ✅ URL do Storage (ou vazio)
             nome: document.getElementById('nome').value,
             dataHora: new Date().toISOString(),
             estado: 'Novo'
         };
+        
         localStorage.setItem(CONFIG.STORAGE_KEYS.USER_NAME, formData.nome);
         AppState.requests.unshift(formData);
         saveToLocalStorage();
+        
         if (AppState.isOnline) {
             await sendToGoogleSheets(formData);
         } else {
             addToOfflineQueue(formData);
             showToast('Pedido salvo offline. Será sincronizado quando estiver online.', 'info');
         }
+        
         clearForm();
         showToast('Pedido criado com sucesso!', 'success');
         document.querySelector('.tab-btn[data-tab="lista"]').click();
         renderRequestsList();
+        
     } catch (error) {
         console.error('Erro ao criar pedido:', error);
         showToast('Erro ao criar pedido. Tente novamente.', 'error');
@@ -4978,12 +5081,15 @@ function loadSavedUserName() {
     if (savedName) document.getElementById('nome').value = savedName;
 }
 
+// 📸 v3.6.18: Variável global para guardar o File original
+let currentPhotoFile = null;
+
 // UPLOAD DE IMAGENS
 async function handlePhotoUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > CONFIG.MAX_IMAGE_SIZE) {
-        showToast('A imagem deve ter no máximo 2MB.', 'error');
+        showToast('A imagem deve ter no máximo 5MB.', 'error');
         e.target.value = '';
         return;
     }
@@ -4993,13 +5099,20 @@ async function handlePhotoUpload(e) {
         return;
     }
     try {
+        // ✅ Guardar File original para upload posterior
+        currentPhotoFile = file;
+        
+        // Criar preview comprimido (só para visualização)
         const compressedImage = await compressImage(file);
         showImagePreview(compressedImage);
         document.getElementById('fileName').textContent = file.name;
+        
+        console.log('📸 Foto selecionada:', file.name, (file.size / 1024 / 1024).toFixed(2) + ' MB');
     } catch (error) {
         console.error('Erro ao processar imagem:', error);
         showToast('Erro ao processar imagem.', 'error');
         e.target.value = '';
+        currentPhotoFile = null;
     }
 }
 
@@ -5047,13 +5160,12 @@ function clearImagePreview() {
     preview.classList.remove('active');
     document.getElementById('foto').value = '';
     document.getElementById('fileName').textContent = 'Escolher imagem';
+    currentPhotoFile = null;  // ✅ Limpar File guardado
 }
 
+// 📸 v3.6.18: Retornar File original em vez de base64
 async function getImageData() {
-    const preview = document.getElementById('imagePreview');
-    if (!preview.classList.contains('active')) return null;
-    const img = preview.querySelector('img');
-    return img ? img.src : null;
+    return currentPhotoFile;  // Retorna File ou null
 }
 
 // LISTAGEM
@@ -5303,11 +5415,20 @@ function openRequestDetails(id) {
             <div class="detail-value">${request.nome}</div>
         </div>`;
     
+    // 📸 v3.6.18: Suportar fotos do Storage E base64 (legacy)
     if (request.foto) {
+        // Se for URL do Storage ou base64, mostrar normalmente
+        const fotoSrc = request.foto.startsWith('http') || request.foto.startsWith('data:') 
+            ? request.foto 
+            : window.SupabaseAPI.getFotoUrl(request.id);  // Fallback: tentar gerar URL
+        
         html += `
         <div class="detail-group">
             <div class="detail-label">Fotografia</div>
-            <img src="${request.foto}" alt="Foto do pedido" class="detail-image">
+            <img src="${fotoSrc}" 
+                 alt="Foto do pedido" 
+                 class="detail-image"
+                 onerror="this.style.display='none'; this.parentElement.innerHTML='<p style=color:red>⚠️ Foto não disponível</p>'">
         </div>`;
     }
     
@@ -7208,4 +7329,3 @@ window.openNovoMovimentoModal = openNovoMovimentoModal;
     </script>
 </body>
 </html>
-
