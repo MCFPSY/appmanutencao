@@ -6458,14 +6458,15 @@ async function syncMovimentoToGoogleSheets(movimento) {
         
         // Converter formato app → formato Supabase
         const supabaseMovimento = {
-            'Artigo ID': movimento.artigoId,
-            'Tipo': movimento.tipo,
-            'Quantidade': movimento.quantidade,
+            'ID': movimento.id || 'MOV' + Date.now(),
+            'Data/Hora': movimento.dataHora ? new Date(movimento.dataHora).toISOString() : new Date().toISOString(),
+            'Artigo ID': movimento.artigoId || '',
+            'Tipo': movimento.tipo || '',
+            'Quantidade': String(movimento.quantidade || 0),
             'Pedido ID': movimento.pedidoId || '',
             'Responsável': movimento.responsavel || '',
             'Observações': movimento.observacoes || '',
-            'Empresa': movimento.empresa || 'MCF',
-            'Data/Hora': movimento.dataHora || new Date().toISOString()
+            'Empresa': movimento.empresa || 'MCF'
         };
         
         await window.SupabaseAPI.addMovimento(supabaseMovimento);
@@ -6654,6 +6655,8 @@ async function darBaixaRapida(artigoId) {
         artigoId: artigo.id,
         tipo: 'Saída',
         quantidade: -qtd,
+        empresa: 'MCF',
+        pedidoId: '',
         responsavel: responsavel || '-',
         observacoes: observacoes || 'Baixa rápida'
     };
@@ -7275,6 +7278,7 @@ async function handleMovimentoSubmit(e) {
         tipo: tipoNormalizado,  // ✅ Usar tipo normalizado
         quantidade: quantidade,  // ✅ Sempre positivo
         empresa: empresa,
+        pedidoId: '',
         responsavel: responsavel,
         observacoes: observacoes
     };
