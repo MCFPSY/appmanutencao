@@ -3822,6 +3822,9 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
+    <!-- 🔥 Supabase Client -->
+    <script src="./js/supabase-client.js"></script>
+    
     <!-- JavaScript Principal (INLINE para garantir funcionamento) -->
     <script>
 // ================================================
@@ -3831,7 +3834,8 @@
 
 // CONFIGURAÇÃO
 const CONFIG = {
-    GOOGLE_SHEETS_URL: 'https://script.google.com/macros/s/AKfycbxsgLa1qTwDRg13sItlTHg5cqhFaxrvjj_Oq-7f7VCBUcMNog_qPvRDrYm1vgAkoB-w-g/exec',
+    // ❌ DESATIVADO - Migrado para Supabase v3.6.8
+    // GOOGLE_SHEETS_URL: 'https://script.google.com/macros/s/AKfycbxsgLa1qTwDRg13sItlTHg5cqhFaxrvjj_Oq-7f7VCBUcMNog_qPvRDrYm1vgAkoB-w-g/exec',
     MAX_IMAGE_SIZE: 2 * 1024 * 1024,
     IMAGE_QUALITY: 0.8,
     MAX_IMAGE_WIDTH: 1920,
@@ -4228,39 +4232,39 @@ async function handleLogin(event) {
         
         console.log('🔐 A tentar login:', username);
         
-        // Fazer pedido de login ao Google Apps Script
-        // Usar JSONP para contornar CORS
-        const response = await fetch(CONFIG.GOOGLE_SHEETS_URL + '?action=login&username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password), {
-            method: 'GET',
-            mode: 'cors',
-            credentials: 'omit'
-        });
+        // 🔥 LOGIN COM SUPABASE v3.6.8
+        const user = await window.SupabaseAPI.loginUtilizador(username, password);
         
-        const result = await response.json();
+        // Criar sessão local
+        const sessionData = {
+            username: user.Username,
+            nomeCompleto: user['Nome Completo'],
+            departamento: user.Departamento,
+            role: user.Role,
+            podeEditarPlaneamento: user['Pode editar'] === 'Sim' || user['Pode editar'] === true,
+            ativo: user.Ativo === 'Sim' || user.Ativo === true,
+            token: 'supabase_' + Date.now()
+        };
         
-        if (result.success && result.data) {
-            AppState.currentUser = result.data;
-            localStorage.setItem(CONFIG.STORAGE_KEYS.USER_SESSION, JSON.stringify(result.data));
-            localStorage.setItem(CONFIG.STORAGE_KEYS.USER_TOKEN, result.data.token);
-            setCookie('maintenance_user_session', JSON.stringify(result.data), 30);
-            setCookie('maintenance_user_token', result.data.token, 30);
-            
-            showToast(`Bem-vindo, ${result.data.nomeCompleto}!`, 'success');
-            
-            hideLoginModal();
-            showUserInterface();
-            
-            setTimeout(() => {
-                applyUserAutoFill();
-                applyPermissions();
-            }, 200);
-            
-            if (AppState.isOnline) await syncWithGoogleSheets();
-            renderRequestsList();
-            
-        } else {
-            showLoginError(result.message || 'Username ou password incorretos');
-        }
+        AppState.currentUser = sessionData;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.USER_SESSION, JSON.stringify(sessionData));
+        localStorage.setItem(CONFIG.STORAGE_KEYS.USER_TOKEN, sessionData.token);
+        setCookie('maintenance_user_session', JSON.stringify(sessionData), 30);
+        setCookie('maintenance_user_token', sessionData.token, 30);
+        
+        showToast(`Bem-vindo, ${sessionData.nomeCompleto}!`, 'success');
+        
+        hideLoginModal();
+        showUserInterface();
+        
+        setTimeout(() => {
+            applyUserAutoFill();
+            applyPermissions();
+        }, 200);
+        
+        // 🔥 CARREGAR DADOS DO SUPABASE
+        if (AppState.isOnline) await loadDataFromSupabase();
+        renderRequestsList();
         
     } catch (e) {
         console.error('❌ Erro ao fazer login:', e);
@@ -4271,50 +4275,77 @@ async function handleLogin(event) {
     }
 }
 
+// 🔥 NOVA FUNÇÃO v3.6.8: Carregar dados do Supabase
+async function loadDataFromSupabase() {
+    try {
+        console.log('📥 A carregar dados do Supabase...');
+        
+        // Carregar pedidos
+        const pedidos = await window.SupabaseAPI.getPedidos();
+        
+        // Converter formato Supabase → formato da app
+        AppState.requests = pedidos.map(p => ({
+            id: p.ID,
+            timestamp: p['Data/hora'],
+            type: p.Tipo,
+            priority: p.Prioridade,
+            department: p.Departamento,
+            description: p.Descrição,
+            registeredBy: p['Registado por'],
+            status: p.Estado,
+            photo: p.Foto || '',
+            articles: p.Artigos ? (typeof p.Artigos === 'string' ? JSON.parse(p.Artigos) : p.Artigos) : [],
+            company: p.Empresa,
+            interventionType: p['Tipo Intervenção'] || '',
+            areaEquipment: p['Área/Equipamento'] || '',
+            component: p.Componente || '',
+            urgent: p.Urgente === 'TRUE' || p.Urgente === true,
+            productionStop: p['Paragem Produção'] === 'TRUE' || p['Paragem Produção'] === true
+        }));
+        
+        // Guardar localmente
+        localStorage.setItem(CONFIG.STORAGE_KEYS.REQUESTS, JSON.stringify(AppState.requests));
+        
+        console.log(`✅ ${AppState.requests.length} pedidos carregados do Supabase`);
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar dados do Supabase:', error);
+        showToast('Erro ao carregar dados', 'error');
+        
+        // Em caso de erro, carregar do localStorage
+        const cached = localStorage.getItem(CONFIG.STORAGE_KEYS.REQUESTS);
+        if (cached) {
+            AppState.requests = JSON.parse(cached);
+            console.log('📦 Dados carregados do cache local');
+        }
+    }
+}
+
 async function validateSession(username, token) {
+    // 🔥 v3.6.8: Simplificado - validação local apenas
     try {
         console.log('🔐 validateSession() - Validando sessão para:', username);
         console.log('🔐 validateSession() - Token existe?', token ? 'SIM' : 'NÃO');
         
-        // Validação de sessão via GET também
-        const url = CONFIG.GOOGLE_SHEETS_URL + '?action=validateSession&username=' + encodeURIComponent(username) + '&token=' + encodeURIComponent(token);
-        console.log('📡 validateSession() - URL:', url);
+        // Verificar se existe sessão local válida
+        const sessionData = localStorage.getItem(CONFIG.STORAGE_KEYS.USER_SESSION);
+        const sessionToken = localStorage.getItem(CONFIG.STORAGE_KEYS.USER_TOKEN);
         
-        const response = await fetch(url, {
-            method: 'GET',
-            mode: 'cors',
-            credentials: 'omit'
-        });
-        
-        console.log('📡 validateSession() - Response status:', response.status);
-        
-        const result = await response.json();
-        console.log('📦 validateSession() - Resposta completa:', JSON.stringify(result));
-        
-        if (result.success && result.data) {
-            console.log('✅ validateSession() - Sessão VÁLIDA!');
-            console.log('👤 validateSession() - Dados do utilizador:', result.data);
+        if (sessionData && sessionToken === token) {
+            const userData = JSON.parse(sessionData);
             
-            // Atualizar dados do utilizador (pode ter sido alterado)
-            AppState.currentUser = result.data;
-            localStorage.setItem(CONFIG.STORAGE_KEYS.USER_SESSION, JSON.stringify(result.data));
-            
-            // 🍪 ATUALIZAR TAMBÉM OS COOKIES
-            setCookie('maintenance_user_session', JSON.stringify(result.data), 30);
-            setCookie('maintenance_user_token', result.data.token, 30);
-            
-            return true;
+            if (userData.username === username) {
+                console.log('✅ validateSession() - Sessão VÁLIDA (local)');
+                AppState.currentUser = userData;
+                return true;
+            }
         }
         
-        console.warn('⚠️ validateSession() - Sessão INVÁLIDA ou dados em falta');
-        console.warn('⚠️ validateSession() - result.success:', result.success);
-        console.warn('⚠️ validateSession() - result.data:', result.data);
-        console.warn('⚠️ validateSession() - result.message:', result.message);
-        
+        console.warn('⚠️ validateSession() - Sessão INVÁLIDA');
         return false;
+        
     } catch (e) {
         console.error('❌ validateSession() - ERRO:', e);
-        console.error('❌ validateSession() - Stack:', e.stack);
         return false;
     }
 }
@@ -5120,141 +5151,153 @@ async function deleteRequest(id) {
 }
 
 // GOOGLE SHEETS
+// 🔥 v3.6.8: Reescrito para Supabase
 async function sendToGoogleSheets(data) {
-    if (!CONFIG.GOOGLE_SHEETS_URL || CONFIG.GOOGLE_SHEETS_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
-        console.warn('Google Sheets URL não configurada');
-        return;
-    }
     try {
-        await fetch(CONFIG.GOOGLE_SHEETS_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'create', data: data })
-        });
-        console.log('✅ Pedido enviado para Google Sheets');
+        // Converter formato da app → formato Supabase
+        const supabaseData = {
+            ID: data.id,
+            'Data/hora': data.dataHora,
+            Tipo: data.tipo,
+            Prioridade: data.prioridade,
+            Departamento: data.departamento,
+            Descrição: data.descricao,
+            'Registado por': data.nome,
+            Estado: data.estado,
+            Foto: data.foto || '',
+            Artigos: '[]',
+            Empresa: data.empresa,
+            'Tipo Intervenção': data.tipoIntervencao || '',
+            'Área/Equipamento': data.areaEquipamento || '',
+            Componente: data.componente || '',
+            Urgente: data.urgente ? 'TRUE' : 'FALSE',
+            'Paragem Produção': data.paragemProducao ? 'TRUE' : 'FALSE'
+        };
+        
+        await window.SupabaseAPI.addPedido(supabaseData);
+        console.log('✅ Pedido guardado no Supabase');
+        
     } catch (error) {
-        console.error('❌ Erro ao enviar para Google Sheets:', error);
+        console.error('❌ Erro ao enviar para Supabase:', error);
         addToOfflineQueue(data);
+        throw error;
     }
 }
 
 async function updateInGoogleSheets(data) {
-    if (!CONFIG.GOOGLE_SHEETS_URL || CONFIG.GOOGLE_SHEETS_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') return;
     try {
-        await fetch(CONFIG.GOOGLE_SHEETS_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'update', data: data })
-        });
-        console.log('✅ Pedido atualizado no Google Sheets');
+        // Converter formato da app → formato Supabase
+        const supabaseData = {
+            'Data/hora': data.dataHora,
+            Tipo: data.tipo,
+            Prioridade: data.prioridade,
+            Departamento: data.departamento,
+            Descrição: data.descricao,
+            'Registado por': data.nome,
+            Estado: data.estado,
+            Foto: data.foto || '',
+            Empresa: data.empresa,
+            'Tipo Intervenção': data.tipoIntervencao || '',
+            'Área/Equipamento': data.areaEquipamento || '',
+            Componente: data.componente || '',
+            Urgente: data.urgente ? 'TRUE' : 'FALSE',
+            'Paragem Produção': data.paragemProducao ? 'TRUE' : 'FALSE'
+        };
+        
+        await window.SupabaseAPI.updatePedido(data.id, supabaseData);
+        console.log('✅ Pedido atualizado no Supabase');
+        
     } catch (error) {
-        console.error('❌ Erro ao atualizar Google Sheets:', error);
+        console.error('❌ Erro ao atualizar Supabase:', error);
         addToOfflineQueue({ action: 'update', data: data });
+        throw error;
     }
 }
 
 async function deleteFromGoogleSheets(id) {
-    if (!CONFIG.GOOGLE_SHEETS_URL || CONFIG.GOOGLE_SHEETS_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') return;
     try {
-        await fetch(CONFIG.GOOGLE_SHEETS_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'delete', id: id })
-        });
-        console.log('✅ Pedido eliminado do Google Sheets');
+        await window.SupabaseAPI.deletePedido(id);
+        console.log('✅ Pedido eliminado do Supabase');
+        
     } catch (error) {
-        console.error('❌ Erro ao eliminar do Google Sheets:', error);
+        console.error('❌ Erro ao eliminar do Supabase:', error);
+        throw error;
     }
 }
 
+// 🔥 RENOMEADO v3.6.8: syncWithSupabase (era syncWithGoogleSheets)
 async function syncWithGoogleSheets() {
-    if (!CONFIG.GOOGLE_SHEETS_URL || CONFIG.GOOGLE_SHEETS_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
-        console.warn('⚠️ Google Sheets URL não configurada - usando apenas localStorage');
+    // ⚠️ Mantém o nome syncWithGoogleSheets para compatibilidade, mas usa Supabase
+    await syncWithSupabase();
+}
+
+async function syncWithSupabase() {
+    if (!AppState.isOnline) {
+        console.log('📡 Offline - sync cancelado');
         return;
     }
+    
     try {
-        console.log('🔄 Sincronizando com Google Sheets...');
+        console.log('🔄 A sincronizar com Supabase...');
         
-        const response = await fetch(`${CONFIG.GOOGLE_SHEETS_URL}?timestamp=${Date.now()}`, {
-            method: 'GET',
-            mode: 'cors',
-            credentials: 'omit'
-        });
+        // Carregar PEDIDOS
+        await loadDataFromSupabase();
         
-        const data = await response.json();
+        // Carregar ARTIGOS
+        const artigos = await window.SupabaseAPI.getArtigos();
+        AppState.artigos = artigos.map(a => ({
+            id: a.ID,
+            codigo: a.ID,
+            familia: a.Família,
+            designacao: a.Designação,
+            referencia: a.Referência,
+            fornecedor: a.Fornecedor,
+            preco: parseFloat(a['Preço Unitário']) || 0,
+            stockMinimo: parseInt(a['Stock Mínimo']) || 0,
+            empresa: a.Empresa,
+            unidade: a.Unidade
+        }));
+        console.log(`✅ ${AppState.artigos.length} artigos carregados`);
+        renderStockMinimo();
         
-        if (data && data.success) {
-            // ⚡ OTIMIZAÇÃO: Limitar a últimos 200 pedidos (ordenados por data)
-            if (data.requests) {
-                // Ordenar por data (mais recentes primeiro)
-                const sortedRequests = data.requests.sort((a, b) => {
-                    return new Date(b.dataHora) - new Date(a.dataHora);
-                });
-                
-                // Limitar a 200 pedidos
-                const MAX_REQUESTS = 200;
-                AppState.requests = sortedRequests.slice(0, MAX_REQUESTS);
-                
-                console.log(`✅ ${data.requests.length} pedidos recebidos, mostrando últimos ${AppState.requests.length}`);
-                
-                // Avisar se houver muitos pedidos
-                if (data.requests.length > MAX_REQUESTS) {
-                    console.log(`ℹ️ Total de ${data.requests.length} pedidos. Mostrando apenas os ${MAX_REQUESTS} mais recentes para melhor performance.`);
-                }
-            } else {
-                console.warn('⚠️ Nenhum pedido recebido!');
-            }
-            
-            // Artigos
-            if (data.artigos) {
-                AppState.artigos = data.artigos;
-                console.log('✅ Artigos sincronizados:', data.artigos.length);
-                
-                // ✅ NOVO: Atualizar badge de alertas após carregar artigos
-                renderStockMinimo();
-                
-                // 🛡️ NÃO guardar artigos no localStorage (ocupam muito espaço)
-                // Artigos são sempre carregados do servidor
-            } else {
-                console.warn('⚠️ Nenhum artigo recebido');
-                // 🔥 FORÇAR chamada direta a loadArtigosFromGoogleSheets
-                console.warn('🔄 Tentando loadArtigosFromGoogleSheets() como fallback...');
-                await loadArtigosFromGoogleSheets();
-            }
-            
-            // Movimentos (NÃO guardar no localStorage - sempre do servidor)
-            if (data.movimentos) {
-                console.log('📦 Movimentos recebidos:', data.movimentos.length);
-                AppState.movimentos = data.movimentos;
-                console.log('✅ Movimentos sincronizados:', data.movimentos.length);
-                // 🛡️ Movimentos NÃO são guardados no localStorage
-            } else {
-                console.warn('⚠️ Nenhum movimento recebido!');
-            }
-            
-            // ✅ Utilizadores (para dropdown de responsável no planeamento)
-            if (data.utilizadores) {
-                AppState.utilizadores = data.utilizadores.filter(u => u.ativo !== false);
-                console.log('✅ Utilizadores carregados:', AppState.utilizadores.length);
-            } else {
-                console.warn('⚠️ Nenhum utilizador recebido!');
-            }
-            
-            // 💾 Guardar APENAS pedidos (sem fotos, limitados a 30)
-            saveToLocalStorage();
-            console.log('✅ Sincronizado com Google Sheets - TUDO OK!');
-        } else {
-            console.error('❌ data.success é FALSE ou data é null!');
-            console.error('📋 Data:', data);
-        }
+        // Carregar MOVIMENTOS
+        const movimentos = await window.SupabaseAPI.getMovimentos();
+        AppState.movimentos = movimentos.map(m => ({
+            id: m.ID,
+            dataHora: m['Data/Hora'],
+            artigoId: m['Artigo ID'],
+            tipo: m.Tipo,
+            quantidade: parseInt(m.Quantidade) || 0,
+            pedidoId: m['Pedido ID'],
+            responsavel: m.Responsável,
+            observacoes: m.Observações,
+            empresa: m.Empresa
+        }));
+        console.log(`✅ ${AppState.movimentos.length} movimentos carregados`);
+        
+        // Carregar UTILIZADORES
+        const utilizadores = await window.SupabaseAPI.getUtilizadores();
+        AppState.utilizadores = utilizadores
+            .filter(u => u.Ativo === 'Sim' || u.Ativo === true)
+            .map(u => ({
+                username: u.Username,
+                nomeCompleto: u['Nome Completo'],
+                departamento: u.Departamento,
+                role: u.Role
+            }));
+        console.log(`✅ ${AppState.utilizadores.length} utilizadores carregados`);
+        
+        // Guardar localmente
+        saveToLocalStorage();
+        
+        showToast('Dados sincronizados', 'success');
+        console.log('✅ Sincronização com Supabase completa');
+        
+        renderRequestsList();
+        
     } catch (error) {
-        console.error('❌ Erro ao sincronizar:', error);
-        console.error('🔧 Stack:', error.stack);
-        console.error('🔧 Message:', error.message);
-        console.warn('⚠️ Não foi possível sincronizar com Google Sheets, usando dados locais');
+        console.error('❌ Erro ao sincronizar com Supabase:', error);
+        console.warn('⚠️ Usando dados locais');
     }
 }
 
