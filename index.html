@@ -4869,6 +4869,9 @@ async function initializeApp() {
     initializePlanning();
     initializeAutonomousMaintenance();
     initializeStockModule();
+    
+    // ✅ CORREÇÃO 1: Restaurar aba ativa após tudo carregado
+    setTimeout(() => restoreActiveTab(), 500);
 }
 
 // EVENT LISTENERS
@@ -4977,6 +4980,14 @@ function handleTabChange(e) {
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     document.getElementById(`tab-${tab}`).classList.add('active');
     
+    // ✅ CORREÇÃO 1: Guardar aba ativa no localStorage
+    try {
+        localStorage.setItem('activeTab', tab);
+        console.log('💾 Aba ativa guardada:', tab);
+    } catch (e) {
+        console.warn('Erro ao guardar aba:', e);
+    }
+    
     if (tab === 'planeamento') renderPlanningGrid();
     
     // ✅ NOVO: Renderizar alertas de stock mínimo ao abrir tab Stock
@@ -4988,6 +4999,22 @@ function handleTabChange(e) {
     // Re-aplicar auto-preenchimento quando mudar de tab
     if (tab === 'novo') {
         setTimeout(() => applyUserAutoFill(), 100);
+    }
+}
+
+// ✅ CORREÇÃO 1: Restaurar aba ativa ao carregar
+function restoreActiveTab() {
+    try {
+        const activeTab = localStorage.getItem('activeTab');
+        if (activeTab && activeTab !== 'novo') {
+            console.log('🔄 Restaurando aba:', activeTab);
+            const tabBtn = document.querySelector(`.tab-btn[data-tab="${activeTab}"]`);
+            if (tabBtn) {
+                tabBtn.click();
+            }
+        }
+    } catch (e) {
+        console.warn('Erro ao restaurar aba:', e);
     }
 }
 
@@ -5458,12 +5485,36 @@ function closeModal() {
 async function changeRequestState(id) {
     const request = AppState.requests.find(r => r.id === id);
     if (!request) return;
+    
     const stateTransitions = { 'Novo': 'Em curso', 'Em curso': 'Resolvido', 'Resolvido': 'Resolvido' };
-    request.estado = stateTransitions[request.estado];
-    saveToLocalStorage();
-    if (AppState.isOnline) await updateInGoogleSheets(request);
-    renderRequestsList();
-    showToast(`Estado alterado para: ${request.estado}`, 'success');
+    const newState = stateTransitions[request.estado];
+    
+    // ✅ CORREÇÃO 4: Se está a fechar (Resolvido), pedir observações
+    if (newState === 'Resolvido' && request.estado !== 'Resolvido') {
+        const observacoes = prompt('Observações ao fechar o pedido (opcional):');
+        
+        if (observacoes !== null) {  // null significa que cancelou
+            // Adicionar observações ao texto existente
+            if (observacoes.trim()) {
+                const timestamp = new Date().toLocaleString('pt-PT');
+                const novaObservacao = `\n\n[${timestamp}] Fechado: ${observacoes.trim()}`;
+                request.descricao = (request.descricao || '') + novaObservacao;
+            }
+            
+            request.estado = newState;
+            saveToLocalStorage();
+            if (AppState.isOnline) await updateInGoogleSheets(request);
+            renderRequestsList();
+            showToast(`Estado alterado para: ${newState}`, 'success');
+        }
+    } else {
+        // Estados normais (Novo → Em curso)
+        request.estado = newState;
+        saveToLocalStorage();
+        if (AppState.isOnline) await updateInGoogleSheets(request);
+        renderRequestsList();
+        showToast(`Estado alterado para: ${newState}`, 'success');
+    }
 }
 
 async function deleteRequest(id) {
@@ -6469,8 +6520,11 @@ async function syncMovimentoToGoogleSheets(movimento) {
             'Empresa': movimento.empresa || 'MCF'
         };
         
-        await window.SupabaseAPI.addMovimento(supabaseMovimento);
-        console.log('✅ Movimento guardado no Supabase');
+        // ✅ CORREÇÃO 2: Debug detalhado
+        console.log('📤 Movimento a enviar:', JSON.stringify(supabaseMovimento, null, 2));
+        
+        const result = await window.SupabaseAPI.addMovimento(supabaseMovimento);
+        console.log('✅ Movimento guardado no Supabase:', result);
         
         // Recarregar movimentos para atualizar interface
         setTimeout(() => {
