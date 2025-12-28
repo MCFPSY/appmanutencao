@@ -4808,10 +4808,13 @@ function setupEventListeners() {
     document.getElementById('foto').addEventListener('change', handlePhotoUpload);
     document.querySelectorAll('.filter-tipo, .filter-prioridade, .filter-estado, .filter-empresa, .filter-tipoIntervencao, .filter-urgente, .filter-paragemProducao').forEach(checkbox => checkbox.addEventListener('change', handleFilterChange));
     
-    // ⚡ NOVO: Event listener para filtro de equipamento
+    // ⚡ NOVO: Event listener para filtro de equipamento (SELECT, não checkbox!)
     const filterEquipamento = document.getElementById('filterEquipamento');
     if (filterEquipamento) {
-        filterEquipamento.addEventListener('change', handleFilterChange);
+        filterEquipamento.addEventListener('change', () => {
+            console.log('🔧 Filtro de Equipamento mudou:', filterEquipamento.value);
+            renderRequestsList(); // ✅ Forçar re-render quando muda
+        });
         populateEquipamentoFilter(); // Popular dropdown ao carregar
     }
     
@@ -5124,10 +5127,15 @@ function applyFilters() {
         const empresaPedido = request.empresa || 'MCF';
         const passaEmpresa = AppState.currentFilters.empresa.length === 0 || AppState.currentFilters.empresa.includes(empresaPedido);
         
-        // ⚡ NOVO: Filtro de Equipamento
+        // ⚡ v3.6.15: Filtro de Equipamento CORRIGIDO
         const filterEquipamento = document.getElementById('filterEquipamento')?.value || '';
-        const passaEquipamento = !filterEquipamento || 
-                                (request.areaEquipamento && request.areaEquipamento === filterEquipamento);
+        const areaEquipamentoPedido = (request.areaEquipamento || '').trim();
+        const passaEquipamento = !filterEquipamento || areaEquipamentoPedido === filterEquipamento;
+        
+        // Debug do filtro de equipamento
+        if (filterEquipamento) {
+            console.log('🔍 Filtro ativo:', filterEquipamento, '| Pedido:', areaEquipamentoPedido, '| Passa?', passaEquipamento);
+        }
         
         // Novos filtros
         const tipoIntervencaoPedido = request.tipoIntervencao || '-';
@@ -6276,30 +6284,42 @@ async function loadArtigosFromGoogleSheets(retryCount = 0, forceReload = false) 
     }
 }
 
-// Carregar movimentos do Google Sheets
+// 🔥 v3.6.14: Carregar movimentos do Supabase
 async function loadMovimentosFromGoogleSheets() {
+    // ⚠️ Nome mantido para compatibilidade, mas usa Supabase
     if (!AppState.isOnline) {
         console.log('⚠️ Offline - usando dados locais');
         return;
     }
     
     try {
-        console.log('🔄 Carregando movimentos do Google Sheets...');
-        const response = await fetch(CONFIG.GOOGLE_SHEETS_URL);
-        const data = await response.json();
+        console.log('🔄 Carregando movimentos do Supabase...');
+        const movimentos = await window.SupabaseAPI.getMovimentos();
         
-        if (data.success && data.movimentos) {
-            AppState.movimentos = data.movimentos.map(mov => ({
-                ...mov,
-                dataHora: new Date(mov.dataHora)
+        if (movimentos && movimentos.length > 0) {
+            AppState.movimentos = movimentos.map(m => ({
+                id: m.ID,
+                dataHora: new Date(m['Data/Hora']),
+                artigoId: m['Artigo ID'],
+                tipo: m.Tipo,
+                quantidade: parseInt(m.Quantidade) || 0,
+                pedidoId: m['Pedido ID'],
+                responsavel: m.Responsável,
+                observacoes: m.Observações,
+                empresa: m.Empresa
             }));
+            
+            // Ordenar por data (mais recentes primeiro)
+            AppState.movimentos.sort((a, b) => b.dataHora - a.dataHora);
+            
             console.log('✅ Movimentos carregados:', AppState.movimentos.length);
-            renderMovimentos();
         } else {
-            console.warn('⚠️ Nenhum movimento no Google Sheets');
+            console.warn('⚠️ Nenhum movimento no Supabase');
+            AppState.movimentos = [];
         }
     } catch (error) {
         console.error('❌ Erro ao carregar movimentos:', error);
+        AppState.movimentos = [];
     }
 }
 
@@ -6382,6 +6402,22 @@ function initializeStockModule() {
     }
 }
 
+// 🔥 v3.6.14: Função auxiliar para calcular stock atual
+function calcularStockAtual(artigoId) {
+    const movimentosArtigo = AppState.movimentos.filter(m => m.artigoId === artigoId);
+    let stockAtual = 0;
+    
+    movimentosArtigo.forEach(mov => {
+        if (mov.tipo === 'Entrada') {
+            stockAtual += mov.quantidade;
+        } else if (mov.tipo === 'Saída' || mov.tipo === 'Baixa') {
+            stockAtual -= mov.quantidade;
+        }
+    });
+    
+    return stockAtual;
+}
+
 // Pesquisa de artigos
 function searchArtigos(term) {
     const resultsDiv = document.getElementById('stockSearchResults');
@@ -6396,11 +6432,11 @@ function searchArtigos(term) {
     
     const searchTerm = term.toLowerCase();
     const artigos = AppState.artigos.filter(a => 
-        a.designacao.toLowerCase().includes(searchTerm) ||
-        a.referencia.toLowerCase().includes(searchTerm) ||
-        a.id.toLowerCase().includes(searchTerm) ||
-        a.fornecedor.toLowerCase().includes(searchTerm) ||
-        a.familia.toLowerCase().includes(searchTerm)
+        a.designacao && a.designacao.toLowerCase().includes(searchTerm) ||
+        a.referencia && a.referencia.toLowerCase().includes(searchTerm) ||
+        a.id && a.id.toLowerCase().includes(searchTerm) ||
+        a.fornecedor && a.fornecedor.toLowerCase().includes(searchTerm) ||
+        a.familia && a.familia.toLowerCase().includes(searchTerm)
     );
     
     if (artigos.length === 0) {
@@ -6414,7 +6450,8 @@ function searchArtigos(term) {
     resultsDiv.style.display = 'block';
     
     resultsBody.innerHTML = artigos.map(artigo => {
-        const stockBaixo = artigo.stockAtual <= artigo.stockMinimo;
+        const stockAtual = calcularStockAtual(artigo.id);
+        const stockBaixo = stockAtual <= artigo.stockMinimo;
         const stockClass = stockBaixo ? 'baixo' : 'ok';
         const stockIcon = stockBaixo ? '⚠️' : '✅';
         
@@ -6444,9 +6481,9 @@ function searchArtigos(term) {
                     <div class="stock-card-stock">
                         <div class="stock-card-stock-label">${stockIcon} Stock Atual</div>
                         <div class="stock-card-stock-value ${stockClass}">
-                            ${artigo.stockAtual} ${artigo.unidade}
+                            ${stockAtual} ${artigo.unidade || 'un'}
                         </div>
-                        <small style="color: var(--color-text-secondary);">Mínimo: ${artigo.stockMinimo} ${artigo.unidade}</small>
+                        <small style="color: var(--color-text-secondary);">Mínimo: ${artigo.stockMinimo} ${artigo.unidade || 'un'}</small>
                     </div>
                 </div>
                 
@@ -6475,7 +6512,8 @@ async function darBaixaRapida(artigoId) {
     const artigo = AppState.artigos.find(a => a.id === artigoId);
     if (!artigo) return;
     
-    const quantidade = prompt(`Dar baixa de ${artigo.designacao}\n\nStock atual: ${artigo.stockAtual} ${artigo.unidade}\n\nQuantidade a dar baixa:`, '1');
+    const stockAtual = calcularStockAtual(artigoId);
+    const quantidade = prompt(`Dar baixa de ${artigo.designacao}\n\nStock atual: ${stockAtual} ${artigo.unidade || 'un'}\n\nQuantidade a dar baixa:`, '1');
     
     if (!quantidade || isNaN(quantidade) || parseInt(quantidade) <= 0) {
         return;
