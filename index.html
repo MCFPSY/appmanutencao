@@ -3620,9 +3620,9 @@
                     <div class="movimento-filters">
                         <select class="form-input" id="movimentoTipoFilter" onchange="renderMovimentos()">
                             <option value="TODOS">Todos os Tipos</option>
-                            <option value="ENTRADA">📥 Entradas</option>
-                            <option value="SAÍDA">📤 Saídas</option>
-                            <option value="AJUSTE">⚙️ Ajustes</option>
+                            <option value="Entrada">📥 Entradas</option>
+                            <option value="Saída">📤 Saídas</option>
+                            <option value="Ajuste">⚙️ Ajustes</option>
                         </select>
                         <input type="number" 
                                class="form-input" 
@@ -3717,9 +3717,9 @@
                     <div class="form-group">
                         <label class="form-label">Tipo de Movimento *</label>
                         <select class="form-input" id="movimentoTipo" required>
-                            <option value="ENTRADA">📥 Entrada (Compra/Devolução)</option>
-                            <option value="SAÍDA">📤 Saída (Consumo)</option>
-                            <option value="AJUSTE">⚙️ Ajuste (Correção)</option>
+                            <option value="Entrada">📥 Entrada (Compra/Devolução)</option>
+                            <option value="Saída">📤 Saída (Consumo)</option>
+                            <option value="Ajuste">⚙️ Ajuste (Correção)</option>
                         </select>
                     </div>
                     
@@ -6531,7 +6531,7 @@ async function darBaixaRapida(artigoId) {
         id: 'MOV' + Date.now(),
         dataHora: new Date(),
         artigoId: artigo.id,
-        tipo: 'SAÍDA',
+        tipo: 'Saída',
         quantidade: -qtd,
         responsavel: responsavel || '-',
         observacoes: observacoes || 'Baixa rápida'
@@ -6590,7 +6590,7 @@ function renderMovimentos() {
         const artigoNome = artigo ? artigo.designacao : mov.artigoId;
         const dataFormatada = formatDateTime(mov.dataHora);
         const qtdClass = mov.quantidade > 0 ? 'positivo' : 'negativo';
-        const badgeClass = mov.tipo === 'ENTRADA' ? 'badge-entrada' : mov.tipo === 'SAÍDA' ? 'badge-saida' : 'badge-ajuste';
+        const badgeClass = mov.tipo === 'Entrada' ? 'badge-entrada' : mov.tipo === 'Saída' ? 'badge-saida' : 'badge-ajuste';
         
         return `
             <tr>
@@ -6892,7 +6892,7 @@ async function openNovoMovimentoModal() {
     if (info) info.style.display = 'none';
     
     // Resetar form
-    document.getElementById('movimentoTipo').value = 'ENTRADA';
+    document.getElementById('movimentoTipo').value = 'Entrada';
     document.getElementById('movimentoQuantidade').value = '1';
     document.getElementById('movimentoObservacoes').value = '';
     
@@ -6981,7 +6981,7 @@ function openMovimentoModal(artigoId) {
     updateArtigoInfo();
     
     // Resetar campos
-    document.getElementById('movimentoTipo').value = 'ENTRADA';
+    document.getElementById('movimentoTipo').value = 'Entrada';
     document.getElementById('movimentoQuantidade').value = '1';
     document.getElementById('movimentoObservacoes').value = '';
     
@@ -7119,40 +7119,57 @@ async function handleMovimentoSubmit(e) {
     const responsavel = document.getElementById('movimentoResponsavel').value || '-';
     const observacoes = document.getElementById('movimentoObservacoes').value || '';
     
-    // Saída é negativa
-    if (tipo === 'SAÍDA') {
-        quantidade = -Math.abs(quantidade);
-    } else if (tipo === 'ENTRADA') {
-        quantidade = Math.abs(quantidade);
+    // ✅ v3.6.17: Normalizar tipo para formato do Supabase
+    let tipoNormalizado = tipo;
+    if (tipo === 'SAÍDA') tipoNormalizado = 'Saída';
+    else if (tipo === 'ENTRADA') tipoNormalizado = 'Entrada';
+    else if (tipo === 'BAIXA') tipoNormalizado = 'Baixa';
+    
+    // Quantidade sempre positiva (o tipo define entrada/saída)
+    quantidade = Math.abs(quantidade);
+    
+    const artigo = AppState.artigos.find(a => a.id === AppState.artigoSelecionado.id);
+    if (!artigo) {
+        showToast('❌ Artigo não encontrado', 'error');
+        return;
     }
     
-    // Atualizar stock localmente
-    const artigo = AppState.artigos.find(a => a.id === AppState.artigoSelecionado.id);
-    if (artigo) {
-        artigo.stockAtual += quantidade;
-        
-        // Registar movimento
-        const movimento = {
-            id: 'MOV' + Date.now(),
-            dataHora: new Date(),
-            artigoId: artigo.id,
-            tipo: tipo,
-            quantidade: quantidade,
-            empresa: empresa,
-            responsavel: responsavel,
-            observacoes: observacoes
-        };
-        
-        AppState.movimentos.unshift(movimento);
-        
-        // ✅ SINCRONIZAR COM GOOGLE SHEETS
+    // ✅ Verificar stock atual ANTES de permitir saída
+    const stockAtual = calcularStockAtual(artigo.id);
+    
+    // ⚠️ PERMITIR STOCK NEGATIVO (para identificar erros de inventário)
+    if (tipoNormalizado === 'Saída' || tipoNormalizado === 'Baixa') {
+        const novoStock = stockAtual - quantidade;
+        if (novoStock < 0) {
+            console.warn(`⚠️ Stock ficará negativo: ${stockAtual} - ${quantidade} = ${novoStock}`);
+            // NÃO bloquear - permitir para identificar erros
+        }
+    }
+    
+    // Registar movimento
+    const movimento = {
+        id: 'MOV' + Date.now(),
+        dataHora: new Date().toISOString(),
+        artigoId: artigo.id,
+        tipo: tipoNormalizado,  // ✅ Usar tipo normalizado
+        quantidade: quantidade,  // ✅ Sempre positivo
+        empresa: empresa,
+        responsavel: responsavel,
+        observacoes: observacoes
+    };
+    
+    AppState.movimentos.unshift(movimento);
+    
+    // ✅ SINCRONIZAR COM SUPABASE
+    try {
         const syncedId = await syncMovimentoToGoogleSheets(movimento);
         if (syncedId) {
-            movimento.id = syncedId; // Usar ID do Google Sheets
+            movimento.id = syncedId;
         }
         
         // Mostrar notificação
-        showToast(`✅ Movimento registado: ${tipo} de ${Math.abs(quantidade)} ${artigo.unidade}`, 'success');
+        const novoStock = calcularStockAtual(artigo.id);
+        showToast(`✅ Movimento registado: ${tipoNormalizado} de ${quantidade} ${artigo.unidade || 'un'}. Stock atual: ${novoStock}`, 'success');
         
         // Fechar modal
         closeMovimentoModal();
@@ -7161,6 +7178,10 @@ async function handleMovimentoSubmit(e) {
         renderMovimentos();
         searchArtigos(document.getElementById('stockSearchInput').value);
         saveToLocalStorage();
+        
+    } catch (error) {
+        console.error('❌ Erro ao registar movimento:', error);
+        showToast('❌ Erro ao guardar movimento', 'error');
     }
 }
 
@@ -7187,3 +7208,4 @@ window.openNovoMovimentoModal = openNovoMovimentoModal;
     </script>
 </body>
 </html>
+
