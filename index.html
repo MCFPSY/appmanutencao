@@ -3822,8 +3822,129 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
-    <!-- 🔥 Supabase Client -->
-    <script src="./js/supabase-client.js"></script>
+    <!-- 🔥 Supabase Client INLINE v3.6.8 -->
+    <script>
+// ================================================
+// 🔥 SUPABASE CLIENT - INLINE
+// ================================================
+
+// CONFIGURAÇÃO SUPABASE
+const SUPABASE_CONFIG = {
+    URL: 'https://wegftalccimrnnlmoiyn.supabase.co',
+    ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlZ2Z0YWxjY2ltcm5ubG1vaXluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDY0MzIsImV4cCI6MjA4MjM4MjQzMn0.0TqEtQnJC7kVQO284C0xvaE_xi2e0zuXpsF1M4ZEw4w'
+};
+
+// HELPER: Fetch genérico para Supabase REST API
+async function supabaseFetch(endpoint, options = {}) {
+    const url = `${SUPABASE_CONFIG.URL}/rest/v1/${endpoint}`;
+    const headers = {
+        'apikey': SUPABASE_CONFIG.ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+        ...options.headers
+    };
+
+    console.log('🔥 Supabase Fetch:', { url, method: options.method || 'GET' });
+
+    const response = await fetch(url, {
+        ...options,
+        headers
+    });
+
+    console.log('📡 Supabase Response:', { status: response.status, ok: response.ok });
+
+    if (!response.ok) {
+        const error = await response.json();
+        console.error('❌ Supabase Error:', error);
+        throw new Error(error.message || 'Erro na API Supabase');
+    }
+
+    return response.json();
+}
+
+// ================================================
+// API FUNCTIONS
+// ================================================
+
+// Artigos
+async function getArtigos() {
+    return await supabaseFetch('artigos?select=*&order=ID.asc');
+}
+
+// Utilizadores
+async function getUtilizadores() {
+    return await supabaseFetch('utilizadores?select=*&order=Username.asc');
+}
+
+async function loginUtilizador(username, password) {
+    const users = await supabaseFetch(`utilizadores?Username=eq.${encodeURIComponent(username)}&Password=eq.${encodeURIComponent(password)}`);
+    
+    if (users.length === 0) {
+        throw new Error('Utilizador ou password incorretos');
+    }
+    
+    return users[0];
+}
+
+// Pedidos
+async function getPedidos() {
+    return await supabaseFetch('pedidos?select=*&order=Data/hora.desc');
+}
+
+async function addPedido(pedido) {
+    return await supabaseFetch('pedidos', {
+        method: 'POST',
+        body: JSON.stringify(pedido)
+    });
+}
+
+async function updatePedido(id, pedido) {
+    return await supabaseFetch(`pedidos?ID=eq.${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(pedido)
+    });
+}
+
+async function deletePedido(id) {
+    return await supabaseFetch(`pedidos?ID=eq.${id}`, {
+        method: 'DELETE'
+    });
+}
+
+// Movimentos
+async function getMovimentos() {
+    return await supabaseFetch('movimentos?select=*&order=Data/Hora.desc');
+}
+
+async function addMovimento(movimento) {
+    return await supabaseFetch('movimentos', {
+        method: 'POST',
+        body: JSON.stringify(movimento)
+    });
+}
+
+// Planeamento
+async function getPlaneamento() {
+    return await supabaseFetch('planeamento?select=*&order=Data Alocada.asc');
+}
+
+// Exportar para uso global
+window.SupabaseAPI = {
+    getArtigos,
+    getUtilizadores,
+    loginUtilizador,
+    getPedidos,
+    addPedido,
+    updatePedido,
+    deletePedido,
+    getMovimentos,
+    addMovimento,
+    getPlaneamento
+};
+
+console.log('✅ Supabase API inicializada (INLINE)');
+    </script>
     
     <!-- JavaScript Principal (INLINE para garantir funcionamento) -->
     <script>
