@@ -4529,7 +4529,9 @@ async function loadDataFromSupabase() {
             areaEquipamento: p['Área/Equipamento'] || '', // ✅ Corrigido: era areaEquipment
             componente: p.Componente || '',     // ✅ Corrigido: era component
             urgente: p.Urgente === 'TRUE' || p.Urgente === true,
-            paragemProducao: p['Paragem Produção'] === 'TRUE' || p['Paragem Produção'] === true
+            paragemProducao: p['Paragem Produção'] === 'TRUE' || p['Paragem Produção'] === true,
+            responsavel: p.Responsável || '',   // ✅ ADICIONADO v3.6.21
+            horasEstimadas: parseFloat(p['Horas Estimadas']) || 0  // ✅ ADICIONADO v3.6.21
         }));
         
         // ✅ Ordenar por data (mais recentes primeiro) - ordem no JavaScript
@@ -4870,8 +4872,8 @@ async function initializeApp() {
     initializeAutonomousMaintenance();
     initializeStockModule();
     
-    // ✅ CORREÇÃO 1: Restaurar aba ativa após tudo carregado
-    setTimeout(() => restoreActiveTab(), 500);
+    // ✅ CORREÇÃO 1: Restaurar aba ativa IMEDIATAMENTE (sem flash)
+    restoreActiveTab();
 }
 
 // EVENT LISTENERS
@@ -5002,15 +5004,31 @@ function handleTabChange(e) {
     }
 }
 
-// ✅ CORREÇÃO 1: Restaurar aba ativa ao carregar
+// ✅ CORREÇÃO 1: Restaurar aba ativa ao carregar (SEM FLASH)
 function restoreActiveTab() {
     try {
         const activeTab = localStorage.getItem('activeTab');
         if (activeTab && activeTab !== 'novo') {
             console.log('🔄 Restaurando aba:', activeTab);
+            
+            // ✅ Ativar diretamente SEM click (evita animação/flash)
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
             const tabBtn = document.querySelector(`.tab-btn[data-tab="${activeTab}"]`);
-            if (tabBtn) {
-                tabBtn.click();
+            const tabContent = document.getElementById(`tab-${activeTab}`);
+            
+            if (tabBtn && tabContent) {
+                tabBtn.classList.add('active');
+                tabContent.classList.add('active');
+                
+                // ✅ Renderizar conteúdo se necessário
+                if (activeTab === 'stock') {
+                    renderStockMinimo();
+                    renderMovimentos();
+                }
+                
+                console.log('✅ Aba restaurada:', activeTab);
             }
         }
     } catch (e) {
@@ -7428,3 +7446,4 @@ window.openNovoMovimentoModal = openNovoMovimentoModal;
     </script>
 </body>
 </html>
+
