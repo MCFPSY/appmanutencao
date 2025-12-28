@@ -276,11 +276,19 @@
         /* Tab Content */
         .tab-content {
             display: none;
-            animation: fadeIn var(--transition-base);
         }
         
         .tab-content.active {
             display: block;
+        }
+        
+        /* ✅ CORREÇÃO v3.6.22: Esconder tabs durante carregamento (evita flash) */
+        body.app-loading .tab-content {
+            visibility: hidden !important;
+        }
+        
+        body.app-loading .tabs {
+            visibility: hidden !important;
         }
         
         @keyframes fadeIn {
@@ -3025,7 +3033,7 @@
         }
     </style>
 </head>
-<body>
+<body class="app-loading">
     <!-- Header -->
     <header class="app-header">
         <div class="header-content">
@@ -5031,8 +5039,14 @@ function restoreActiveTab() {
                 console.log('✅ Aba restaurada:', activeTab);
             }
         }
+        
+        // ✅ CORREÇÃO v3.6.22: Remover classe app-loading (mostrar conteúdo)
+        document.body.classList.remove('app-loading');
+        
     } catch (e) {
         console.warn('Erro ao restaurar aba:', e);
+        // ✅ Remover classe mesmo em caso de erro
+        document.body.classList.remove('app-loading');
     }
 }
 
