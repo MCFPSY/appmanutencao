@@ -3928,8 +3928,27 @@ async function addMovimento(movimento) {
 
 // Planeamento
 async function getPlaneamento() {
-    // ✅ Corrigido: Remover order porque "Data Alocada" tem espaço
     return await supabaseFetch('planeamento?select=*');
+}
+
+async function addPlaneamento(planeamento) {
+    return await supabaseFetch('planeamento', {
+        method: 'POST',
+        body: JSON.stringify(planeamento)
+    });
+}
+
+async function updatePlaneamento(id, planeamento) {
+    return await supabaseFetch(`planeamento?ID=eq.${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(planeamento)
+    });
+}
+
+async function deletePlaneamento(id) {
+    return await supabaseFetch(`planeamento?ID=eq.${id}`, {
+        method: 'DELETE'
+    });
 }
 
 // Exportar para uso global
@@ -3943,7 +3962,10 @@ window.SupabaseAPI = {
     deletePedido,
     getMovimentos,
     addMovimento,
-    getPlaneamento
+    getPlaneamento,
+    addPlaneamento,
+    updatePlaneamento,
+    deletePlaneamento
 };
 
 console.log('✅ Supabase API inicializada (INLINE)');
@@ -4406,6 +4428,13 @@ async function loadDataFromSupabase() {
         
         // Carregar pedidos
         const pedidos = await window.SupabaseAPI.getPedidos();
+        
+        // 🔎 DEBUG: Ver estrutura dos dados
+        console.log('🔎 PEDIDOS RECEBIDOS DO SUPABASE:');
+        console.log('Total:', pedidos.length);
+        if (pedidos.length > 0) {
+            console.log('Primeiro pedido:', JSON.stringify(pedidos[0], null, 2));
+        }
         
         // Converter formato Supabase → formato da app
         AppState.requests = pedidos.map(p => ({
@@ -5039,7 +5068,45 @@ function renderRequestsList() {
         return;
     }
     emptyState.classList.remove('active');
-    container.innerHTML = AppState.filteredRequests.map(request => `<div class="request-card" onclick="openRequestDetails('${request.id}')"><div class="request-header"><div class="request-badges"><span class="badge badge-tipo">${request.tipo}</span><span class="badge badge-prioridade ${request.prioridade.toLowerCase()}">${request.prioridade}</span><span class="badge badge-estado ${request.estado.toLowerCase().replace(' ', '')}">${request.estado}</span>${request.areaEquipamento && request.areaEquipamento !== '-' ? `<span class="badge" style="background: #667eea; color: white; font-size: 11px;" title="${request.componente || ''}">🔧 ${request.areaEquipamento}</span>` : ''}</div><span class="request-date">${formatDate(request.dataHora)}</span></div><div class="request-body"><h4>${request.tipo} - ${request.prioridade}</h4><p>${request.descricao}</p></div><div class="request-footer"><div class="request-meta"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${request.nome}</span>${request.departamento !== '-' ? `<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${request.departamento}</span>` : ''}</div><div class="request-actions" onclick="event.stopPropagation()">${request.estado !== 'Resolvido' ? `<button class="btn-icon" onclick="changeRequestState('${request.id}')" title="Mudar estado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>` : ''}<button class="btn-icon" onclick="deleteRequest('${request.id}')" title="Eliminar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div></div></div>`).join('');
+    container.innerHTML = AppState.filteredRequests.map(request => {
+        // ✅ VERIFICAÇÕES DE SEGURANÇA para evitar erros de undefined
+        const tipo = request.tipo || 'N/A';
+        const prioridade = request.prioridade || 'Media';
+        const estado = request.estado || 'Novo';
+        const prioridadeClass = prioridade.toLowerCase();
+        const estadoClass = estado.toLowerCase().replace(' ', '');
+        const descricao = request.descricao || '';
+        const nome = request.nome || 'Desconhecido';
+        const departamento = request.departamento || '-';
+        const areaEquipamento = request.areaEquipamento || '';
+        const componente = request.componente || '';
+        
+        return `<div class="request-card" onclick="openRequestDetails('${request.id}')">
+            <div class="request-header">
+                <div class="request-badges">
+                    <span class="badge badge-tipo">${tipo}</span>
+                    <span class="badge badge-prioridade ${prioridadeClass}">${prioridade}</span>
+                    <span class="badge badge-estado ${estadoClass}">${estado}</span>
+                    ${areaEquipamento && areaEquipamento !== '-' ? `<span class="badge" style="background: #667eea; color: white; font-size: 11px;" title="${componente}">🔧 ${areaEquipamento}</span>` : ''}
+                </div>
+                <span class="request-date">${formatDate(request.dataHora)}</span>
+            </div>
+            <div class="request-body">
+                <h4>${tipo} - ${prioridade}</h4>
+                <p>${descricao}</p>
+            </div>
+            <div class="request-footer">
+                <div class="request-meta">
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${nome}</span>
+                    ${departamento !== '-' ? `<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${departamento}</span>` : ''}
+                </div>
+                <div class="request-actions" onclick="event.stopPropagation()">
+                    ${estado !== 'Resolvido' ? `<button class="btn-icon" onclick="changeRequestState('${request.id}')" title="Mudar estado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>` : ''}
+                    <button class="btn-icon" onclick="deleteRequest('${request.id}')" title="Eliminar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
 }
 
 function applyFilters() {
@@ -5164,11 +5231,11 @@ function openRequestDetails(id) {
         </div>
         <div class="detail-group">
             <div class="detail-label">Prioridade</div>
-            <div class="detail-badges"><span class="badge badge-prioridade ${request.prioridade.toLowerCase()}">${request.prioridade}</span></div>
+            <div class="detail-badges"><span class="badge badge-prioridade ${(request.prioridade || 'Media').toLowerCase()}">${request.prioridade || 'Média'}</span></div>
         </div>
         <div class="detail-group">
             <div class="detail-label">Estado</div>
-            <div class="detail-badges"><span class="badge badge-estado ${request.estado.toLowerCase().replace(' ', '')}">${request.estado}</span></div>
+            <div class="detail-badges"><span class="badge badge-estado ${(request.estado || 'Novo').toLowerCase().replace(' ', '')}">${request.estado || 'Novo'}</span></div>
         </div>
         <div class="detail-group">
             <div class="detail-label">Empresa</div>
@@ -5927,17 +5994,54 @@ function loadPlanningFromStorage() {
         } catch (error) { console.error('Erro ao carregar planeamento:', error); }
     }
 }
+// 🔥 v3.6.13: Guardar planeamento no Supabase
 async function syncPlanningWithGoogleSheets() {
-    if (!CONFIG.GOOGLE_SHEETS_URL || CONFIG.GOOGLE_SHEETS_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') return;
+    if (!AppState.isOnline) {
+        console.log('⚠️ Offline - planeamento não sincronizado');
+        return;
+    }
+    
     try {
+        console.log('🔄 Sincronizando planeamento com Supabase...');
+        
+        // Buscar planeamentos existentes
+        const existingPlanning = await window.SupabaseAPI.getPlaneamento();
+        
+        // Preparar dados para guardar
         const allocations = [];
         Object.keys(AppState.planning.allocations).forEach(key => {
-            const [taskId, dateKey] = key.split('-'), task = AppState.requests.find(r => r.id === taskId);
-            if (task) allocations.push({ pedidoId: taskId, descricao: task.descricao, tipo: task.tipo, prioridade: task.prioridade, responsavel: task.responsavel || '-', data: dateKey });
+            const [taskId, dateKey] = key.split('-');
+            const task = AppState.requests.find(r => r.id === taskId);
+            if (task) {
+                allocations.push({
+                    'Pedido ID': taskId,
+                    'Descrição': task.descricao,
+                    'Tipo': task.tipo,
+                    'Prioridade': task.prioridade,
+                    'Responsável': task.responsavel || '-',
+                    'Data Alocada': dateKey,
+                    'Última Atualização': new Date().toISOString()
+                });
+            }
         });
-        await fetch(CONFIG.GOOGLE_SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'updatePlanning', planning: allocations }) });
-        console.log('✅ Planeamento sincronizado com Google Sheets');
-    } catch (error) { console.error('❌ Erro ao sincronizar planeamento:', error); }
+        
+        // Limpar planeamentos antigos (opcional - pode comentar se quiser manter histórico)
+        for (const existing of existingPlanning) {
+            await window.SupabaseAPI.deletePlaneamento(existing.ID);
+        }
+        
+        // Inserir novos planeamentos
+        for (const alloc of allocations) {
+            await window.SupabaseAPI.addPlaneamento(alloc);
+        }
+        
+        console.log(`✅ ${allocations.length} itens de planeamento sincronizados com Supabase`);
+        showToast('Planeamento guardado com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao sincronizar planeamento:', error);
+        showToast('Erro ao guardar planeamento', 'error');
+    }
 }
 function exportPlanningToExcel() {
     if (AppState.requests.length === 0) { showToast('Não há dados para exportar.', 'info'); return; }
@@ -6081,10 +6185,17 @@ function setCachedArtigos(artigos) {
     }
 }
 
-// Carregar artigos do Google Sheets (com cache e retry)
+// 🔥 v3.6.13: Carregar artigos do Supabase (com cache e retry)
 async function loadArtigosFromGoogleSheets(retryCount = 0, forceReload = false) {
     if (!AppState.isOnline) {
         console.log('⚠️ Offline - usando dados locais');
+        // Carregar do cache se estiver offline
+        const cached = getCachedArtigos();
+        if (cached && cached.length > 0) {
+            AppState.artigos = cached;
+            console.log('⚡ Artigos carregados do cache:', cached.length);
+            hideLoadingSpinner();
+        }
         return;
     }
     
@@ -6094,46 +6205,40 @@ async function loadArtigosFromGoogleSheets(retryCount = 0, forceReload = false) 
         if (cached && cached.length > 0) {
             AppState.artigos = cached;
             console.log('⚡ Artigos carregados do cache:', cached.length);
-            hideLoadingSpinner(); // ⚡ Esconder spinner se veio do cache
+            hideLoadingSpinner();
             return;
         }
     }
     
     // ⚡ MOSTRAR LOADING SPINNER
     if (retryCount === 0) {
-        showLoadingSpinner('Carregando artigos do Google Sheets...');
+        showLoadingSpinner('Carregando artigos do Supabase...');
     }
     
     try {
-        console.log('🔄 Carregando artigos do Google Sheets... (tentativa ' + (retryCount + 1) + ')');
-        console.log('🌐 URL:', CONFIG.GOOGLE_SHEETS_URL);
+        console.log('🔄 Carregando artigos do Supabase... (tentativa ' + (retryCount + 1) + ')');
         
-        const response = await fetch(CONFIG.GOOGLE_SHEETS_URL + '?timestamp=' + Date.now(), {
-            method: 'GET',
-            mode: 'cors',
-            credentials: 'omit',
-            cache: 'no-cache'
-        });
+        const artigos = await window.SupabaseAPI.getArtigos();
         
-        console.log('📡 Response status:', response.status);
-        console.log('📡 Response ok:', response.ok);
-        
-        const data = await response.json();
-        
-        console.log('📦 Resposta recebida completa:', JSON.stringify(data, null, 2));
-        console.log('📦 data.success:', data.success);
-        console.log('📦 data.artigos:', data.artigos);
-        console.log('📦 Número de artigos:', data.artigos ? data.artigos.length : 0);
-        
-        if (data.success && data.artigos) {
-            AppState.artigos = data.artigos;
-            setCachedArtigos(data.artigos); // ⚡ Guardar em cache
-            console.log('✅ Artigos carregados do Google Sheets:', data.artigos.length);
-            console.log('📋 Artigos detalhados:', JSON.stringify(data.artigos, null, 2));
+        if (artigos && artigos.length > 0) {
+            AppState.artigos = artigos.map(a => ({
+                id: a.ID,
+                codigo: a.ID,
+                familia: a.Família,
+                designacao: a.Designação,
+                referencia: a.Referência,
+                fornecedor: a.Fornecedor,
+                preco: parseFloat(a['Preço Unitário']) || 0,
+                stockMinimo: parseInt(a['Stock Mínimo']) || 0,
+                empresa: a.Empresa,
+                unidade: a.Unidade
+            }));
             
-            // ⚡ ESCONDER LOADING SPINNER
+            setCachedArtigos(AppState.artigos);
+            console.log('✅ Artigos carregados do Supabase:', AppState.artigos.length);
+            
             hideLoadingSpinner();
-            showToast(`✅ ${data.artigos.length} artigos carregados com sucesso!`, 'success');
+            showToast(`✅ ${AppState.artigos.length} artigos carregados com sucesso!`, 'success');
             
             // Atualizar interface se já estiver no tab stock
             const stockTab = document.getElementById('tab-stock');
@@ -6144,10 +6249,7 @@ async function loadArtigosFromGoogleSheets(retryCount = 0, forceReload = false) 
                 }
             }
         } else {
-            console.error('❌ ERRO: Nenhum artigo no Google Sheets!');
-            console.error('📋 Data.success:', data.success);
-            console.error('📋 Data.artigos:', data.artigos);
-            console.error('📋 Data completa:', JSON.stringify(data, null, 2));
+            console.error('❌ ERRO: Nenhum artigo no Supabase!');
             
             // Retry automático (máximo 2 tentativas)
             if (retryCount < 2) {
@@ -6155,14 +6257,12 @@ async function loadArtigosFromGoogleSheets(retryCount = 0, forceReload = false) 
                 setTimeout(() => loadArtigosFromGoogleSheets(retryCount + 1), 2000);
             } else {
                 AppState.artigos = [];
-                hideLoadingSpinner(); // ⚡ Esconder spinner
-                showToast('❌ Nenhum artigo encontrado no Google Sheets. Adicione artigos na sheet "Artigos".', 'error');
+                hideLoadingSpinner();
+                showToast('❌ Nenhum artigo encontrado. Verifique o Supabase.', 'error');
             }
         }
     } catch (error) {
-        console.error('❌ Erro ao carregar artigos do Google Sheets:', error);
-        console.error('🔧 Stack:', error.stack);
-        console.error('🔧 Message:', error.message);
+        console.error('❌ Erro ao carregar artigos do Supabase:', error);
         
         // Retry automático em caso de erro de rede (máximo 2 tentativas)
         if (retryCount < 2) {
@@ -6170,8 +6270,8 @@ async function loadArtigosFromGoogleSheets(retryCount = 0, forceReload = false) 
             setTimeout(() => loadArtigosFromGoogleSheets(retryCount + 1), 2000);
         } else {
             AppState.artigos = [];
-            hideLoadingSpinner(); // ⚡ Esconder spinner
-            showToast('❌ Erro ao conectar com Google Sheets. Verifique a configuração.', 'error');
+            hideLoadingSpinner();
+            showToast('❌ Erro ao conectar com Supabase. Verifique a configuração.', 'error');
         }
     }
 }
