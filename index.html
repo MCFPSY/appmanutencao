@@ -5494,9 +5494,10 @@ async function changeRequestState(id) {
         const observacoes = prompt('Observações ao fechar o pedido (opcional):');
         
         if (observacoes !== null) {  // null significa que cancelou
-            // ✅ Adicionar observações ao campo Descrição com ' - '
+            // ✅ Adicionar observações com timestamp no formato original
             if (observacoes.trim()) {
-                request.descricao = (request.descricao || '').trim() + ' - ' + observacoes.trim();
+                const timestamp = new Date().toLocaleString('pt-PT');
+                request.descricao = (request.descricao || '').trim() + ' [' + timestamp + '] Fechado: ' + observacoes.trim();
             }
             
             request.estado = newState;
@@ -5547,7 +5548,9 @@ async function sendToGoogleSheets(data) {
             'Área/Equipamento': data.areaEquipamento || '',
             Componente: data.componente || '',
             Urgente: data.urgente ? 'TRUE' : 'FALSE',
-            'Paragem Produção': data.paragemProducao ? 'TRUE' : 'FALSE'
+            'Paragem Produção': data.paragemProducao ? 'TRUE' : 'FALSE',
+            'Responsável': data.responsavel || '',  // ✅ ADICIONADO
+            'Horas Estimadas': data.horasEstimadas || 0  // ✅ ADICIONADO
         };
         
         await window.SupabaseAPI.addPedido(supabaseData);
@@ -5577,7 +5580,9 @@ async function updateInGoogleSheets(data) {
             'Área/Equipamento': data.areaEquipamento || '',
             Componente: data.componente || '',
             Urgente: data.urgente ? 'TRUE' : 'FALSE',
-            'Paragem Produção': data.paragemProducao ? 'TRUE' : 'FALSE'
+            'Paragem Produção': data.paragemProducao ? 'TRUE' : 'FALSE',
+            'Responsável': data.responsavel || '',  // ✅ ADICIONADO
+            'Horas Estimadas': data.horasEstimadas || 0  // ✅ ADICIONADO
         };
         
         await window.SupabaseAPI.updatePedido(data.id, supabaseData);
@@ -6150,21 +6155,43 @@ function toggleAllocation(taskId, dateKey) {
     renderPlanningGrid();
     savePlanningToStorage();
 }
-function updateTaskHours(taskId, hours) {
+async function updateTaskHours(taskId, hours) {
     const task = AppState.requests.find(r => r.id === taskId);
     if (task) {
         task.horasEstimadas = hours ? parseFloat(hours) : 0;
         saveToLocalStorage();
+        
+        // ✅ Sincronizar com Supabase
+        if (AppState.isOnline) {
+            try {
+                await updateInGoogleSheets(task);
+                console.log('✅ Horas sincronizadas com Supabase');
+            } catch (error) {
+                console.error('❌ Erro ao sincronizar horas:', error);
+            }
+        }
+        
         showToast(`Horas atualizadas: ${hours || 0}h`, 'success');
     }
 }
 
 // ✅ NOVO: Atualizar responsável da tarefa no planeamento
-function updateTaskResponsible(taskId, responsavel) {
+async function updateTaskResponsible(taskId, responsavel) {
     const task = AppState.requests.find(r => r.id === taskId);
     if (task) {
         task.responsavel = responsavel || '';
         saveToLocalStorage();
+        
+        // ✅ Sincronizar com Supabase
+        if (AppState.isOnline) {
+            try {
+                await updateInGoogleSheets(task);
+                console.log('✅ Responsável sincronizado com Supabase');
+            } catch (error) {
+                console.error('❌ Erro ao sincronizar responsável:', error);
+            }
+        }
+        
         renderPlanningGrid();  // Re-render para atualizar badge de responsável
         showToast(`Responsável atualizado: ${responsavel || 'Nenhum'}`, 'success');
     }
