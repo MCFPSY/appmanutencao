@@ -3889,7 +3889,8 @@ async function loginUtilizador(username, password) {
 
 // Pedidos
 async function getPedidos() {
-    return await supabaseFetch('pedidos?select=*&order=Data/hora.desc');
+    // ✅ Corrigido: Remover order porque "Data/hora" tem barra
+    return await supabaseFetch('pedidos?select=*');
 }
 
 async function addPedido(pedido) {
@@ -3914,7 +3915,8 @@ async function deletePedido(id) {
 
 // Movimentos
 async function getMovimentos() {
-    return await supabaseFetch('movimentos?select=*&order=Data/Hora.desc');
+    // ✅ Corrigido: Remover order porque "Data/Hora" tem barra
+    return await supabaseFetch('movimentos?select=*');
 }
 
 async function addMovimento(movimento) {
@@ -3926,7 +3928,8 @@ async function addMovimento(movimento) {
 
 // Planeamento
 async function getPlaneamento() {
-    return await supabaseFetch('planeamento?select=*&order=Data Alocada.asc');
+    // ✅ Corrigido: Remover order porque "Data Alocada" tem espaço
+    return await supabaseFetch('planeamento?select=*');
 }
 
 // Exportar para uso global
@@ -4423,6 +4426,13 @@ async function loadDataFromSupabase() {
             urgent: p.Urgente === 'TRUE' || p.Urgente === true,
             productionStop: p['Paragem Produção'] === 'TRUE' || p['Paragem Produção'] === true
         }));
+        
+        // ✅ Ordenar por data (mais recentes primeiro) - ordem no JavaScript
+        AppState.requests.sort((a, b) => {
+            const dateA = new Date(a.timestamp);
+            const dateB = new Date(b.timestamp);
+            return dateB - dateA; // DESC
+        });
         
         // Guardar localmente
         localStorage.setItem(CONFIG.STORAGE_KEYS.REQUESTS, JSON.stringify(AppState.requests));
@@ -5394,6 +5404,14 @@ async function syncWithSupabase() {
             observacoes: m.Observações,
             empresa: m.Empresa
         }));
+        
+        // ✅ Ordenar movimentos por data (mais recentes primeiro)
+        AppState.movimentos.sort((a, b) => {
+            const dateA = new Date(a.dataHora);
+            const dateB = new Date(b.dataHora);
+            return dateB - dateA;
+        });
+        
         console.log(`✅ ${AppState.movimentos.length} movimentos carregados`);
         
         // Carregar UTILIZADORES
