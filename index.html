@@ -5494,11 +5494,9 @@ async function changeRequestState(id) {
         const observacoes = prompt('Observações ao fechar o pedido (opcional):');
         
         if (observacoes !== null) {  // null significa que cancelou
-            // Adicionar observações ao texto existente
+            // ✅ Adicionar observações ao campo Descrição com ' - '
             if (observacoes.trim()) {
-                const timestamp = new Date().toLocaleString('pt-PT');
-                const novaObservacao = `\n\n[${timestamp}] Fechado: ${observacoes.trim()}`;
-                request.descricao = (request.descricao || '') + novaObservacao;
+                request.descricao = (request.descricao || '').trim() + ' - ' + observacoes.trim();
             }
             
             request.estado = newState;
@@ -5671,6 +5669,22 @@ async function syncWithSupabase() {
                 departamento: u.Departamento,
                 role: u.Role
             }));
+        
+        // ✅ FALLBACK: Se não houver utilizadores, usar lista padrão
+        if (AppState.utilizadores.length === 0) {
+            console.warn('⚠️ Nenhum utilizador no Supabase. Usando lista padrão.');
+            AppState.utilizadores = [
+                { username: 'toni', nomeCompleto: 'Toni', departamento: 'Manutenção', role: 'operador' },
+                { username: 'jose', nomeCompleto: 'José', departamento: 'Manutenção', role: 'operador' },
+                { username: 'manuel', nomeCompleto: 'Manuel', departamento: 'Manutenção', role: 'operador' },
+                { username: 'carlos', nomeCompleto: 'Carlos', departamento: 'Manutenção', role: 'operador' },
+                { username: 'paulo', nomeCompleto: 'Paulo', departamento: 'Manutenção', role: 'operador' },
+                { username: 'pedro', nomeCompleto: 'Pedro', departamento: 'Manutenção', role: 'operador' },
+                { username: 'bruno', nomeCompleto: 'Bruno', departamento: 'Manutenção', role: 'operador' },
+                { username: 'miguel', nomeCompleto: 'Miguel', departamento: 'Manutenção', role: 'operador' }
+            ];
+        }
+        
         console.log(`✅ ${AppState.utilizadores.length} utilizadores carregados`);
         
         // Guardar localmente
