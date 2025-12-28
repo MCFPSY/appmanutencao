@@ -4410,27 +4410,27 @@ async function loadDataFromSupabase() {
         // Converter formato Supabase → formato da app
         AppState.requests = pedidos.map(p => ({
             id: p.ID,
-            timestamp: p['Data/hora'],
-            type: p.Tipo,
-            priority: p.Prioridade,
-            department: p.Departamento,
-            description: p.Descrição,
-            registeredBy: p['Registado por'],
-            status: p.Estado,
-            photo: p.Foto || '',
-            articles: p.Artigos ? (typeof p.Artigos === 'string' ? JSON.parse(p.Artigos) : p.Artigos) : [],
-            company: p.Empresa,
-            interventionType: p['Tipo Intervenção'] || '',
-            areaEquipment: p['Área/Equipamento'] || '',
-            component: p.Componente || '',
-            urgent: p.Urgente === 'TRUE' || p.Urgente === true,
-            productionStop: p['Paragem Produção'] === 'TRUE' || p['Paragem Produção'] === true
+            dataHora: p['Data/hora'],           // ✅ Corrigido: era timestamp
+            tipo: p.Tipo,                       // ✅ Corrigido: era type
+            prioridade: p.Prioridade,           // ✅ Corrigido: era priority
+            departamento: p.Departamento,       // ✅ Corrigido: era department
+            descricao: p.Descrição,             // ✅ Corrigido: era description
+            nome: p['Registado por'],           // ✅ Corrigido: era registeredBy
+            estado: p.Estado,                   // ✅ Corrigido: era status
+            foto: p.Foto || '',                 // ✅ OK
+            artigos: p.Artigos ? (typeof p.Artigos === 'string' ? JSON.parse(p.Artigos) : p.Artigos) : [],
+            empresa: p.Empresa,                 // ✅ Corrigido: era company
+            tipoIntervencao: p['Tipo Intervenção'] || '', // ✅ Corrigido: era interventionType
+            areaEquipamento: p['Área/Equipamento'] || '', // ✅ Corrigido: era areaEquipment
+            componente: p.Componente || '',     // ✅ Corrigido: era component
+            urgente: p.Urgente === 'TRUE' || p.Urgente === true,
+            paragemProducao: p['Paragem Produção'] === 'TRUE' || p['Paragem Produção'] === true
         }));
         
         // ✅ Ordenar por data (mais recentes primeiro) - ordem no JavaScript
         AppState.requests.sort((a, b) => {
-            const dateA = new Date(a.timestamp);
-            const dateB = new Date(b.timestamp);
+            const dateA = new Date(a.dataHora);  // ✅ Corrigido: era timestamp
+            const dateB = new Date(b.dataHora);  // ✅ Corrigido: era timestamp
             return dateB - dateA; // DESC
         });
         
