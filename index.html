@@ -6323,8 +6323,9 @@ async function loadMovimentosFromGoogleSheets() {
     }
 }
 
-// Sincronizar movimento com Google Sheets
+// 🔥 v3.6.16: Sincronizar movimento com Supabase (CORRIGIDO)
 async function syncMovimentoToGoogleSheets(movimento) {
+    // ⚠️ Nome mantido para compatibilidade, mas usa Supabase
     if (!AppState.isOnline) {
         console.log('⚠️ Offline - movimento será sincronizado depois');
         addToOfflineQueue({action: 'createMovimento', movimento: movimento});
@@ -6332,38 +6333,34 @@ async function syncMovimentoToGoogleSheets(movimento) {
     }
     
     try {
-        console.log('🔄 Sincronizando movimento com Google Sheets...');
-        await fetch(CONFIG.GOOGLE_SHEETS_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                action: 'createMovimento',
-                movimento: {
-                    artigoId: movimento.artigoId,
-                    tipo: movimento.tipo,
-                    quantidade: movimento.quantidade,
-                    pedidoId: movimento.pedidoId || '',
-                    responsavel: movimento.responsavel || '',
-                    observacoes: movimento.observacoes || '',
-                    empresa: movimento.empresa || 'MCF'
-                }
-            })
-        });
+        console.log('🔄 Sincronizando movimento com Supabase...');
         
-        // ⚠️ Com mode: 'no-cors' não conseguimos ler a resposta
-        // Assumimos sucesso se não deu erro
-        console.log('✅ Movimento enviado para Google Sheets (modo no-cors)');
+        // Converter formato app → formato Supabase
+        const supabaseMovimento = {
+            'Artigo ID': movimento.artigoId,
+            'Tipo': movimento.tipo,
+            'Quantidade': movimento.quantidade,
+            'Pedido ID': movimento.pedidoId || '',
+            'Responsável': movimento.responsavel || '',
+            'Observações': movimento.observacoes || '',
+            'Empresa': movimento.empresa || 'MCF',
+            'Data/Hora': movimento.dataHora || new Date().toISOString()
+        };
         
-        // Recarregar movimentos depois de 2 segundos para confirmar
+        await window.SupabaseAPI.addMovimento(supabaseMovimento);
+        console.log('✅ Movimento guardado no Supabase');
+        
+        // Recarregar movimentos para atualizar interface
         setTimeout(() => {
             loadMovimentosFromGoogleSheets();
-        }, 2000);
+            renderStockMinimo(); // ✅ Atualizar alertas de stock
+        }, 1000);
         
         return movimento.id;
     } catch (error) {
         console.error('❌ Erro ao sincronizar movimento:', error);
         addToOfflineQueue({action: 'createMovimento', movimento: movimento});
+        showToast('Erro ao guardar movimento', 'error');
         return null;
     }
 }
@@ -6625,15 +6622,16 @@ function renderMovimentos() {
     }).join('');
 }
 
-// ✅ NOVO: Renderizar alertas de stock mínimo
+// ✅ v3.6.16: Renderizar alertas de stock mínimo (CORRIGIDO)
 function renderStockMinimo() {
     const container = document.getElementById('stockMinimoContent');
     if (!container) return;
     
-    // Filtrar artigos abaixo do mínimo (só os que têm stockMinimo definido)
-    const alertas = AppState.artigos.filter(a => 
-        a.stockMinimo > 0 && a.stockAtual < a.stockMinimo
-    );
+    // Filtrar artigos abaixo do mínimo (calcular stock em tempo real)
+    const alertas = AppState.artigos.filter(a => {
+        const stockAtual = calcularStockAtual(a.id);
+        return a.stockMinimo > 0 && stockAtual < a.stockMinimo;
+    });
     
     // Atualizar badge no botão da tab Stock
     const badge = document.getElementById('stockAlertBadge');
@@ -6660,10 +6658,12 @@ function renderStockMinimo() {
     
     // Ordenar por criticidade: stock=0 primeiro, depois por % de falta
     alertas.sort((a, b) => {
-        if (a.stockAtual === 0 && b.stockAtual !== 0) return -1;
-        if (a.stockAtual !== 0 && b.stockAtual === 0) return 1;
-        const faltaA = (a.stockMinimo - a.stockAtual) / a.stockMinimo;
-        const faltaB = (b.stockMinimo - b.stockAtual) / b.stockMinimo;
+        const stockAtualA = calcularStockAtual(a.id);
+        const stockAtualB = calcularStockAtual(b.id);
+        if (stockAtualA === 0 && stockAtualB !== 0) return -1;
+        if (stockAtualA !== 0 && stockAtualB === 0) return 1;
+        const faltaA = (a.stockMinimo - stockAtualA) / a.stockMinimo;
+        const faltaB = (b.stockMinimo - stockAtualB) / b.stockMinimo;
         return faltaB - faltaA;
     });
     
@@ -6688,8 +6688,9 @@ function renderStockMinimo() {
     `;
     
     alertas.forEach(artigo => {
-        const falta = artigo.stockMinimo - artigo.stockAtual;
-        const isCritico = artigo.stockAtual === 0;
+        const stockAtual = calcularStockAtual(artigo.id);
+        const falta = artigo.stockMinimo - stockAtual;
+        const isCritico = stockAtual === 0;
         const statusClass = isCritico ? 'badge-critico' : 'badge-alerta';
         const statusIcon = isCritico ? '🔴' : '⚠️';
         const statusText = isCritico ? 'Crítico' : 'Baixo';
@@ -6703,7 +6704,7 @@ function renderStockMinimo() {
                 <td>${artigo.familia}</td>
                 <td style="text-align: center;">
                     <strong style="color: ${isCritico ? '#d32f2f' : '#f57c00'}; font-size: 1.1rem;">
-                        ${artigo.stockAtual}
+                        ${stockAtual}
                     </strong>
                 </td>
                 <td style="text-align: center;">${artigo.stockMinimo}</td>
