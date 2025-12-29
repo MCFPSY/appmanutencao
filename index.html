@@ -4783,8 +4783,8 @@ const AppState = {
     currentUser: null  // { username, nomeCompleto, departamento, role, podeEditarPlaneamento, token }
 };
 
-// ⚠️ DADOS DEMO REMOVIDOS - App usa APENAS Google Sheets
-// Artigos e movimentos devem ser criados no Google Sheets
+// ✅ v3.6.8: App migrado para SUPABASE
+// Artigos, movimentos e pedidos são carregados do Supabase
 // Se não houver dados, app mostra erro (não usa dados falsos)
 
 let currentMachine = null;
@@ -4955,6 +4955,8 @@ async function loadDataFromSupabase() {
             id: p.ID,
             dataHora: p['Data/hora'],           // ✅ Corrigido: era timestamp
             tipo: p.Tipo,                       // ✅ Corrigido: era type
+            frequencia: p.Frequencia || '',     // ✅ v3.7.0.8: Campo Frequência
+            dataPrimeiraIntervencao: p['Data 1ª Intervenção'] || '',  // ✅ v3.7.0.8: Data 1ª Intervenção
             prioridade: p.Prioridade,           // ✅ Corrigido: era priority
             departamento: p.Departamento,       // ✅ Corrigido: era department
             descricao: p.Descrição,             // ✅ Corrigido: era description
@@ -5304,7 +5306,7 @@ async function initializeApp() {
     
     loadFromLocalStorage();
     loadSavedUserName();
-    if (AppState.isOnline) await syncWithGoogleSheets();
+    if (AppState.isOnline) await syncWithGoogleSheets();  // 🔥 Nome legacy, usa Supabase internamente
     renderRequestsList();
     initializePlanning();
     initializeAutonomousMaintenance();
@@ -5588,7 +5590,7 @@ async function handleFormSubmit(e) {
         saveToLocalStorage();
         
         if (AppState.isOnline) {
-            await sendToGoogleSheets(formData);
+            await sendToGoogleSheets(formData);  // 🔥 Nome legacy, usa Supabase internamente
         } else {
             addToOfflineQueue(formData);
             showToast('Pedido salvo offline. Será sincronizado quando estiver online.', 'info');
@@ -6059,7 +6061,7 @@ async function changeRequestState(id) {
             
             request.estado = newState;
             saveToLocalStorage();
-            if (AppState.isOnline) await updateInGoogleSheets(request);
+            if (AppState.isOnline) await updateInGoogleSheets(request);  // 🔥 Nome legacy, usa Supabase
             renderRequestsList();
             showToast(`Estado alterado para: ${newState}`, 'success');
         }
@@ -6067,7 +6069,7 @@ async function changeRequestState(id) {
         // Estados normais (Novo → Em curso)
         request.estado = newState;
         saveToLocalStorage();
-        if (AppState.isOnline) await updateInGoogleSheets(request);
+        if (AppState.isOnline) await updateInGoogleSheets(request);  // 🔥 Nome legacy, usa Supabase
         renderRequestsList();
         showToast(`Estado alterado para: ${newState}`, 'success');
     }
@@ -6079,13 +6081,17 @@ async function deleteRequest(id) {
     if (index === -1) return;
     AppState.requests.splice(index, 1);
     saveToLocalStorage();
-    if (AppState.isOnline) await deleteFromGoogleSheets(id);
+    if (AppState.isOnline) await deleteFromGoogleSheets(id);  // 🔥 Nome legacy, usa Supabase
     renderRequestsList();
     showToast('Pedido eliminado com sucesso.', 'success');
 }
 
-// GOOGLE SHEETS
-// 🔥 v3.6.8: Reescrito para Supabase
+// ===================================
+// SINCRONIZAÇÃO COM SUPABASE
+// ===================================
+// 🔥 v3.6.8: Migrado para Supabase (funções mantêm nomes antigos para compatibilidade)
+// 🔥 v3.7.0.8: Adicionados campos Frequencia e Data 1ª Intervenção
+
 async function sendToGoogleSheets(data) {
     try {
         // Converter formato da app → formato Supabase
@@ -6093,6 +6099,8 @@ async function sendToGoogleSheets(data) {
             ID: data.id,
             'Data/hora': data.dataHora,
             Tipo: data.tipo,
+            Frequencia: data.frequencia || '',  // ✅ v3.7.0.8: Campo Frequência
+            'Data 1ª Intervenção': data.dataPrimeiraIntervencao || '',  // ✅ v3.7.0.8: Data 1ª Intervenção
             Prioridade: data.prioridade,
             Departamento: data.departamento,
             Descrição: data.descricao,
@@ -6126,6 +6134,8 @@ async function updateInGoogleSheets(data) {
         const supabaseData = {
             'Data/hora': data.dataHora,
             Tipo: data.tipo,
+            Frequencia: data.frequencia || '',  // ✅ v3.7.0.8: Campo Frequência
+            'Data 1ª Intervenção': data.dataPrimeiraIntervencao || '',  // ✅ v3.7.0.8: Data 1ª Intervenção
             Prioridade: data.prioridade,
             Departamento: data.departamento,
             Descrição: data.descricao,
