@@ -4955,8 +4955,8 @@ async function loadDataFromSupabase() {
             id: p.ID,
             dataHora: p['Data/hora'],           // ✅ Corrigido: era timestamp
             tipo: p.Tipo,                       // ✅ Corrigido: era type
-            frequencia: p.Frequencia || '',     // ✅ v3.7.0.8: Campo Frequência
-            dataPrimeiraIntervencao: p['Data 1ª Intervenção'] || '',  // ✅ v3.7.0.8: Data 1ª Intervenção
+            frequencia: p.frequencia || '',     // ✅ v3.7.0.8: snake_case
+            dataPrimeiraIntervencao: p.data_primeira_intervencao || '',  // ✅ v3.7.0.8: snake_case
             prioridade: p.Prioridade,           // ✅ Corrigido: era priority
             departamento: p.Departamento,       // ✅ Corrigido: era department
             descricao: p.Descrição,             // ✅ Corrigido: era description
@@ -6099,8 +6099,8 @@ async function sendToGoogleSheets(data) {
             ID: data.id,
             'Data/hora': data.dataHora,
             Tipo: data.tipo,
-            Frequencia: data.frequencia || '',  // ✅ v3.7.0.8: Campo Frequência
-            'Data 1ª Intervenção': data.dataPrimeiraIntervencao || '',  // ✅ v3.7.0.8: Data 1ª Intervenção
+            frequencia: data.frequencia || '',  // ✅ v3.7.0.8: snake_case
+            data_primeira_intervencao: data.dataPrimeiraIntervencao || '',  // ✅ v3.7.0.8: snake_case
             Prioridade: data.prioridade,
             Departamento: data.departamento,
             Descrição: data.descricao,
@@ -6134,8 +6134,8 @@ async function updateInGoogleSheets(data) {
         const supabaseData = {
             'Data/hora': data.dataHora,
             Tipo: data.tipo,
-            Frequencia: data.frequencia || '',  // ✅ v3.7.0.8: Campo Frequência
-            'Data 1ª Intervenção': data.dataPrimeiraIntervencao || '',  // ✅ v3.7.0.8: Data 1ª Intervenção
+            frequencia: data.frequencia || '',  // ✅ v3.7.0.8: snake_case
+            data_primeira_intervencao: data.dataPrimeiraIntervencao || '',  // ✅ v3.7.0.8: snake_case
             Prioridade: data.prioridade,
             Departamento: data.departamento,
             Descrição: data.descricao,
