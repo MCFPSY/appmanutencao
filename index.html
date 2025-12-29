@@ -1,8 +1,17 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.6.7
-    📅 Data: 2025-12-26
+    📦 Versão: v3.7.0.8
+    📅 Data: 2025-12-29
+    
+    🎯 v3.7.0.8: PREVENTIVAS COMPLETAS + CHATBOT IA (GEMINI 2.5 FLASH)
+    ───────────────────────────────────────────────────────────────
+    ✅ Campo "Data 1ª Intervenção" no formulário
+    ✅ Cálculo automático da próxima intervenção
+    ✅ Ordenação por urgência no resumo
+    ✅ Indicadores visuais: HOJE | ⚡ Em X dias | ⚠️ Atrasada
+    ✅ Chatbot com IA Gemini 2.5 Flash
+    
     🧹 v3.6.7: Limpeza profunda (↓25% ficheiros, ↓30% tamanho, zero 404)
     ⚠️ v3.6.6: Alertas de Stock Mínimo ACIMA do histórico (reordenado)
     ✨ v3.6.5: Dropdown responsável no planeamento
@@ -3337,11 +3346,16 @@
                             </select>
                         </div>
 
-                        <!-- Data 1ª Intervenção (apenas para Preventivas) -->
+                        <!-- ✅ NOVO v3.7.0.8: Data 1ª Intervenção (apenas para Preventivas) -->
                         <div class="form-group" id="dataPrimeiraIntervencaoGroup" style="display: none;">
                             <label class="form-label" for="dataPrimeiraIntervencao">Data 1ª Intervenção *</label>
-                            <input type="date" class="form-input" id="dataPrimeiraIntervencao" name="dataPrimeiraIntervencao">
-                            <small class="form-help">Data da primeira manutenção preventiva programada</small>
+                            <input 
+                                type="date" 
+                                class="form-input" 
+                                id="dataPrimeiraIntervencao" 
+                                name="dataPrimeiraIntervencao"
+                            >
+                            <small class="form-hint">Data da primeira intervenção programada</small>
                         </div>
 
                         <!-- Prioridade -->
@@ -5324,7 +5338,8 @@ function setupEventListeners() {
             if (tipoSelect.value === 'Preventiva') {
                 frequenciaGroup.style.display = 'block';
                 frequenciaSelect.required = true;
-                if (dataPrimeiraIntervencaoGroup) {
+                // ✅ v3.7.0.8: Mostrar Data 1ª Intervenção
+                if (dataPrimeiraIntervencaoGroup && dataPrimeiraIntervencaoInput) {
                     dataPrimeiraIntervencaoGroup.style.display = 'block';
                     dataPrimeiraIntervencaoInput.required = true;
                 }
@@ -5332,7 +5347,8 @@ function setupEventListeners() {
                 frequenciaGroup.style.display = 'none';
                 frequenciaSelect.required = false;
                 frequenciaSelect.value = '';
-                if (dataPrimeiraIntervencaoGroup) {
+                // ✅ v3.7.0.8: Ocultar Data 1ª Intervenção
+                if (dataPrimeiraIntervencaoGroup && dataPrimeiraIntervencaoInput) {
                     dataPrimeiraIntervencaoGroup.style.display = 'none';
                     dataPrimeiraIntervencaoInput.required = false;
                     dataPrimeiraIntervencaoInput.value = '';
@@ -5551,7 +5567,7 @@ async function handleFormSubmit(e) {
             id: pedidoId,
             tipo: document.getElementById('tipo').value,
             frequencia: document.getElementById('frequencia').value || '-',  // ✅ NOVO campo
-            dataPrimeiraIntervencao: document.getElementById('dataPrimeiraIntervencao').value || null,  // ✅ NOVO campo v3.7.0.8
+            dataPrimeiraIntervencao: document.getElementById('dataPrimeiraIntervencao').value || '',  // ✅ v3.7.0.8: Data 1ª Intervenção
             prioridade: document.querySelector('input[name="prioridade"]:checked').value,
             empresa: document.getElementById('empresa').value,
             tipoIntervencao: document.getElementById('tipoIntervencao').value || '-',
@@ -5892,6 +5908,44 @@ function openRequestDetails(id) {
             <div class="detail-value">${request.empresa || 'MCF'}</div>
         </div>`;
     
+    // ✅ v3.7.0.8: Mostrar Frequência e Data Próxima Intervenção para Preventivas
+    if (request.tipo === 'Preventiva') {
+        if (request.frequencia && request.frequencia !== '-') {
+            html += `
+        <div class="detail-group">
+            <div class="detail-label">Frequência</div>
+            <div class="detail-value"><strong>${request.frequencia}</strong></div>
+        </div>`;
+        }
+        
+        if (request.dataPrimeiraIntervencao) {
+            const proximaData = calcularProximaIntervencao(request.dataPrimeiraIntervencao, request.frequencia);
+            if (proximaData) {
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
+                
+                let indicador = '';
+                if (diasRestantes === 0) indicador = '<span style="color: #2ecc71; font-weight: bold;">📅 HOJE</span>';
+                else if (diasRestantes > 0) indicador = `<span style="color: #f39c12; font-weight: bold;">⚡ Em ${diasRestantes} dias</span>`;
+                else indicador = `<span style="color: #e74c3c; font-weight: bold;">⚠️ Atrasada ${Math.abs(diasRestantes)} dias</span>`;
+                
+                html += `
+        <div class="detail-group">
+            <div class="detail-label">Data 1ª Intervenção</div>
+            <div class="detail-value">${new Date(request.dataPrimeiraIntervencao).toLocaleDateString('pt-PT')}</div>
+        </div>
+        <div class="detail-group">
+            <div class="detail-label">Próxima Intervenção</div>
+            <div class="detail-value">
+                <strong>${proximaData.toLocaleDateString('pt-PT')}</strong>
+                <br>${indicador}
+            </div>
+        </div>`;
+            }
+        }
+    }
+    
     // Tipo de Intervenção
     if (request.tipoIntervencao && request.tipoIntervencao !== '-') {
         html += `
@@ -5899,38 +5953,6 @@ function openRequestDetails(id) {
             <div class="detail-label">Tipo de Intervenção</div>
             <div class="detail-value">${request.tipoIntervencao}</div>
         </div>`;
-    }
-    
-    // ⚡ NOVO v3.7.0.8: Frequência e Próxima Intervenção (apenas para Preventivas)
-    if (request.tipo === 'Preventiva' && request.frequencia && request.frequencia !== '-') {
-        html += `
-        <div class="detail-group">
-            <div class="detail-label">Frequência</div>
-            <div class="detail-value">${request.frequencia}</div>
-        </div>`;
-        
-        if (request.dataPrimeiraIntervencao) {
-            const dataPrimeira = formatarDataIntervencao(request.dataPrimeiraIntervencao);
-            html += `
-        <div class="detail-group">
-            <div class="detail-label">Data 1ª Intervenção</div>
-            <div class="detail-value">${dataPrimeira}</div>
-        </div>`;
-            
-            const dataProxima = calcularProximaIntervencao(request.dataPrimeiraIntervencao, request.frequencia);
-            if (dataProxima) {
-                const numeroIntervencao = obterNumeroIntervencao(request.dataPrimeiraIntervencao, dataProxima, request.frequencia);
-                const dataProximaFormatada = formatarDataIntervencao(dataProxima);
-                
-                html += `
-        <div class="detail-group">
-            <div class="detail-label">Próxima Intervenção</div>
-            <div class="detail-value" style="font-weight: 600; color: #0077ff;">
-                ${numeroIntervencao}ª Intervenção → ${dataProximaFormatada}
-            </div>
-        </div>`;
-            }
-        }
     }
     
     // ⚡ NOVO: Área/Equipamento
@@ -6612,6 +6634,40 @@ function formatDateForFilename() {
     return new Date().toISOString().split('T')[0];
 }
 
+// ✅ v3.7.0.8: Calcular próxima intervenção baseada na frequência
+function calcularProximaIntervencao(dataPrimeiraIntervencao, frequencia) {
+    if (!dataPrimeiraIntervencao || !frequencia) return null;
+    
+    const dataBase = new Date(dataPrimeiraIntervencao);
+    if (isNaN(dataBase.getTime())) return null;
+    
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    
+    // Mapeamento de frequências para dias
+    const diasPorFrequencia = {
+        'Semanal': 7,
+        'Quinzenal': 14,
+        'Mensal': 30,
+        'Trimestral': 90,
+        'Semestral': 180,
+        'Anual': 365,
+        '2 anos': 730
+    };
+    
+    const diasIntervalo = diasPorFrequencia[frequencia];
+    if (!diasIntervalo) return null;
+    
+    let proximaData = new Date(dataBase);
+    
+    // Encontrar a próxima data no futuro
+    while (proximaData <= hoje) {
+        proximaData.setDate(proximaData.getDate() + diasIntervalo);
+    }
+    
+    return proximaData;
+}
+
 // PLANEAMENTO
 function initializePlanning() { loadPlanningFromStorage(); resetPlanningToToday(); renderPlanningGrid(); }
 function resetPlanningToToday() {
@@ -6658,17 +6714,9 @@ function renderPreventivasList() {
         preventivas = preventivas.filter(r => r.frequencia === frequenciaFilter);
     }
     
-    // ✅ v3.7.0.8: Adicionar data da próxima intervenção a cada preventiva
-    preventivas.forEach(p => {
-        if (p.dataPrimeiraIntervencao && p.frequencia && p.frequencia !== '-') {
-            p._proximaIntervencao = calcularProximaIntervencao(p.dataPrimeiraIntervencao, p.frequencia);
-        } else {
-            p._proximaIntervencao = null;
-        }
-    });
-    
     // Calcular data limite baseada no período
     const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
     let dataLimite = new Date();
     
     switch(periodoFilter) {
@@ -6686,19 +6734,19 @@ function renderPreventivasList() {
             break;
     }
     
-    // ✅ v3.7.0.8: Filtrar por data da próxima intervenção (se houver período)
-    if (periodoFilter !== 'todas') {
-        preventivas = preventivas.filter(p => {
-            if (!p._proximaIntervencao) return false; // Excluir sem data
-            return p._proximaIntervencao <= dataLimite;
-        });
-    }
-    
-    // ✅ v3.7.0.8: ORDENAR por data da próxima intervenção (mais próxima primeiro)
-    preventivas.sort((a, b) => {
-        if (!a._proximaIntervencao) return 1;
-        if (!b._proximaIntervencao) return -1;
-        return a._proximaIntervencao - b._proximaIntervencao;
+    // ✅ v3.7.0.8: Calcular próxima intervenção e ordenar por urgência
+    preventivas = preventivas.map(p => {
+        const proximaData = calcularProximaIntervencao(p.dataPrimeiraIntervencao, p.frequencia);
+        const diasRestantes = proximaData ? Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24)) : 999999;
+        
+        return {
+            ...p,
+            proximaData,
+            diasRestantes
+        };
+    }).sort((a, b) => {
+        // Ordenar por dias restantes (mais urgente primeiro)
+        return a.diasRestantes - b.diasRestantes;
     });
     
     console.log(`📊 ${preventivas.length} preventivas encontradas (período: ${periodoFilter})`);
@@ -6718,30 +6766,46 @@ function renderPreventivasList() {
         return;
     }
     
+    // Agrupar por frequência
+    const porFrequencia = {};
+    preventivas.forEach(p => {
+        const freq = p.frequencia || '-';
+        if (!porFrequencia[freq]) porFrequencia[freq] = [];
+        porFrequencia[freq].push(p);
+    });
+    
     // Gerar HTML
     let html = '';
     
     // Cards de resumo
-    const preventivasComData = preventivas.filter(p => p._proximaIntervencao).length;
+    const vencidas = preventivas.filter(p => p.diasRestantes < 0).length;
+    const proximas = preventivas.filter(p => p.diasRestantes >= 0 && p.diasRestantes <= 7).length;
+    
     html += `
         <div class="stats-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
             <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px;">
                 <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">${preventivas.length}</div>
                 <div style="opacity: 0.9;">Total de Preventivas</div>
             </div>
-            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 8px;">
-                <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">${preventivasComData}</div>
-                <div style="opacity: 0.9;">Com Próxima Intervenção</div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #f5576c 0%, #e74c3c 100%); color: white; padding: 20px; border-radius: 8px;">
+                <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">${vencidas}</div>
+                <div style="opacity: 0.9;">⚠️ Atrasadas</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #f39c12 0%, #f093fb 100%); color: white; padding: 20px; border-radius: 8px;">
+                <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">${proximas}</div>
+                <div style="opacity: 0.9;">⚡ Próx. 7 dias</div>
             </div>
         </div>
     `;
     
-    // ✅ v3.7.0.8: Listar ordenadas por data da próxima intervenção
-    html += `<div style="margin-bottom: 20px;">
-        <h3 style="color: #2196F3; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #2196F3;">
-            📅 Próximas Intervenções Programadas
-        </h3>
-        <div style="display: grid; gap: 10px;">`;
+    // ✅ v3.7.0.8: Listar ORDENADO por próxima intervenção
+    html += `
+        <div style="margin-bottom: 20px;">
+            <h3 style="color: #2196F3; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #2196F3;">
+                📋 Preventivas Ordenadas por Urgência
+            </h3>
+            <div style="display: grid; gap: 10px;">
+    `;
     
     preventivas.forEach(p => {
         const prioridadeClass = p.prioridade === 'Alta' ? 'priority-alta' : 
@@ -6749,23 +6813,27 @@ function renderPreventivasList() {
         const estadoClass = p.estado === 'Resolvido' ? 'estado-resolvido' : 
                           p.estado === 'Em curso' ? 'estado-em-curso' : 'estado-novo';
         
-        // ✅ v3.7.0.8: Calcular dias até próxima intervenção
-        let diasRestantes = '';
-        if (p._proximaIntervencao) {
-            const diff = Math.ceil((p._proximaIntervencao - hoje) / (1000 * 60 * 60 * 24));
-            if (diff < 0) {
-                diasRestantes = `<span style="color: #ff4757; font-weight: 600;">⚠️ Atrasada (${Math.abs(diff)} dias)</span>`;
-            } else if (diff === 0) {
-                diasRestantes = `<span style="color: #ffa502; font-weight: 600;">🔥 HOJE</span>`;
-            } else if (diff <= 7) {
-                diasRestantes = `<span style="color: #ffa502; font-weight: 600;">⚡ Em ${diff} dias</span>`;
+        // ✅ v3.7.0.8: Indicador visual de urgência
+        let indicadorUrgencia = '';
+        let borderColor = '#ddd';
+        
+        if (p.proximaData) {
+            if (p.diasRestantes === 0) {
+                indicadorUrgencia = '<span style="color: #2ecc71; font-weight: bold; font-size: 0.875rem;">📅 HOJE</span>';
+                borderColor = '#2ecc71';
+            } else if (p.diasRestantes > 0 && p.diasRestantes <= 7) {
+                indicadorUrgencia = `<span style="color: #f39c12; font-weight: bold; font-size: 0.875rem;">⚡ Em ${p.diasRestantes} dias</span>`;
+                borderColor = '#f39c12';
+            } else if (p.diasRestantes < 0) {
+                indicadorUrgencia = `<span style="color: #e74c3c; font-weight: bold; font-size: 0.875rem;">⚠️ Atrasada ${Math.abs(p.diasRestantes)} dias</span>`;
+                borderColor = '#e74c3c';
             } else {
-                diasRestantes = `<span style="color: #666;">Em ${diff} dias</span>`;
+                indicadorUrgencia = `<span style="color: #666; font-size: 0.875rem;">Em ${p.diasRestantes} dias</span>`;
             }
         }
         
         html += `
-            <div class="request-card" style="background: white; border: 1px solid #ddd; border-radius: 8px; padding: 15px; cursor: pointer; transition: all 0.2s;" 
+            <div class="request-card" style="background: white; border-left: 4px solid ${borderColor}; border: 1px solid #ddd; border-left: 4px solid ${borderColor}; border-radius: 8px; padding: 15px; cursor: pointer; transition: all 0.2s;" 
                  onclick="openRequestDetails('${p.id}')">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                     <div>
@@ -6775,11 +6843,11 @@ function renderPreventivasList() {
                         <span class="badge ${estadoClass}" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 4px;">
                             ${p.estado}
                         </span>
-                        ${p.frequencia && p.frequencia !== '-' ? `<span class="badge" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; background: #0077ff; color: white; margin-left: 8px;">📅 ${p.frequencia}</span>` : ''}
                     </div>
-                    <span style="color: #666; font-size: 0.875rem;">
-                        ${p.empresa}
-                    </span>
+                    <div style="text-align: right;">
+                        <div style="color: #666; font-size: 0.875rem;">${p.empresa}</div>
+                        <div style="color: #666; font-size: 0.75rem;">📅 ${p.frequencia}</div>
+                    </div>
                 </div>
                 <div style="font-weight: 600; margin-bottom: 8px;">
                     ${p.areaEquipamento}${p.componente && p.componente !== '-' ? ' - ' + p.componente : ''}
@@ -6787,19 +6855,10 @@ function renderPreventivasList() {
                 <div style="color: #666; font-size: 0.875rem; margin-bottom: 8px;">
                     ${p.descricao.substring(0, 100)}${p.descricao.length > 100 ? '...' : ''}
                 </div>
-                ${p._proximaIntervencao ? `
-                <div style="background: #f0f8ff; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <span style="font-size: 0.75rem; color: #666; text-transform: uppercase; font-weight: 600;">Próxima Intervenção</span>
-                            <div style="font-size: 1rem; font-weight: 700; color: #0077ff; margin-top: 4px;">
-                                ${obterNumeroIntervencao(p.dataPrimeiraIntervencao, p._proximaIntervencao, p.frequencia)}ª → ${formatarDataIntervencao(p._proximaIntervencao)}
-                            </div>
-                        </div>
-                        <div style="text-align: right;">
-                            ${diasRestantes}
-                        </div>
-                    </div>
+                ${p.proximaData ? `
+                <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                    <strong style="font-size: 0.875rem;">Próxima Intervenção: ${p.proximaData.toLocaleDateString('pt-PT')}</strong>
+                    <br>${indicadorUrgencia}
                 </div>
                 ` : ''}
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #999;">
@@ -7972,102 +8031,6 @@ function closeMovimentoModal() {
     AppState.artigoSelecionado = null;
 }
 
-// ⚡ PREVENTIVAS - Calcular data da próxima intervenção
-function calcularProximaIntervencao(dataPrimeiraIntervencao, frequencia) {
-    if (!dataPrimeiraIntervencao || !frequencia) return null;
-    
-    try {
-        const dataPrimeira = new Date(dataPrimeiraIntervencao + 'T00:00:00');
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        
-        // Se a primeira intervenção é no futuro, retornar essa data
-        if (dataPrimeira > hoje) {
-            return dataPrimeira;
-        }
-        
-        // Calcular próxima data baseada na frequência
-        let proximaData = new Date(dataPrimeira);
-        let incremento;
-        
-        switch (frequencia) {
-            case 'Semanal':
-                incremento = 7;
-                break;
-            case 'Quinzenal':
-                incremento = 14;
-                break;
-            case 'Mensal':
-                incremento = 30;
-                break;
-            case 'Trimestral':
-                incremento = 90;
-                break;
-            case 'Semestral':
-                incremento = 180;
-                break;
-            case 'Anual':
-                incremento = 365;
-                break;
-            case '2 anos':
-                incremento = 730;
-                break;
-            default:
-                return null;
-        }
-        
-        // Adicionar incrementos até ultrapassar hoje
-        while (proximaData <= hoje) {
-            proximaData.setDate(proximaData.getDate() + incremento);
-        }
-        
-        return proximaData;
-    } catch (error) {
-        console.error('Erro ao calcular próxima intervenção:', error);
-        return null;
-    }
-}
-
-// ⚡ PREVENTIVAS - Formatar data para exibição
-function formatarDataIntervencao(data) {
-    if (!data) return 'N/A';
-    try {
-        const d = typeof data === 'string' ? new Date(data) : data;
-        return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch (error) {
-        return 'N/A';
-    }
-}
-
-// ⚡ PREVENTIVAS - Obter número da intervenção
-function obterNumeroIntervencao(dataPrimeiraIntervencao, dataProxima, frequencia) {
-    if (!dataPrimeiraIntervencao || !dataProxima) return 1;
-    
-    try {
-        const dataPrimeira = new Date(dataPrimeiraIntervencao + 'T00:00:00');
-        const proxima = typeof dataProxima === 'string' ? new Date(dataProxima) : dataProxima;
-        
-        const diffTime = Math.abs(proxima - dataPrimeira);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        let incrementoDias;
-        switch (frequencia) {
-            case 'Semanal': incrementoDias = 7; break;
-            case 'Quinzenal': incrementoDias = 14; break;
-            case 'Mensal': incrementoDias = 30; break;
-            case 'Trimestral': incrementoDias = 90; break;
-            case 'Semestral': incrementoDias = 180; break;
-            case 'Anual': incrementoDias = 365; break;
-            case '2 anos': incrementoDias = 730; break;
-            default: return 1;
-        }
-        
-        return Math.floor(diffDays / incrementoDias) + 1;
-    } catch (error) {
-        return 1;
-    }
-}
-
 // 🔍 FUNÇÃO DE DIAGNÓSTICO DE ARTIGOS
 async function diagnosticarArtigos() {
     console.log('🔍🔍🔍 === DIAGNÓSTICO DE ARTIGOS INICIADO === 🔍🔍🔍');
@@ -8810,7 +8773,7 @@ window.enviarPerguntaChatbot = async function() {
         // Preparar contexto dos dados
         const contexto = prepararContextoDados();
         
-        // ✅ v3.7.0.8: MODO IA ATIVADO (Gemini via Cloudflare Worker)
+        // 🚀 MODO PRODUÇÃO: IA Real com Gemini via Cloudflare Worker
         const response = await fetch(CHATBOT_WORKER_URL, {
             method: 'POST',
             headers: {
