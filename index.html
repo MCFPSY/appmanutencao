@@ -8263,7 +8263,7 @@ window.atualizarAnalises = function() {
 // CHATBOT COM GEMINI AI
 // ===================================
 
-// URL do Cloudflare Worker - v3.7.0.2 IA Completa
+// URL do Cloudflare Worker (será configurado depois)
 const CHATBOT_WORKER_URL = 'https://chatbot-manutencao.goncalobarata.workers.dev/chat';
 
 /**
@@ -8385,9 +8385,7 @@ window.enviarPerguntaChatbot = async function() {
         // Preparar contexto dos dados
         const contexto = prepararContextoDados();
         
-        // ✅ v3.7.0.2: IA COMPLETA COM GEMINI FLASH
-        // Chamada real do Cloudflare Worker + Gemini AI
-        
+        // 🚀 MODO PRODUÇÃO: IA Real com Gemini via Cloudflare Worker
         const response = await fetch(CHATBOT_WORKER_URL, {
             method: 'POST',
             headers: {
@@ -8400,8 +8398,7 @@ window.enviarPerguntaChatbot = async function() {
         });
         
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.erro || 'Erro na resposta do servidor');
+            throw new Error(`Erro na resposta do servidor: ${response.status}`);
         }
         
         const data = await response.json();
