@@ -3586,6 +3586,15 @@
                                 <!-- Populado dinamicamente via JavaScript -->
                             </select>
                         </div>
+                        
+                        <!-- ✅ v3.7.0.9: NOVO Filtro de Responsável -->
+                        <div class="filter-group">
+                            <label class="filter-label">👤 Responsável</label>
+                            <select id="filterResponsavel" class="form-input" style="width: 100%; margin-top: 8px;">
+                                <option value="">Todos os responsáveis</option>
+                                <!-- Populado dinamicamente via JavaScript -->
+                            </select>
+                        </div>
 
                         <div class="filter-group">
                             <label class="filter-label">Tipo de Intervenção</label>
@@ -4196,6 +4205,12 @@
                 <div class="analytics-chart-container">
                     <h3 class="analytics-chart-title">Evolução do Backlog</h3>
                     <canvas id="chartEvolu​caoBacklog"></canvas>
+                </div>
+                
+                <!-- ✅ NOVO v3.7.0.9: Gráfico de Pedidos Fechados por Utilizador -->
+                <div class="analytics-chart-container">
+                    <h3 class="analytics-chart-title">📊 Pedidos Fechados por Utilizador (Última Semana)</h3>
+                    <canvas id="chartPedidosPorUtilizador"></canvas>
                 </div>
             </div>
 
@@ -5376,6 +5391,16 @@ function setupEventListeners() {
         populateEquipamentoFilter(); // Popular dropdown ao carregar
     }
     
+    // ✅ v3.7.0.9: Event listener para filtro de responsável
+    const filterResponsavel = document.getElementById('filterResponsavel');
+    if (filterResponsavel) {
+        filterResponsavel.addEventListener('change', () => {
+            console.log('👤 Filtro de Responsável mudou:', filterResponsavel.value);
+            renderRequestsList();
+        });
+        populateResponsavelFilter(); // Popular dropdown ao carregar
+    }
+    
     document.getElementById('clearFilters').addEventListener('click', clearFilters);
     document.getElementById('sortBtn').addEventListener('click', toggleSortOrder);
     document.getElementById('closeModal').addEventListener('click', closeModal);
@@ -5797,9 +5822,17 @@ function applyFilters() {
         const areaEquipamentoPedido = (request.areaEquipamento || '').trim();
         const passaEquipamento = !filterEquipamento || areaEquipamentoPedido === filterEquipamento;
         
-        // Debug do filtro de equipamento
+        // ✅ v3.7.0.9: NOVO - Filtro de Responsável
+        const filterResponsavel = document.getElementById('filterResponsavel')?.value || '';
+        const responsavelPedido = (request.responsavel || '').trim();
+        const passaResponsavel = !filterResponsavel || responsavelPedido === filterResponsavel;
+        
+        // Debug dos filtros
         if (filterEquipamento) {
             console.log('🔍 Filtro ativo:', filterEquipamento, '| Pedido:', areaEquipamentoPedido, '| Passa?', passaEquipamento);
+        }
+        if (filterResponsavel) {
+            console.log('👤 Filtro Responsável:', filterResponsavel, '| Pedido:', responsavelPedido, '| Passa?', passaResponsavel);
         }
         
         // Novos filtros
@@ -5813,7 +5846,7 @@ function applyFilters() {
         const passaParagem = AppState.currentFilters.paragemProducao.length === 0 || 
                             (AppState.currentFilters.paragemProducao.includes('true') && request.paragemProducao === true);
         
-        return passaTipo && passaPrioridade && passaEstado && passaEmpresa && passaEquipamento && passaTipoIntervencao && passaUrgente && passaParagem;
+        return passaTipo && passaPrioridade && passaEstado && passaEmpresa && passaEquipamento && passaResponsavel && passaTipoIntervencao && passaUrgente && passaParagem;
     });
     
     console.log(`✅ Filtros aplicados: ${AppState.filteredRequests.length} de ${AppState.requests.length} pedidos`);
@@ -5860,6 +5893,37 @@ function populateEquipamentoFilter() {
     console.log('⚡ Filtro de Equipamento populado com', areas.length, 'áreas');
 }
 
+// ✅ v3.7.0.9: NOVO - Popular filtro de Responsável
+function populateResponsavelFilter() {
+    const select = document.getElementById('filterResponsavel');
+    if (!select) return;
+    
+    // Limpar opções existentes (exceto a primeira "Todos")
+    select.innerHTML = '<option value="">Todos os responsáveis</option>';
+    
+    // Obter lista única de responsáveis dos pedidos
+    const responsaveis = new Set();
+    AppState.requests.forEach(request => {
+        const resp = (request.responsavel || '').trim();
+        if (resp && resp !== '') {
+            responsaveis.add(resp);
+        }
+    });
+    
+    // Converter para array, ordenar e adicionar ao select
+    const responsaveisArray = Array.from(responsaveis).sort();
+    
+    responsaveisArray.forEach(responsavel => {
+        const count = AppState.requests.filter(r => r.responsavel === responsavel).length;
+        const option = document.createElement('option');
+        option.value = responsavel;
+        option.textContent = `${responsavel} (${count})`;
+        select.appendChild(option);
+    });
+    
+    console.log('👤 Filtro de Responsável populado com', responsaveisArray.length, 'utilizadores');
+}
+
 function clearFilters() {
     AppState.currentFilters = { tipo: [], prioridade: [], estado: ['Novo', 'Em curso'], empresa: [], tipoIntervencao: [], urgente: [], paragemProducao: [] };
     document.querySelectorAll('.filter-tipo, .filter-prioridade, .filter-estado, .filter-empresa, .filter-tipoIntervencao, .filter-urgente, .filter-paragemProducao').forEach(checkbox => checkbox.checked = false);
@@ -5867,10 +5931,15 @@ function clearFilters() {
         if (checkbox.value === 'Novo' || checkbox.value === 'Em curso') checkbox.checked = true;
     });
     
-    // ⚡ NOVO: Limpar filtro de equipamento
+    // ⚡ NOVO: Limpar filtros de equipamento e responsável
     const filterEquipamento = document.getElementById('filterEquipamento');
     if (filterEquipamento) {
         filterEquipamento.value = '';
+    }
+    
+    const filterResponsavel = document.getElementById('filterResponsavel');
+    if (filterResponsavel) {
+        filterResponsavel.value = '';
     }
     
     renderRequestsList();
@@ -6053,6 +6122,14 @@ async function changeRequestState(id) {
     const stateTransitions = { 'Novo': 'Em curso', 'Em curso': 'Resolvido', 'Resolvido': 'Resolvido' };
     const newState = stateTransitions[request.estado];
     
+    // ✅ v3.7.0.9: Registar responsável ao iniciar pedido
+    if (newState === 'Em curso' && request.estado === 'Novo') {
+        if (AppState.currentUser && !request.responsavel) {
+            request.responsavel = AppState.currentUser.nomeCompleto;
+            console.log('✅ Responsável registado:', request.responsavel);
+        }
+    }
+    
     // ✅ CORREÇÃO 4: Se está a fechar (Resolvido), pedir observações
     if (newState === 'Resolvido' && request.estado !== 'Resolvido') {
         const observacoes = prompt('Observações ao fechar o pedido (opcional):');
@@ -6104,8 +6181,8 @@ async function sendToGoogleSheets(data) {
             ID: data.id,
             'Data/hora': data.dataHora,
             Tipo: data.tipo,
-            frequencia: data.frequencia || '',  // ✅ v3.7.0.8: snake_case
-            data_primeira_intervencao: data.dataPrimeiraIntervencao || '',  // ✅ v3.7.0.8: snake_case
+            frequencia: data.frequencia || null,  // ✅ v3.7.0.8: null se vazio
+            data_primeira_intervencao: data.dataPrimeiraIntervencao || null,  // ✅ v3.7.0.8: null se vazio
             Prioridade: data.prioridade,
             Departamento: data.departamento,
             Descrição: data.descricao,
@@ -6139,8 +6216,8 @@ async function updateInGoogleSheets(data) {
         const supabaseData = {
             'Data/hora': data.dataHora,
             Tipo: data.tipo,
-            frequencia: data.frequencia || '',  // ✅ v3.7.0.8: snake_case
-            data_primeira_intervencao: data.dataPrimeiraIntervencao || '',  // ✅ v3.7.0.8: snake_case
+            frequencia: data.frequencia || null,  // ✅ v3.7.0.8: null se vazio
+            data_primeira_intervencao: data.dataPrimeiraIntervencao || null,  // ✅ v3.7.0.8: null se vazio
             Prioridade: data.prioridade,
             Departamento: data.departamento,
             Descrição: data.descricao,
@@ -8425,6 +8502,7 @@ window.openNovoMovimentoModal = openNovoMovimentoModal;
 // Variáveis globais dos gráficos
 let chartPedidosPorSemana = null;
 let chartEvolucaoBacklog = null;
+let chartPedidosPorUtilizador = null;  // ✅ v3.7.0.9: NOVO gráfico
 
 // ===================================
 // FUNÇÕES DE PROCESSAMENTO DE DADOS
@@ -8605,6 +8683,43 @@ function calcularMetricasSemana(empresaFiltro = '') {
         backlogTotal,
         tendencia
     };
+}
+
+/**
+ * ✅ v3.7.0.9: Processar pedidos fechados por utilizador (última semana)
+ */
+function processarPedidosPorUtilizador(empresaFiltro = '') {
+    const hoje = new Date();
+    const anoAtual = hoje.getFullYear();
+    const semanaAtual = getWeekNumber(hoje);
+    
+    // Filtrar pedidos
+    const pedidosFiltrados = empresaFiltro 
+        ? AppState.requests.filter(r => r.empresa === empresaFiltro)
+        : AppState.requests;
+    
+    // Pedidos fechados esta semana
+    const pedidosFechados = pedidosFiltrados.filter(p => {
+        const data = new Date(p.dataHora);
+        return p.estado === 'Resolvido' && 
+               data.getFullYear() === anoAtual && 
+               getWeekNumber(data) === semanaAtual;
+    });
+    
+    // Contar por responsável
+    const porUtilizador = {};
+    pedidosFechados.forEach(p => {
+        const responsavel = p.responsavel || 'Sem responsável';
+        porUtilizador[responsavel] = (porUtilizador[responsavel] || 0) + 1;
+    });
+    
+    // Converter para array e ordenar
+    const dados = Object.entries(porUtilizador)
+        .map(([nome, count]) => ({ nome, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10); // Top 10
+    
+    return dados;
 }
 
 // ===================================
@@ -8802,6 +8917,92 @@ function renderizarGraficoEvolucaoBacklog(dados) {
 }
 
 /**
+ * ✅ v3.7.0.9: Criar/atualizar gráfico de pedidos fechados por utilizador
+ */
+function renderizarGraficoPedidosPorUtilizador(dados) {
+    const ctx = document.getElementById('chartPedidosPorUtilizador');
+    if (!ctx) return;
+    
+    // Destruir gráfico anterior se existir
+    if (chartPedidosPorUtilizador) {
+        chartPedidosPorUtilizador.destroy();
+    }
+    
+    if (dados.length === 0) {
+        // Mostrar mensagem se não há dados
+        ctx.parentElement.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">Nenhum pedido fechado esta semana</p>';
+        return;
+    }
+    
+    chartPedidosPorUtilizador = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: dados.map(d => d.nome),
+            datasets: [
+                {
+                    label: 'Pedidos Fechados',
+                    data: dados.map(d => d.count),
+                    backgroundColor: 'rgba(76, 175, 80, 0.7)',
+                    borderColor: 'rgba(76, 175, 80, 1)',
+                    borderWidth: 2,
+                    borderRadius: 6
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y',  // Horizontal bar
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 2,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        size: 14
+                    },
+                    bodyFont: {
+                        size: 13
+                    },
+                    callbacks: {
+                        label: function(context) {
+                            return context.parsed.x + ' pedidos fechados';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        font: {
+                            size: 11
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
  * Atualizar cards de métricas
  */
 function atualizarCardsMetricas(metricas) {
@@ -8849,13 +9050,15 @@ window.atualizarAnalises = function() {
     // Processar dados
     const dadosPorSemana = processarDadosPorSemana(numSemanas, empresaFiltro);
     const dadosBacklog = processarEvolucaoBacklog(numSemanas, empresaFiltro);
+    const dadosPorUtilizador = processarPedidosPorUtilizador(empresaFiltro);  // ✅ v3.7.0.9: NOVO
     const metricas = calcularMetricasSemana(empresaFiltro);
     
-    console.log('📊 Dados processados:', { dadosPorSemana, dadosBacklog, metricas });
+    console.log('📊 Dados processados:', { dadosPorSemana, dadosBacklog, dadosPorUtilizador, metricas });
     
     // Renderizar gráficos
     renderizarGraficoPedidosPorSemana(dadosPorSemana);
     renderizarGraficoEvolucaoBacklog(dadosBacklog);
+    renderizarGraficoPedidosPorUtilizador(dadosPorUtilizador);  // ✅ v3.7.0.9: NOVO
     
     // Atualizar métricas
     atualizarCardsMetricas(metricas);
