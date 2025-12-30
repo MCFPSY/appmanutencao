@@ -7171,32 +7171,56 @@ async function syncPlanningWithGoogleSheets() {
             const task = AppState.requests.find(r => r.id === taskId);
             const planningData = AppState.planning.tasks[taskId];
             
-            console.log(`🔍 Task ${taskId}:`, { task: task ? 'ENCONTRADO' : 'NÃO ENCONTRADO', planningData });
-            
-            if (task && planningData) {
-                tasksToSync.push({
-                    taskId,
-                    data: {
-                        'Pedido ID': taskId,
-                        'Descrição': task.descricao,
-                        'Tipo': task.tipo,
-                        'Prioridade': task.prioridade,
-                        'Empresa': task.empresa,
-                        'Responsável': planningData.responsavel || '',
-                        'Horas Estimadas': planningData.horasEstimadas || 0,
-                        'Dias Alocados': JSON.stringify(planningData.diasAlocados || []),
-                        'Última Atualização': new Date().toISOString()
-                    }
-                });
+            if (!task) {
+                console.error(`❌ Task ${taskId} não encontrado em AppState.requests!`);
+                return;
             }
+            
+            if (!planningData) {
+                console.warn(`⚠️ Task ${taskId} sem planningData!`);
+                return;
+            }
+            
+            // ✅ SEMPRE guardar se o objeto existir (mesmo vazio)
+            const responsavel = planningData.responsavel || '';
+            const horas = planningData.horasEstimadas || 0;
+            const dias = planningData.diasAlocados || [];
+            
+            console.log(`🔍 Task ${taskId}:`, { 
+                responsavel: responsavel || '(vazio)',
+                horas: horas,
+                dias: dias.length
+            });
+            
+            tasksToSync.push({
+                taskId,
+                data: {
+                    'Pedido ID': taskId,
+                    'Descrição': task.descricao,
+                    'Tipo': task.tipo,
+                    'Prioridade': task.prioridade,
+                    'Empresa': task.empresa,
+                    'Responsável': responsavel,
+                    'Horas Estimadas': horas,
+                    'Dias Alocados': JSON.stringify(dias),
+                    'Última Atualização': new Date().toISOString()
+                }
+            });
         });
         
-        console.log(`📦 Tasks para sincronizar: ${tasksToSync.length}`, tasksToSync);
+        console.log(`📦 Total de tasks em AppState.planning.tasks: ${Object.keys(AppState.planning.tasks).length}`);
+        console.log(`📦 Tasks VÁLIDOS para sincronizar: ${tasksToSync.length}`);
+        
+        if (tasksToSync.length > 0) {
+            tasksToSync.forEach(t => {
+                console.log(`  ➜ ${t.taskId.substring(0, 8)}...: ${t.data['Responsável'] || '(sem)'} | ${t.data['Horas Estimadas']}h | ${JSON.parse(t.data['Dias Alocados']).length} dias`);
+            });
+        }
         
         if (tasksToSync.length === 0) {
             console.warn('⚠️ Nenhum task para sincronizar!');
-            showToast('Nenhum planeamento para guardar', 'info');
-            return;
+            console.warn('⚠️ Verifica se definiste responsável, horas ou marcaste dias');
+            return;  // ✅ NÃO mostrar toast de erro, apenas return
         }
         
         // Limpar planeamentos antigos que já não existem
