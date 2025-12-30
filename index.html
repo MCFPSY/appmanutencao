@@ -4775,7 +4775,12 @@ const AppState = {
     sortOrder: 'desc',
     currentFilters: { tipo: [], prioridade: [], estado: ['Novo', 'Em curso'], empresa: [], tipoIntervencao: [], urgente: [], paragemProducao: [] },
     isOnline: navigator.onLine,
-    planning: { allocations: {}, startDate: null, endDate: null },
+    planning: { 
+        tasks: {},  // ✅ v3.7.0.8: { pedidoId: { responsavel, horasEstimadas, diasAlocados: [] } }
+        allocations: {},  // 🔄 Mantido por compatibilidade (será migrado)
+        startDate: null, 
+        endDate: null 
+    },
     artigos: [],
     movimentos: [],
     utilizadores: [],  // ✅ NOVO: Lista de utilizadores para dropdown
@@ -6679,7 +6684,12 @@ function calcularProximaIntervencao(dataPrimeiraIntervencao, frequencia) {
 }
 
 // PLANEAMENTO
-function initializePlanning() { loadPlanningFromStorage(); resetPlanningToToday(); renderPlanningGrid(); }
+async function initializePlanning() { 
+    loadPlanningFromStorage(); 
+    await loadPlanningFromSupabase();  // ✅ v3.7.0.8: Carregar do Supabase
+    resetPlanningToToday(); 
+    renderPlanningGrid(); 
+}
 function resetPlanningToToday() {
     const today = new Date(); today.setHours(0,0,0,0);
     AppState.planning.startDate = new Date(today);
@@ -6910,16 +6920,19 @@ function renderPlanningGrid() {
         if (task.responsavel && task.responsavel !== '-') html += `<span class="task-responsible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${task.responsavel}</span>`;
         html += `</div></div></td>`;
         
-        // ✅ NOVO: Select dropdown para Responsável (em vez de texto estático)
+        // ✅ v3.7.0.8: Ler dados do PLANEAMENTO (não do pedido)
+        const planningData = AppState.planning.tasks[task.id] || { responsavel: '', horasEstimadas: 0, diasAlocados: [] };
+        const taskResponsavel = planningData.responsavel || task.responsavel || '';  // Fallback: pedido se não tiver no planeamento
+        const taskHours = planningData.horasEstimadas || task.horasEstimadas || '';  // Fallback: pedido se não tiver no planeamento
+        
         html += `<td class="responsible-cell">`;
         html += `<select class="responsible-select" data-task-id="${task.id}" onchange="updateTaskResponsible('${task.id}', this.value)">`;
         html += `<option value="">-</option>`;
         AppState.utilizadores.forEach(user => {
-            const selected = task.responsavel === user.nomeCompleto ? 'selected' : '';
+            const selected = taskResponsavel === user.nomeCompleto ? 'selected' : '';
             html += `<option value="${user.nomeCompleto}" ${selected}>${user.nomeCompleto}</option>`;
         });
         html += `</select></td>`;
-        const taskHours = task.horasEstimadas || '';
         html += `<td class="hours-cell"><input type="number" class="hours-input" value="${taskHours}" min="0" step="0.5" placeholder="0" data-task-id="${task.id}" onchange="updateTaskHours('${task.id}', this.value)"></td>`;
         dates.forEach(date => {
             const dateKey = formatDateKey(date), allocationKey = `${task.id}-${dateKey}`;
@@ -6934,53 +6947,95 @@ function renderPlanningGrid() {
     html += '</tbody>';
     grid.innerHTML = html;
 }
+// ✅ v3.7.0.8: Alternar alocação de dia + guardar em diasAlocados
 function toggleAllocation(taskId, dateKey) {
     const allocationKey = `${taskId}-${dateKey}`;
-    if (AppState.planning.allocations[allocationKey]) delete AppState.planning.allocations[allocationKey];
-    else AppState.planning.allocations[allocationKey] = true;
+    
+    // Toggle na estrutura antiga (compatibilidade)
+    if (AppState.planning.allocations[allocationKey]) {
+        delete AppState.planning.allocations[allocationKey];
+    } else {
+        AppState.planning.allocations[allocationKey] = true;
+    }
+    
+    // ✅ NOVO: Atualizar estrutura nova
+    if (!AppState.planning.tasks[taskId]) {
+        AppState.planning.tasks[taskId] = {
+            responsavel: '',
+            horasEstimadas: 0,
+            diasAlocados: []
+        };
+    }
+    
+    const diasArray = AppState.planning.tasks[taskId].diasAlocados;
+    const index = diasArray.indexOf(dateKey);
+    
+    if (index > -1) {
+        // Remover dia
+        diasArray.splice(index, 1);
+    } else {
+        // Adicionar dia
+        diasArray.push(dateKey);
+    }
+    
     renderPlanningGrid();
     savePlanningToStorage();
 }
+// ✅ v3.7.0.8: Atualizar horas NO PLANEAMENTO (não no pedido)
 async function updateTaskHours(taskId, hours) {
-    const task = AppState.requests.find(r => r.id === taskId);
-    if (task) {
-        task.horasEstimadas = hours ? parseFloat(hours) : 0;
-        saveToLocalStorage();
-        
-        // ✅ Sincronizar com Supabase
-        if (AppState.isOnline) {
-            try {
-                await updateInGoogleSheets(task);
-                console.log('✅ Horas sincronizadas com Supabase');
-            } catch (error) {
-                console.error('❌ Erro ao sincronizar horas:', error);
-            }
-        }
-        
-        showToast(`Horas atualizadas: ${hours || 0}h`, 'success');
+    // Inicializar objeto do task se não existir
+    if (!AppState.planning.tasks[taskId]) {
+        AppState.planning.tasks[taskId] = {
+            responsavel: '',
+            horasEstimadas: 0,
+            diasAlocados: []
+        };
     }
+    
+    // Atualizar horas NO PLANEAMENTO
+    AppState.planning.tasks[taskId].horasEstimadas = hours ? parseFloat(hours) : 0;
+    savePlanningToStorage();
+    
+    // ✅ Sincronizar com Supabase (tabela PLANEAMENTO, não PEDIDOS)
+    if (AppState.isOnline) {
+        try {
+            await syncSingleTask(taskId);
+            console.log('✅ Horas sincronizadas na tabela planeamento');
+        } catch (error) {
+            console.error('❌ Erro ao sincronizar horas:', error);
+        }
+    }
+    
+    showToast(`Horas atualizadas: ${hours || 0}h`, 'success');
 }
 
-// ✅ NOVO: Atualizar responsável da tarefa no planeamento
+// ✅ v3.7.0.8: Atualizar responsável NO PLANEAMENTO (não no pedido)
 async function updateTaskResponsible(taskId, responsavel) {
-    const task = AppState.requests.find(r => r.id === taskId);
-    if (task) {
-        task.responsavel = responsavel || '';
-        saveToLocalStorage();
-        
-        // ✅ Sincronizar com Supabase
-        if (AppState.isOnline) {
-            try {
-                await updateInGoogleSheets(task);
-                console.log('✅ Responsável sincronizado com Supabase');
-            } catch (error) {
-                console.error('❌ Erro ao sincronizar responsável:', error);
-            }
-        }
-        
-        renderPlanningGrid();  // Re-render para atualizar badge de responsável
-        showToast(`Responsável atualizado: ${responsavel || 'Nenhum'}`, 'success');
+    // Inicializar objeto do task se não existir
+    if (!AppState.planning.tasks[taskId]) {
+        AppState.planning.tasks[taskId] = {
+            responsavel: '',
+            horasEstimadas: 0,
+            diasAlocados: []
+        };
     }
+    
+    // Atualizar responsável NO PLANEAMENTO
+    AppState.planning.tasks[taskId].responsavel = responsavel || '';
+    savePlanningToStorage();
+    
+    // ✅ Sincronizar com Supabase (tabela PLANEAMENTO, não PEDIDOS)
+    if (AppState.isOnline) {
+        try {
+            await syncSingleTask(taskId);
+            console.log('✅ Responsável sincronizado na tabela planeamento');
+        } catch (error) {
+            console.error('❌ Erro ao sincronizar responsável:', error);
+        }
+    }
+    
+    renderPlanningGrid();
+    showToast(`Responsável atualizado: ${responsavel || 'Nenhum'}`, 'success');
 }
 function savePlanning() {
     savePlanningToStorage();
@@ -6988,6 +7043,51 @@ function savePlanning() {
     showToast('Planeamento salvo com sucesso!', 'success');
 }
 function savePlanningToStorage() { localStorage.setItem(CONFIG.STORAGE_KEYS.PLANNING, JSON.stringify(AppState.planning)); }
+// ✅ v3.7.0.8: Carregar planeamento do Supabase
+async function loadPlanningFromSupabase() {
+    if (!AppState.isOnline) {
+        console.log('📡 Offline - planeamento não carregado do Supabase');
+        return;
+    }
+    
+    try {
+        console.log('📥 Carregando planeamento do Supabase...');
+        
+        const planningData = await window.SupabaseAPI.getPlaneamento();
+        
+        if (!planningData || planningData.length === 0) {
+            console.log('ℹ️ Nenhum planeamento encontrado no Supabase');
+            return;
+        }
+        
+        // Converter dados do Supabase → AppState.planning.tasks
+        AppState.planning.tasks = {};
+        
+        planningData.forEach(p => {
+            const taskId = p['Pedido ID'];
+            const diasAlocados = p['Dias Alocados'] ? JSON.parse(p['Dias Alocados']) : [];
+            
+            AppState.planning.tasks[taskId] = {
+                responsavel: p['Responsável'] || '',
+                horasEstimadas: parseFloat(p['Horas Estimadas']) || 0,
+                diasAlocados: diasAlocados
+            };
+            
+            // ✅ Também popular a estrutura antiga (allocations) para compatibilidade
+            diasAlocados.forEach(dateKey => {
+                const allocationKey = `${taskId}-${dateKey}`;
+                AppState.planning.allocations[allocationKey] = true;
+            });
+        });
+        
+        console.log(`✅ ${planningData.length} tasks carregados do planeamento`);
+        savePlanningToStorage();  // Guardar localmente
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar planeamento do Supabase:', error);
+    }
+}
+
 function loadPlanningFromStorage() {
     const saved = localStorage.getItem(CONFIG.STORAGE_KEYS.PLANNING);
     if (saved) {
@@ -7001,7 +7101,55 @@ function loadPlanningFromStorage() {
         } catch (error) { console.error('Erro ao carregar planeamento:', error); }
     }
 }
-// 🔥 v3.6.13: Guardar planeamento no Supabase
+// ✅ v3.7.0.8: Sincronizar um único task (quando alterar responsável/horas)
+async function syncSingleTask(taskId) {
+    if (!AppState.isOnline) {
+        console.log('⚠️ Offline - task não sincronizado');
+        return;
+    }
+    
+    try {
+        const task = AppState.requests.find(r => r.id === taskId);
+        const planningData = AppState.planning.tasks[taskId];
+        
+        if (!task || !planningData) {
+            console.warn('⚠️ Task ou planning data não encontrado:', taskId);
+            return;
+        }
+        
+        // Buscar se já existe registo para este pedido
+        const existing = await window.SupabaseAPI.getPlaneamento();
+        const existingTask = existing.find(p => p['Pedido ID'] === taskId);
+        
+        const supabaseData = {
+            'Pedido ID': taskId,
+            'Descrição': task.descricao,
+            'Tipo': task.tipo,
+            'Prioridade': task.prioridade,
+            'Empresa': task.empresa,
+            'Responsável': planningData.responsavel || '',
+            'Horas Estimadas': planningData.horasEstimadas || 0,
+            'Dias Alocados': JSON.stringify(planningData.diasAlocados || []),
+            'Última Atualização': new Date().toISOString()
+        };
+        
+        if (existingTask) {
+            // Atualizar existente
+            await window.SupabaseAPI.updatePlaneamento(existingTask.ID, supabaseData);
+            console.log('✅ Task atualizado no Supabase:', taskId);
+        } else {
+            // Criar novo
+            await window.SupabaseAPI.addPlaneamento(supabaseData);
+            console.log('✅ Task criado no Supabase:', taskId);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao sincronizar task:', error);
+        throw error;
+    }
+}
+
+// 🔥 v3.7.0.8: Guardar planeamento completo no Supabase
 async function syncPlanningWithGoogleSheets() {
     if (!AppState.isOnline) {
         console.log('⚠️ Offline - planeamento não sincronizado');
@@ -7009,40 +7157,59 @@ async function syncPlanningWithGoogleSheets() {
     }
     
     try {
-        console.log('🔄 Sincronizando planeamento com Supabase...');
+        console.log('🔄 Sincronizando planeamento completo com Supabase...');
         
         // Buscar planeamentos existentes
         const existingPlanning = await window.SupabaseAPI.getPlaneamento();
         
-        // Preparar dados para guardar
-        const allocations = [];
-        Object.keys(AppState.planning.allocations).forEach(key => {
-            const [taskId, dateKey] = key.split('-');
+        // Preparar dados para guardar (da NOVA estrutura)
+        const tasksToSync = [];
+        
+        Object.keys(AppState.planning.tasks).forEach(taskId => {
             const task = AppState.requests.find(r => r.id === taskId);
-            if (task) {
-                allocations.push({
-                    'Pedido ID': taskId,
-                    'Descrição': task.descricao,
-                    'Tipo': task.tipo,
-                    'Prioridade': task.prioridade,
-                    'Responsável': task.responsavel || '-',
-                    'Data Alocada': dateKey,
-                    'Última Atualização': new Date().toISOString()
+            const planningData = AppState.planning.tasks[taskId];
+            
+            if (task && planningData) {
+                tasksToSync.push({
+                    taskId,
+                    data: {
+                        'Pedido ID': taskId,
+                        'Descrição': task.descricao,
+                        'Tipo': task.tipo,
+                        'Prioridade': task.prioridade,
+                        'Empresa': task.empresa,
+                        'Responsável': planningData.responsavel || '',
+                        'Horas Estimadas': planningData.horasEstimadas || 0,
+                        'Dias Alocados': JSON.stringify(planningData.diasAlocados || []),
+                        'Última Atualização': new Date().toISOString()
+                    }
                 });
             }
         });
         
-        // Limpar planeamentos antigos (opcional - pode comentar se quiser manter histórico)
+        // Limpar planeamentos antigos que já não existem
         for (const existing of existingPlanning) {
-            await window.SupabaseAPI.deletePlaneamento(existing.ID);
+            const stillExists = tasksToSync.find(t => t.taskId === existing['Pedido ID']);
+            if (!stillExists) {
+                await window.SupabaseAPI.deletePlaneamento(existing.ID);
+                console.log('🗑️ Planeamento removido:', existing['Pedido ID']);
+            }
         }
         
-        // Inserir novos planeamentos
-        for (const alloc of allocations) {
-            await window.SupabaseAPI.addPlaneamento(alloc);
+        // Inserir/Atualizar planeamentos
+        for (const taskData of tasksToSync) {
+            const existingTask = existingPlanning.find(p => p['Pedido ID'] === taskData.taskId);
+            
+            if (existingTask) {
+                // Atualizar
+                await window.SupabaseAPI.updatePlaneamento(existingTask.ID, taskData.data);
+            } else {
+                // Criar novo
+                await window.SupabaseAPI.addPlaneamento(taskData.data);
+            }
         }
         
-        console.log(`✅ ${allocations.length} itens de planeamento sincronizados com Supabase`);
+        console.log(`✅ ${tasksToSync.length} tasks sincronizados com Supabase`);
         showToast('Planeamento guardado com sucesso!', 'success');
         
     } catch (error) {
