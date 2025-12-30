@@ -5313,7 +5313,7 @@ async function initializeApp() {
     loadSavedUserName();
     if (AppState.isOnline) await syncWithGoogleSheets();  // 🔥 Nome legacy, usa Supabase internamente
     renderRequestsList();
-    initializePlanning();
+    await initializePlanning();  // ✅ v3.7.0.8: AWAIT para carregar planeamento do Supabase
     initializeAutonomousMaintenance();
     initializeStockModule();
     
@@ -7037,9 +7037,9 @@ async function updateTaskResponsible(taskId, responsavel) {
     renderPlanningGrid();
     showToast(`Responsável atualizado: ${responsavel || 'Nenhum'}`, 'success');
 }
-function savePlanning() {
+async function savePlanning() {
     savePlanningToStorage();
-    if (AppState.isOnline) syncPlanningWithGoogleSheets();
+    if (AppState.isOnline) await syncPlanningWithGoogleSheets();  // ✅ v3.7.0.8: AWAIT para garantir sync
     showToast('Planeamento salvo com sucesso!', 'success');
 }
 function savePlanningToStorage() { localStorage.setItem(CONFIG.STORAGE_KEYS.PLANNING, JSON.stringify(AppState.planning)); }
@@ -7158,9 +7158,11 @@ async function syncPlanningWithGoogleSheets() {
     
     try {
         console.log('🔄 Sincronizando planeamento completo com Supabase...');
+        console.log('📊 AppState.planning.tasks:', AppState.planning.tasks);
         
         // Buscar planeamentos existentes
         const existingPlanning = await window.SupabaseAPI.getPlaneamento();
+        console.log('📥 Planeamentos existentes no Supabase:', existingPlanning.length);
         
         // Preparar dados para guardar (da NOVA estrutura)
         const tasksToSync = [];
@@ -7168,6 +7170,8 @@ async function syncPlanningWithGoogleSheets() {
         Object.keys(AppState.planning.tasks).forEach(taskId => {
             const task = AppState.requests.find(r => r.id === taskId);
             const planningData = AppState.planning.tasks[taskId];
+            
+            console.log(`🔍 Task ${taskId}:`, { task: task ? 'ENCONTRADO' : 'NÃO ENCONTRADO', planningData });
             
             if (task && planningData) {
                 tasksToSync.push({
@@ -7187,6 +7191,14 @@ async function syncPlanningWithGoogleSheets() {
             }
         });
         
+        console.log(`📦 Tasks para sincronizar: ${tasksToSync.length}`, tasksToSync);
+        
+        if (tasksToSync.length === 0) {
+            console.warn('⚠️ Nenhum task para sincronizar!');
+            showToast('Nenhum planeamento para guardar', 'info');
+            return;
+        }
+        
         // Limpar planeamentos antigos que já não existem
         for (const existing of existingPlanning) {
             const stillExists = tasksToSync.find(t => t.taskId === existing['Pedido ID']);
@@ -7202,9 +7214,11 @@ async function syncPlanningWithGoogleSheets() {
             
             if (existingTask) {
                 // Atualizar
+                console.log('🔄 Atualizando task:', taskData.taskId);
                 await window.SupabaseAPI.updatePlaneamento(existingTask.ID, taskData.data);
             } else {
                 // Criar novo
+                console.log('➕ Criando novo task:', taskData.taskId);
                 await window.SupabaseAPI.addPlaneamento(taskData.data);
             }
         }
@@ -7214,7 +7228,8 @@ async function syncPlanningWithGoogleSheets() {
         
     } catch (error) {
         console.error('❌ Erro ao sincronizar planeamento:', error);
-        showToast('Erro ao guardar planeamento', 'error');
+        console.error('❌ Stack:', error.stack);
+        showToast('Erro ao guardar planeamento: ' + error.message, 'error');
     }
 }
 function exportPlanningToExcel() {
