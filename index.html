@@ -1792,24 +1792,109 @@
         
         /* Print Styles */
         @media print {
-            .app-header,
-            .tab-nav,
-            .filters-card,
-            .list-header,
-            .request-actions,
-            .btn,
-            .modal {
+            @page {
+                size: A4;
+                margin: 12mm;
+            }
+            
+            /* Esconder tudo exceto printContainer */
+            body > *:not(#printContainer) {
                 display: none !important;
             }
             
-            body {
-                background: white;
+            /* Mostrar apenas o container de impressão */
+            #printContainer {
+                display: block !important;
+                width: 100%;
+                max-width: 186mm;
+                margin: 0;
+                padding: 0;
+                font-family: Arial, sans-serif;
+                font-size: 9pt;
+                line-height: 1.3;
+                color: #000;
             }
             
-            .request-card {
-                page-break-inside: avoid;
-                border: 1px solid #000;
+            #printContainer h1 {
+                text-align: center;
+                color: #667eea;
+                border-bottom: 2px solid #667eea;
+                padding-bottom: 6px;
+                margin: 0 0 10px 0;
+                font-size: 16pt;
+            }
+            
+            #printContainer .print-header {
+                text-align: center;
+                margin-bottom: 12px;
+                font-size: 9pt;
+            }
+            
+            #printContainer .print-header p {
+                margin: 2px 0;
+            }
+            
+            #printContainer .print-section {
                 margin-bottom: 10px;
+                page-break-inside: avoid;
+            }
+            
+            #printContainer .print-section h2 {
+                color: #667eea;
+                border-bottom: 1px solid #667eea;
+                padding-bottom: 3px;
+                margin: 0 0 6px 0;
+                font-size: 12pt;
+            }
+            
+            #printContainer table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            
+            #printContainer td {
+                padding: 3px 6px;
+                border-bottom: 1px solid #ddd;
+                vertical-align: top;
+                font-size: 9pt;
+            }
+            
+            #printContainer td:first-child {
+                font-weight: bold;
+                width: 38%;
+            }
+            
+            #printContainer .description {
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                font-size: 9pt;
+                line-height: 1.4;
+            }
+            
+            #printContainer .photo-section {
+                page-break-before: always;
+                text-align: center;
+            }
+            
+            #printContainer .photo-section img {
+                max-width: 100%;
+                max-height: 250mm;
+                height: auto;
+                display: block;
+                margin: 8px auto;
+            }
+            
+            #printContainer .print-footer {
+                margin-top: 15px;
+                padding-top: 8px;
+                border-top: 1px solid #999;
+                text-align: center;
+                color: #666;
+                font-size: 8pt;
+            }
+            
+            #printContainer .print-footer p {
+                margin: 2px 0;
             }
         }
         
@@ -3987,6 +4072,9 @@
         </div>
     </div>
 
+    <!-- Container de Impressão (oculto) -->
+    <div id="printContainer" style="display: none;"></div>
+
     <!-- Modal: Movimento de Stock -->
     <div class="modal" id="movimentoModal">
         <div class="modal-overlay"></div>
@@ -4204,7 +4292,7 @@
                 <!-- Gráfico: Evolução do Backlog -->
                 <div class="analytics-chart-container">
                     <h3 class="analytics-chart-title">Evolução do Backlog</h3>
-                    <canvas id="chartEvolu​caoBacklog"></canvas>
+                    <canvas id="chartEvolucaoBacklog"></canvas>
                 </div>
                 
                 <!-- ✅ NOVO v3.7.0.9: Gráfico de Pedidos Fechados por Utilizador -->
@@ -4278,6 +4366,14 @@
     <!-- 🔥 Supabase Client INLINE v3.6.8 -->
     <script>
 // ================================================
+// 🔥 DECLARAÇÕES GLOBAIS ANTECIPADAS
+// ================================================
+
+// Placeholder - será substituído quando script carregar completamente
+// Função será definida mais à frente no código
+window.atualizarAnalises = null;
+
+// ================================================
 // 🔥 SUPABASE CLIENT - INLINE
 // ================================================
 
@@ -4322,7 +4418,8 @@ async function supabaseFetch(endpoint, options = {}) {
 
 // Artigos
 async function getArtigos() {
-    return await supabaseFetch('artigos?select=*&order=ID.asc');
+    // ✅ v3.7.0.9: Filtrar apenas artigos visíveis (Visível = true)
+    return await supabaseFetch('artigos?select=*&Visível=eq.true&order=ID.asc');
 }
 
 // Utilizadores
@@ -4475,6 +4572,25 @@ function getFotoUrl(pedidoId, extensao = 'jpg') {
     return `${SUPABASE_CONFIG.URL}/storage/v1/object/public/pedidos-fotos/${pedidoId}.${extensao}`;
 }
 
+// ✅ v3.7.0.9: Buscar equipamentos do Supabase
+async function getEquipamentos() {
+    try {
+        // Buscar TODOS os equipamentos (sem filtro ativo, para debug)
+        const result = await supabaseFetch('lista_equipamentos?select=*&order=area.asc,ordem.asc');
+        console.log('🔍 getEquipamentos - Total recebido:', result?.length || 0);
+        if (result && result.length > 0) {
+            console.log('🔍 Primeiro equipamento:', result[0]);
+        } else {
+            console.error('⚠️ Nenhum equipamento retornado do Supabase!');
+            console.error('   Verifique se executou os INSERTs do SQL');
+        }
+        return result || [];
+    } catch (error) {
+        console.error('❌ Erro ao buscar equipamentos:', error);
+        return [];
+    }
+}
+
 // Exportar para uso global
 window.SupabaseAPI = {
     getArtigos,
@@ -4492,7 +4608,8 @@ window.SupabaseAPI = {
     deletePlaneamento,
     uploadFoto,
     deleteFoto,
-    getFotoUrl
+    getFotoUrl,
+    getEquipamentos
 };
 
 console.log('✅ Supabase API inicializada (INLINE)');
@@ -4546,9 +4663,9 @@ const CONFIG = {
         'tinas': { name: 'Tinas impregnante', url: 'https://drive.google.com/file/d/16dwf9DGaiGrNI2xF1LfoRw1wVA1nZQP-/view', embedUrl: 'https://drive.google.com/file/d/16dwf9DGaiGrNI2xF1LfoRw1wVA1nZQP-/preview' }
     },
     
-    // ⚡ EQUIPAMENTOS - Estrutura HARDCODED para performance máxima (INSTANTÂNEO - 0ms)
-    // Total: 146 linhas organizadas em 22 áreas/equipamentos
-    EQUIPAMENTOS: {
+    // ❌ REMOVIDO v3.7.0.9: Migrado para Supabase (tabela lista_equipamentos)
+    // Os equipamentos agora são carregados dinamicamente do Supabase
+    EQUIPAMENTOS_OLD: {
         'Triagem': [
             'Redler superior Silo Casca',
             'Redler transporte para Silo Casca',
@@ -4799,6 +4916,7 @@ const AppState = {
     artigos: [],
     movimentos: [],
     utilizadores: [],  // ✅ NOVO: Lista de utilizadores para dropdown
+    equipamentos: [],  // ✅ v3.7.0.9: Lista de equipamentos do Supabase
     artigoSelecionado: null,
     currentUser: null  // { username, nomeCompleto, departamento, role, podeEditarPlaneamento, token }
 };
@@ -5283,16 +5401,84 @@ let APP_INITIALIZED = false;
     }
 })();
 
+// 🔍 DEBUG: Função para testar equipamentos e atualizar painel visual
+async function testarEquipamentos() {
+    const statusEl = document.getElementById('debugEquipStatus');
+    const totalEl = document.getElementById('debugEquipTotal');
+    const areasEl = document.getElementById('debugEquipAreas');
+    const firstEl = document.getElementById('debugEquipFirst');
+    
+    try {
+        statusEl.textContent = '🔄 Carregando...';
+        statusEl.style.color = '#ff9800';
+        
+        const resultado = await window.SupabaseAPI.getEquipamentos();
+        AppState.equipamentos = resultado || [];
+        
+        const total = AppState.equipamentos.length;
+        const areasUnicas = [...new Set(AppState.equipamentos.map(e => e.area))];
+        const primeiro = AppState.equipamentos[0] || null;
+        
+        totalEl.textContent = total;
+        totalEl.style.color = total > 0 ? '#4CAF50' : '#f44336';
+        areasEl.textContent = areasUnicas.length;
+        areasEl.style.color = areasUnicas.length > 0 ? '#4CAF50' : '#f44336';
+        
+        if (primeiro) {
+            firstEl.textContent = `${primeiro.area} → ${primeiro.componente}`;
+            firstEl.style.color = '#4CAF50';
+        } else {
+            firstEl.textContent = '❌ Nenhum equipamento encontrado';
+            firstEl.style.color = '#f44336';
+        }
+        
+        if (total > 0) {
+            statusEl.textContent = `✅ ${total} equipamentos carregados!`;
+            statusEl.style.color = '#4CAF50';
+            populateAreaEquipamento();
+            populateEquipamentoFilter();
+        } else {
+            statusEl.textContent = '❌ ERRO: Supabase retornou 0 equipamentos!';
+            statusEl.style.color = '#f44336';
+        }
+    } catch (error) {
+        statusEl.textContent = `❌ ${error.message}`;
+        statusEl.style.color = '#f44336';
+        totalEl.textContent = '0';
+        areasEl.textContent = '0';
+        firstEl.textContent = error.message;
+    }
+}
+
+function atualizarPainelDebug() {
+    const totalEl = document.getElementById('debugEquipTotal');
+    if (!totalEl) return;
+    
+    const total = AppState.equipamentos.length;
+    const areasUnicas = [...new Set(AppState.equipamentos.map(e => e.area))];
+    const primeiro = AppState.equipamentos[0] || null;
+    
+    totalEl.textContent = total;
+    totalEl.style.color = total > 0 ? '#4CAF50' : '#f44336';
+    document.getElementById('debugEquipAreas').textContent = areasUnicas.length;
+    
+    if (primeiro) {
+        document.getElementById('debugEquipFirst').textContent = `${primeiro.area} → ${primeiro.componente}`;
+        document.getElementById('debugEquipFirst').style.color = '#4CAF50';
+    } else {
+        document.getElementById('debugEquipFirst').textContent = 'Vazio';
+        document.getElementById('debugEquipFirst').style.color = '#999';
+    }
+    
+    document.getElementById('debugEquipStatus').textContent = total > 0 ? '✅ OK' : '⚠️ Vazio';
+    document.getElementById('debugEquipStatus').style.color = total > 0 ? '#4CAF50' : '#ff9800';
+}
+
 // INICIALIZAÇÃO
 document.addEventListener('DOMContentLoaded', () => { initializeApp(); });
 
-// iOS Safari: pageshow é mais confiável para PWA
 window.addEventListener('pageshow', (event) => {
-    // SEMPRE re-verifica sessão no iOS (mesmo que não seja do cache)
-    // iOS Safari limpa estado em certas condições
     console.log('🔄 pageshow event - verificando sessão...');
-    
-    // Pequeno delay para garantir que DOM está pronto
     setTimeout(() => {
         if (!AppState.currentUser) {
             checkAuthentication();
@@ -5425,30 +5611,41 @@ function setupEventListeners() {
     
     if (areaSelect) {
         areaSelect.addEventListener('change', handleAreaEquipamentoChange);
-        // Popular dropdown de áreas ao carregar
-        populateAreaEquipamento();
+        // ⚠️ NÃO popular aqui! Será populado DEPOIS de carregar do Supabase em syncWithSupabase()
     }
 }
 
 // ⚡ EQUIPAMENTOS - Popular dropdown de Áreas/Equipamentos
 function populateAreaEquipamento() {
     const areaSelect = document.getElementById('areaEquipamento');
-    if (!areaSelect) return;
+    if (!areaSelect) {
+        console.error('❌ Elemento areaEquipamento não encontrado!');
+        return;
+    }
+    
+    console.log('🔄 populateAreaEquipamento chamado');
+    console.log('📊 AppState.equipamentos:', AppState.equipamentos.length, 'registos');
     
     // Limpar opções existentes (exceto a primeira)
     areaSelect.innerHTML = '<option value="">Selecione a área/equipamento</option>';
     
-    // Adicionar todas as áreas do CONFIG.EQUIPAMENTOS
-    const areas = Object.keys(CONFIG.EQUIPAMENTOS).sort(); // Ordenar alfabeticamente
+    if (AppState.equipamentos.length === 0) {
+        console.error('⚠️ AppState.equipamentos está vazio! Não há áreas para popular.');
+        return;
+    }
     
-    areas.forEach(area => {
+    // ✅ v3.7.0.9: Obter áreas únicas do Supabase
+    const areasUnicas = [...new Set(AppState.equipamentos.map(e => e.area))].sort();
+    console.log('📋 Áreas únicas extraídas:', areasUnicas);
+    
+    areasUnicas.forEach(area => {
         const option = document.createElement('option');
         option.value = area;
         option.textContent = area;
         areaSelect.appendChild(option);
     });
     
-    console.log('⚡ Áreas/Equipamentos populadas:', areas.length);
+    console.log('✅ Áreas/Equipamentos populadas:', areasUnicas.length);
 }
 
 // ⚡ EQUIPAMENTOS - Filtrar componentes ao escolher área
@@ -5465,16 +5662,18 @@ function handleAreaEquipamentoChange(e) {
         return;
     }
     
-    // Obter componentes da área selecionada
-    const componentes = CONFIG.EQUIPAMENTOS[areaSelected] || [];
+    // ✅ v3.7.0.9: Obter componentes da área selecionada do Supabase
+    const componentes = AppState.equipamentos
+        .filter(e => e.area === areaSelected)
+        .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
     
     // Limpar e popular dropdown de componentes
     componenteSelect.innerHTML = '<option value="">Selecione o componente</option>';
     
-    componentes.forEach(componente => {
+    componentes.forEach(equip => {
         const option = document.createElement('option');
-        option.value = componente;
-        option.textContent = componente;
+        option.value = equip.componente;
+        option.textContent = equip.componente;
         componenteSelect.appendChild(option);
     });
     
@@ -5510,7 +5709,9 @@ function handleTabChange(e) {
     // ✅ v3.7.0: Atualizar análises ao abrir tab Análise
     if (tab === 'analise') {
         setTimeout(() => {
-            atualizarAnalises();
+            if (typeof window.atualizarAnalises === 'function') {
+                window.atualizarAnalises();
+            }
         }, 100);
     }
     
@@ -5547,7 +5748,9 @@ function restoreActiveTab() {
                 // ✅ v3.7.0: Atualizar análises ao restaurar tab Análise
                 if (activeTab === 'analise') {
                     setTimeout(() => {
-                        atualizarAnalises();
+                        if (typeof window.atualizarAnalises === 'function') {
+                            window.atualizarAnalises();
+                        }
                     }, 200);
                 }
                 
@@ -5879,11 +6082,17 @@ function populateEquipamentoFilter() {
     // Limpar opções existentes (exceto a primeira "Todos")
     select.innerHTML = '<option value="">Todos os equipamentos</option>';
     
-    // Adicionar todas as áreas do CONFIG.EQUIPAMENTOS (ordenadas alfabeticamente)
-    const areas = Object.keys(CONFIG.EQUIPAMENTOS).sort();
+    // ✅ v3.7.0.9: Obter áreas únicas do Supabase com contagem
+    const areaMap = {};
+    AppState.equipamentos.forEach(e => {
+        if (!areaMap[e.area]) areaMap[e.area] = 0;
+        areaMap[e.area]++;
+    });
+    
+    const areas = Object.keys(areaMap).sort();
     
     areas.forEach(area => {
-        const componentesCount = CONFIG.EQUIPAMENTOS[area].length;
+        const componentesCount = areaMap[area];
         const option = document.createElement('option');
         option.value = area;
         option.textContent = `${area} (${componentesCount})`;
@@ -6093,6 +6302,14 @@ function openRequestDetails(id) {
     }
     
     html += `<div class="modal-actions">`;
+    html += `
+        <button class="btn btn-secondary" onclick="printRequest('${request.id}');" style="background: #2196F3; color: white;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Imprimir
+        </button>`;
     if (request.estado !== 'Resolvido') {
         html += `
         <button class="btn btn-primary" onclick="changeRequestState('${request.id}'); closeModal();">
@@ -6112,6 +6329,71 @@ function openRequestDetails(id) {
 
 function closeModal() {
     document.getElementById('detailsModal').classList.remove('active');
+}
+
+// ✅ v3.7.0.9: Imprimir Pedido (MÉTODO SIMPLES - SEM BLOQUEIOS)
+function printRequest(id) {
+    const request = AppState.requests.find(r => r.id === id);
+    if (!request) {
+        alert('Pedido não encontrado!');
+        return;
+    }
+    
+    const container = document.getElementById('printContainer');
+    
+    // Montar HTML de impressão
+    let html = '<h1>PEDIDO DE MANUTENÇÃO</h1>';
+    html += '<div class="print-header">';
+    html += '<p><strong>ID:</strong> ' + request.id + '</p>';
+    html += '<p><strong>Data:</strong> ' + formatDate(request.dataHora) + '</p>';
+    html += '</div>';
+    
+    html += '<div class="print-section">';
+    html += '<h2>Informações Gerais</h2>';
+    html += '<table>';
+    html += '<tr><td>Tipo:</td><td>' + (request.tipo || '-') + '</td></tr>';
+    html += '<tr><td>Prioridade:</td><td>' + (request.prioridade || '-') + '</td></tr>';
+    html += '<tr><td>Estado:</td><td>' + (request.estado || '-') + '</td></tr>';
+    html += '<tr><td>Empresa:</td><td>' + (request.empresa || 'MCF') + '</td></tr>';
+    if (request.areaEquipamento) html += '<tr><td>Área/Equipamento:</td><td>' + request.areaEquipamento + '</td></tr>';
+    if (request.componente) html += '<tr><td>Componente:</td><td>' + request.componente + '</td></tr>';
+    if (request.departamento) html += '<tr><td>Departamento:</td><td>' + request.departamento + '</td></tr>';
+    if (request.responsavel) html += '<tr><td>Responsável:</td><td>' + request.responsavel + '</td></tr>';
+    if (request.horasEstimadas) html += '<tr><td>Horas Estimadas:</td><td>' + request.horasEstimadas + 'h</td></tr>';
+    if (request.urgente === 'Sim') html += '<tr><td>Urgente:</td><td>⚠️ SIM</td></tr>';
+    if (request.paragemProducao === 'Sim') html += '<tr><td>Paragem Produção:</td><td>🛑 SIM</td></tr>';
+    html += '<tr><td>Registado por:</td><td>' + (request.nome || '-') + '</td></tr>';
+    html += '</table>';
+    html += '</div>';
+    
+    html += '<div class="print-section">';
+    html += '<h2>Descrição</h2>';
+    html += '<p class="description">' + (request.descricao || '-').replace(/\n/g, '<br>') + '</p>';
+    html += '</div>';
+    
+    if (request.foto) {
+        html += '<div class="print-section photo-section">';
+        html += '<h2>Fotografia</h2>';
+        html += '<img src="' + request.foto + '" alt="Foto do pedido">';
+        html += '</div>';
+    }
+    
+    html += '<div class="print-footer">';
+    html += '<p><strong>MCF + PSY - Sistema de Gestão de Manutenção</strong></p>';
+    html += '<p>Impresso em ' + new Date().toLocaleDateString('pt-PT') + ' às ' + new Date().toLocaleTimeString('pt-PT') + '</p>';
+    html += '</div>';
+    
+    container.innerHTML = html;
+    
+    // Fechar modal e imprimir
+    closeModal();
+    setTimeout(function() {
+        window.print();
+        // Limpar após impressão
+        setTimeout(function() {
+            container.innerHTML = '';
+        }, 100);
+    }, 300);
 }
 
 // AÇÕES
@@ -6284,6 +6566,7 @@ async function syncWithSupabase() {
             fornecedor: a.Fornecedor,
             preco: parseFloat(a['Preço Unitário']) || 0,
             stockMinimo: parseInt(a['Stock Mínimo']) || 0,
+            // ✅ NOTA: Stock NÃO é guardado na tabela! É calculado via calcularStockAtual()
             empresa: a.Empresa,
             unidade: a.Unidade
         }));
@@ -6340,6 +6623,28 @@ async function syncWithSupabase() {
         }
         
         console.log(`✅ ${AppState.utilizadores.length} utilizadores carregados`);
+        
+        // ✅ v3.7.0.9: Carregar EQUIPAMENTOS do Supabase
+        console.log('🔄 A carregar equipamentos do Supabase...');
+        const equipamentos = await window.SupabaseAPI.getEquipamentos();
+        console.log('🔍 Equipamentos recebidos:', equipamentos);
+        AppState.equipamentos = equipamentos || [];
+        console.log(`✅ ${AppState.equipamentos.length} equipamentos carregados do Supabase`);
+        
+        if (AppState.equipamentos.length === 0) {
+            console.error('⚠️ AVISO: Nenhum equipamento carregado! Verificar:');
+            console.error('  1. Tabela lista_equipamentos existe no Supabase?');
+            console.error('  2. Dados foram inseridos?');
+            console.error('  3. RLS permite SELECT público?');
+        }
+        
+        // 🔍 Atualizar painel de debug visual
+        atualizarPainelDebug();
+        
+        // ✅ v3.7.0.9: Popular dropdowns DEPOIS de carregar equipamentos
+        populateAreaEquipamento();
+        populateEquipamentoFilter();
+        console.log('✅ Dropdowns de equipamentos populados');
         
         // Guardar localmente
         saveToLocalStorage();
@@ -6761,11 +7066,18 @@ function calcularProximaIntervencao(dataPrimeiraIntervencao, frequencia) {
 }
 
 // PLANEAMENTO
-async function initializePlanning() { 
-    loadPlanningFromStorage(); 
-    await loadPlanningFromSupabase();  // ✅ v3.7.0.8: Carregar do Supabase
-    resetPlanningToToday(); 
-    renderPlanningGrid(); 
+async function initializePlanning() {
+    try {
+        loadPlanningFromStorage(); 
+        await loadPlanningFromSupabase();  // ✅ v3.7.0.8: Carregar do Supabase
+        resetPlanningToToday(); 
+        renderPlanningGrid();
+    } catch (error) {
+        console.error('❌ Erro ao inicializar planeamento:', error);
+        // ✅ FALLBACK: Garantir que datas estão definidas
+        resetPlanningToToday();
+        renderPlanningGrid();
+    }
 }
 function resetPlanningToToday() {
     const today = new Date(); today.setHours(0,0,0,0);
@@ -6975,7 +7287,16 @@ function renderPreventivasList() {
 }
 
 function renderPlanningGrid() {
-    const grid = document.getElementById('planningGrid'), dates = generateDateRange();
+    const grid = document.getElementById('planningGrid');
+    
+    // ✅ VALIDAÇÃO: Verificar se startDate e endDate existem
+    if (!AppState.planning.startDate || !AppState.planning.endDate) {
+        console.warn('⚠️ Planning dates não definidas, a inicializar...');
+        AppState.planning.startDate = new Date();
+        AppState.planning.endDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // +2 semanas
+    }
+    
+    const dates = generateDateRange();
     const rangeText = `${formatDateShort(AppState.planning.startDate)} - ${formatDateShort(AppState.planning.endDate)}`;
     document.getElementById('planningRange').textContent = rangeText;
     const activeTasks = AppState.requests.filter(r => r.estado !== 'Resolvido');
@@ -7656,9 +7977,9 @@ async function syncMovimentoToGoogleSheets(movimento) {
 // ============================================
 
 function initializeStockModule() {
-    // Carregar dados do Google Sheets
-    loadArtigosFromGoogleSheets();
-    loadMovimentosFromGoogleSheets();
+    // ✅ CORRIGIDO: Já carregado em syncWithSupabase(), não precisa recarregar
+    // loadArtigosFromGoogleSheets(); // ❌ REMOVIDO - função não existe
+    // loadMovimentosFromGoogleSheets(); // ❌ REMOVIDO - função não existe
     
     // Setup event listeners
     const stockTab = document.querySelector('.tab-btn[data-tab="stock"]');
@@ -7699,6 +8020,122 @@ function calcularStockAtual(artigoId) {
     });
     
     return stockAtual;
+}
+
+// ✅ v3.7.0.9: Filtrar artigos por família no modal de movimento
+function filtrarArtigosPorFamilia() {
+    const familiaSelect = document.getElementById('movimentoFamiliaSelect');
+    const artigoSelect = document.getElementById('movimentoArtigoSelect');
+    
+    if (!familiaSelect || !artigoSelect) return;
+    
+    const familiaSelecionada = familiaSelect.value;
+    
+    // Filtrar artigos
+    let artigosFiltrados = AppState.artigos;
+    if (familiaSelecionada) {
+        artigosFiltrados = AppState.artigos.filter(a => a.familia === familiaSelecionada);
+    }
+    
+    // Popular dropdown de artigos
+    artigoSelect.innerHTML = '<option value="">Selecione um artigo...</option>';
+    artigosFiltrados.forEach(artigo => {
+        const option = document.createElement('option');
+        option.value = artigo.id;
+        option.textContent = `${artigo.designacao} (${artigo.referencia})`;
+        artigoSelect.appendChild(option);
+    });
+    
+    console.log(`✅ ${artigosFiltrados.length} artigos carregados no dropdown`);
+}
+
+// ✅ v3.7.0.9: Atualizar informação do artigo selecionado
+function updateArtigoInfo() {
+    const artigoSelect = document.getElementById('movimentoArtigoSelect');
+    const infoDiv = document.getElementById('artigoSelectedInfo');
+    
+    if (!artigoSelect || !infoDiv) return;
+    
+    const artigoId = artigoSelect.value;
+    
+    if (!artigoId) {
+        infoDiv.style.display = 'none';
+        return;
+    }
+    
+    const artigo = AppState.artigos.find(a => a.id === artigoId);
+    if (!artigo) return;
+    
+    const stock = calcularStockAtual(artigoId);
+    const stockDisplay = (stock !== undefined && stock !== null) ? stock : 0;
+    const stockBaixo = stockDisplay <= artigo.stockMinimo;
+    
+    infoDiv.style.display = 'block';
+    infoDiv.innerHTML = `
+        <div style="padding: 12px; background: ${stockBaixo ? '#fff3cd' : '#d4edda'}; border-radius: 8px; margin: 12px 0;">
+            <div style="font-weight: 600; margin-bottom: 8px;">${artigo.designacao}</div>
+            <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 0.875rem;">
+                <strong>Referência:</strong> <span>${artigo.referencia}</span>
+                <strong>Stock Atual:</strong> <span style="color: ${stockBaixo ? '#856404' : '#155724'}; font-weight: 600;">${stockDisplay} ${artigo.unidade || 'UN'}</span>
+                <strong>Stock Mínimo:</strong> <span>${artigo.stockMinimo} ${artigo.unidade || 'UN'}</span>
+                <strong>Fornecedor:</strong> <span>${artigo.fornecedor || '-'}</span>
+            </div>
+            ${stockBaixo ? '<div style="margin-top: 8px; color: #856404; font-weight: 600;">⚠️ Stock abaixo do mínimo!</div>' : ''}
+        </div>
+    `;
+}
+
+// ✅ v3.7.0.9: Abrir modal de novo movimento
+function openNovoMovimentoModal() {
+    const modal = document.getElementById('movimentoModal');
+    if (!modal) return;
+    
+    // Limpar formulário
+    document.getElementById('movimentoForm')?.reset();
+    document.getElementById('artigoSelectedInfo').style.display = 'none';
+    
+    // Popular dropdown de famílias
+    const familiaSelect = document.getElementById('movimentoFamiliaSelect');
+    if (familiaSelect) {
+        const familias = [...new Set(AppState.artigos.map(a => a.familia))].sort();
+        familiaSelect.innerHTML = '<option value="">Todas as famílias</option>';
+        familias.forEach(familia => {
+            const option = document.createElement('option');
+            option.value = familia;
+            option.textContent = familia;
+            familiaSelect.appendChild(option);
+        });
+    }
+    
+    // Popular dropdown de artigos (todos)
+    filtrarArtigosPorFamilia();
+    
+    // Preencher responsável com utilizador logado
+    const responsavelInput = document.getElementById('movimentoResponsavel');
+    if (responsavelInput && AppState.currentUser) {
+        responsavelInput.value = AppState.currentUser.nomeCompleto;
+    }
+    
+    // Abrir modal
+    modal.classList.add('active');
+}
+
+// ✅ v3.7.0.9: Fechar modal de movimento
+function closeMovimentoModal() {
+    const modal = document.getElementById('movimentoModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+// ✅ v3.7.0.9: Ajustar quantidade com botões +/-
+function adjustQuantidade(delta) {
+    const input = document.getElementById('movimentoQuantidade');
+    if (!input) return;
+    
+    const currentValue = parseInt(input.value) || 1;
+    const newValue = Math.max(1, currentValue + delta);
+    input.value = newValue;
 }
 
 // Pesquisa de artigos
@@ -8108,294 +8545,6 @@ async function eliminarMovimento(movId) {
     saveToLocalStorage();
 }
 
-async function openNovoMovimentoModal() {
-    console.log('🚀 openNovoMovimentoModal() INICIADO');
-    console.log('📊 Total de artigos em AppState:', AppState.artigos.length);
-    console.log('📦 Artigos completos:', JSON.stringify(AppState.artigos, null, 2));
-    
-    // 🔥 SE VAZIO → FORÇAR RELOAD DO SERVIDOR!
-    if (AppState.artigos.length === 0) {
-        console.warn('⚠️ Artigos vazios! Forçando reload do Google Sheets...');
-        
-        // 🎨 Mostrar loading spinner
-        const loadingToast = showToast('⏳ Carregando artigos... Pode demorar alguns segundos.', 'info');
-        
-        try {
-            const startTime = Date.now();
-            await loadArtigosFromGoogleSheets(0, true); // forceReload = true
-            const loadTime = ((Date.now() - startTime) / 1000).toFixed(1);
-            
-            // Verificar novamente após reload
-            if (AppState.artigos.length === 0) {
-                console.error('❌ ERRO CRÍTICO: Artigos continuam vazios após reload!');
-                showToast('❌ Nenhum artigo encontrado no Google Sheets. Verifique a sheet "Artigos".', 'error');
-                return;
-            }
-            
-            console.log('✅ Artigos carregados com sucesso após reload:', AppState.artigos.length, '(tempo:', loadTime + 's)');
-            showToast('✅ ' + AppState.artigos.length + ' artigos carregados! (' + loadTime + 's)', 'success');
-        } catch (error) {
-            console.error('❌ Erro ao carregar artigos:', error);
-            showToast('❌ Erro ao carregar artigos. Tente novamente.', 'error');
-            return;
-        }
-    }
-    
-    // Preencher dropdown de famílias
-    const familiaSelect = document.getElementById('movimentoFamiliaSelect');
-    console.log('🔍 familiaSelect existe?', !!familiaSelect);
-    if (familiaSelect) {
-        const familias = [...new Set(AppState.artigos.map(a => a.familia))].sort();
-        console.log('📋 Famílias únicas encontradas:', familias);
-        familiaSelect.innerHTML = '<option value="">Todas as famílias</option>';
-        familias.forEach(familia => {
-            const option = document.createElement('option');
-            option.value = familia;
-            option.textContent = familia;
-            familiaSelect.appendChild(option);
-            console.log('✅ Família adicionada ao dropdown:', familia);
-        });
-        console.log('✅ Total de famílias no dropdown:', familiaSelect.options.length);
-    }
-    
-    // Preencher dropdown com TODOS os artigos inicialmente
-    const select = document.getElementById('movimentoArtigoSelect');
-    console.log('🔍 artigoSelect existe?', !!select);
-    if (select) {
-        select.innerHTML = '<option value="">Selecione um artigo...</option>';
-        AppState.artigos.forEach((artigo, index) => {
-            const option = document.createElement('option');
-            option.value = artigo.id;
-            option.textContent = `${artigo.designacao} (${artigo.referencia}) - Stock: ${artigo.stockAtual} ${artigo.unidade}`;
-            select.appendChild(option);
-            console.log(`✅ Artigo ${index + 1} adicionado:`, artigo.id, artigo.designacao);
-        });
-        console.log('✅ Total de artigos no dropdown:', select.options.length);
-    }
-    
-    // Mostrar dropdown, esconder info
-    const selectGroup = document.getElementById('artigoSelectGroup');
-    const info = document.getElementById('artigoSelectedInfo');
-    if (selectGroup) selectGroup.style.display = 'block';
-    if (info) info.style.display = 'none';
-    
-    // Resetar form
-    document.getElementById('movimentoTipo').value = 'Entrada';
-    document.getElementById('movimentoQuantidade').value = '1';
-    document.getElementById('movimentoObservacoes').value = '';
-    
-    // Auto-preencher responsável com utilizador logado
-    const responsavelInput = document.getElementById('movimentoResponsavel');
-    if (responsavelInput && AppState.currentUser) {
-        responsavelInput.value = AppState.currentUser.nomeCompleto;
-        console.log('✅ Responsável preenchido automaticamente:', AppState.currentUser.nomeCompleto);
-    }
-    
-    // Abrir modal
-    const modal = document.getElementById('movimentoModal');
-    if (modal) {
-        modal.classList.add('active');
-        modal.querySelector('.modal-overlay')?.addEventListener('click', closeMovimentoModal);
-    }
-}
-
-function filtrarArtigosPorFamilia() {
-    const familiaSelect = document.getElementById('movimentoFamiliaSelect');
-    const artigoSelect = document.getElementById('movimentoArtigoSelect');
-    
-    if (!familiaSelect || !artigoSelect) return;
-    
-    const familiaSelecionada = familiaSelect.value;
-    
-    // Filtrar artigos
-    let artigosFiltrados = AppState.artigos;
-    if (familiaSelecionada) {
-        artigosFiltrados = AppState.artigos.filter(a => a.familia === familiaSelecionada);
-    }
-    
-    // Recriar dropdown de artigos
-    artigoSelect.innerHTML = '<option value="">Selecione um artigo...</option>';
-    artigosFiltrados.forEach(artigo => {
-        const option = document.createElement('option');
-        option.value = artigo.id;
-        option.textContent = `${artigo.designacao} (${artigo.referencia}) - Stock: ${artigo.stockAtual} ${artigo.unidade}`;
-        artigoSelect.appendChild(option);
-    });
-    
-    // Limpar seleção e info
-    artigoSelect.value = '';
-    const info = document.getElementById('artigoSelectedInfo');
-    if (info) info.style.display = 'none';
-    AppState.artigoSelecionado = null;
-}
-
-function openMovimentoModal(artigoId) {
-    // Quando vem de um botão de artigo específico (baixa rápida)
-    const artigo = AppState.artigos.find(a => a.id === artigoId);
-    if (!artigo) return;
-    
-    AppState.artigoSelecionado = artigo;
-    
-    // Preencher dropdown de famílias
-    const familiaSelect = document.getElementById('movimentoFamiliaSelect');
-    if (familiaSelect) {
-        const familias = [...new Set(AppState.artigos.map(a => a.familia))].sort();
-        familiaSelect.innerHTML = '<option value="">Todas as famílias</option>';
-        familias.forEach(familia => {
-            const option = document.createElement('option');
-            option.value = familia;
-            option.textContent = familia;
-            // Pré-selecionar a família do artigo
-            if (familia === artigo.familia) option.selected = true;
-            familiaSelect.appendChild(option);
-        });
-    }
-    
-    // Preencher dropdown de artigos (filtrado pela família do artigo selecionado)
-    const select = document.getElementById('movimentoArtigoSelect');
-    if (select) {
-        select.innerHTML = '<option value="">Selecione um artigo...</option>';
-        const artigosDaFamilia = AppState.artigos.filter(a => a.familia === artigo.familia);
-        artigosDaFamilia.forEach(art => {
-            const option = document.createElement('option');
-            option.value = art.id;
-            option.textContent = `${art.designacao} (${art.referencia}) - Stock: ${art.stockAtual} ${art.unidade}`;
-            if (art.id === artigoId) option.selected = true;
-            select.appendChild(option);
-        });
-    }
-    
-    // Mostrar info do artigo
-    updateArtigoInfo();
-    
-    // Resetar campos
-    document.getElementById('movimentoTipo').value = 'Entrada';
-    document.getElementById('movimentoQuantidade').value = '1';
-    document.getElementById('movimentoObservacoes').value = '';
-    
-    // Auto-preencher responsável com utilizador logado
-    const responsavelInput = document.getElementById('movimentoResponsavel');
-    if (responsavelInput && AppState.currentUser) {
-        responsavelInput.value = AppState.currentUser.nomeCompleto;
-        console.log('✅ Responsável preenchido automaticamente:', AppState.currentUser.nomeCompleto);
-    }
-    
-    // Abrir modal
-    const modal = document.getElementById('movimentoModal');
-    if (modal) {
-        modal.classList.add('active');
-        modal.querySelector('.modal-overlay')?.addEventListener('click', closeMovimentoModal);
-    }
-}
-
-function updateArtigoInfo() {
-    const select = document.getElementById('movimentoArtigoSelect');
-    const info = document.getElementById('artigoSelectedInfo');
-    
-    if (!select || !info) return;
-    
-    const artigoId = select.value;
-    
-    if (!artigoId) {
-        info.style.display = 'none';
-        AppState.artigoSelecionado = null;
-        return;
-    }
-    
-    const artigo = AppState.artigos.find(a => a.id === artigoId);
-    if (!artigo) return;
-    
-    AppState.artigoSelecionado = artigo;
-    
-    info.style.display = 'block';
-    info.innerHTML = `
-        <h4>${artigo.designacao}</h4>
-        <p><strong>Referência:</strong> ${artigo.referencia}</p>
-        <p><strong>Stock Atual:</strong> ${artigo.stockAtual} ${artigo.unidade}</p>
-        <p><strong>Fornecedor:</strong> ${artigo.fornecedor}</p>
-    `;
-}
-
-function closeMovimentoModal() {
-    const modal = document.getElementById('movimentoModal');
-    if (modal) {
-        modal.classList.remove('active');
-    }
-    AppState.artigoSelecionado = null;
-}
-
-// 🔍 FUNÇÃO DE DIAGNÓSTICO DE ARTIGOS
-async function diagnosticarArtigos() {
-    console.log('🔍🔍🔍 === DIAGNÓSTICO DE ARTIGOS INICIADO === 🔍🔍🔍');
-    
-    // 1. Verificar AppState.artigos
-    console.log('📊 AppState.artigos.length:', AppState.artigos.length);
-    console.log('📦 AppState.artigos:', JSON.stringify(AppState.artigos, null, 2));
-    
-    // 2. Verificar URL do Google Sheets
-    console.log('🌐 CONFIG.GOOGLE_SHEETS_URL:', CONFIG.GOOGLE_SHEETS_URL);
-    
-    // 3. Forçar reload dos artigos
-    console.log('🔄 Forçando reload dos artigos do Google Sheets...');
-    
-    try {
-        const url = CONFIG.GOOGLE_SHEETS_URL + '?timestamp=' + Date.now() + '&debug=true';
-        console.log('📡 Fazendo fetch para:', url);
-        
-        const response = await fetch(url, {
-            method: 'GET',
-            mode: 'cors',
-            credentials: 'omit',
-            cache: 'no-cache'
-        });
-        
-        console.log('📡 Response status:', response.status);
-        console.log('📡 Response ok:', response.ok);
-        console.log('📡 Response headers:', response.headers);
-        
-        const text = await response.text();
-        console.log('📄 Response texto BRUTO:', text);
-        
-        try {
-            const data = JSON.parse(text);
-            console.log('✅ JSON parseado com sucesso!');
-            console.log('📦 data.success:', data.success);
-            console.log('📦 data.artigos:', data.artigos);
-            console.log('📦 data.artigos.length:', data.artigos ? data.artigos.length : 0);
-            
-            if (data.success && data.artigos && data.artigos.length > 0) {
-                AppState.artigos = data.artigos;
-                console.log('✅✅✅ ARTIGOS RECARREGADOS COM SUCESSO!');
-                console.log('📊 Novos artigos em AppState:', AppState.artigos.length);
-                showToast('✅ Artigos recarregados: ' + AppState.artigos.length, 'success');
-            } else {
-                console.error('❌ ERRO: Nenhum artigo no response!');
-                showToast('❌ Nenhum artigo encontrado no Google Sheets', 'error');
-            }
-        } catch (parseError) {
-            console.error('❌ ERRO ao fazer parse do JSON:', parseError);
-            console.error('📄 Texto que falhou:', text.substring(0, 500));
-            showToast('❌ Erro ao processar resposta do servidor', 'error');
-        }
-        
-    } catch (error) {
-        console.error('❌ ERRO no fetch:', error);
-        console.error('Stack:', error.stack);
-        showToast('❌ Erro ao conectar com Google Sheets', 'error');
-    }
-    
-    console.log('🔍🔍🔍 === DIAGNÓSTICO FINALIZADO === 🔍🔍🔍');
-}
-
-function adjustQuantidade(delta) {
-    const input = document.getElementById('movimentoQuantidade');
-    if (input) {
-        const current = parseInt(input.value) || 1;
-        const newValue = Math.max(1, current + delta);
-        input.value = newValue;
-    }
-}
-
 async function handleMovimentoSubmit(e) {
     e.preventDefault();
     
@@ -8482,8 +8631,9 @@ window.deleteRequest = deleteRequest;
 window.clearImagePreview = clearImagePreview;
 window.toggleAllocation = toggleAllocation;
 window.updateTaskHours = updateTaskHours;
-window.openMovimentoModal = openMovimentoModal;
-window.closeMovimentoModal = closeMovimentoModal;
+// ❌ REMOVIDO - Função não existe
+// window.openMovimentoModal = openMovimentoModal;
+// window.closeMovimentoModal = closeMovimentoModal;
 window.adjustQuantidade = adjustQuantidade;
 window.updateArtigoInfo = updateArtigoInfo;
 window.filtrarArtigosPorFamilia = filtrarArtigosPorFamilia;
@@ -8666,7 +8816,8 @@ function calcularMetricasSemana(empresaFiltro = '') {
         return data.getFullYear() === anoAtual && getWeekNumber(data) === semanaAtual;
     });
     
-    const abertos = pedidosEstaSemana.length;
+    // Abertos = Novo + Em curso (NÃO resolvidos)
+    const abertos = pedidosEstaSemana.filter(p => p.estado !== 'Resolvido').length;
     const fechados = pedidosEstaSemana.filter(p => p.estado === 'Resolvido').length;
     
     // Calcular backlog total atual (todos os pedidos não resolvidos)
@@ -8826,7 +8977,7 @@ function renderizarGraficoPedidosPorSemana(dados) {
  * Criar/atualizar gráfico de evolução do backlog
  */
 function renderizarGraficoEvolucaoBacklog(dados) {
-    const ctx = document.getElementById('chartEvolu​caoBacklog');
+    const ctx = document.getElementById('chartEvolucaoBacklog');
     if (!ctx) return;
     
     // Destruir gráfico anterior se existir
@@ -9009,19 +9160,19 @@ function atualizarCardsMetricas(metricas) {
     // Abertos esta semana
     const abertosEl = document.getElementById('abertosEstaSemana');
     if (abertosEl) {
-        abertosEl.textContent = metricas.abertos;
+        abertosEl.textContent = metricas.abertos || 0;
     }
     
     // Fechados esta semana
     const fechadosEl = document.getElementById('fechadosEstaSemana');
     if (fechadosEl) {
-        fechadosEl.textContent = metricas.fechados;
+        fechadosEl.textContent = metricas.fechados || 0;
     }
     
     // Backlog total
     const backlogEl = document.getElementById('backlogTotal');
     if (backlogEl) {
-        backlogEl.textContent = metricas.backlogTotal;
+        backlogEl.textContent = metricas.backlogTotal || 0;
     }
     
     // Tendência do backlog
@@ -9041,7 +9192,14 @@ function atualizarCardsMetricas(metricas) {
  * Função principal para atualizar análises
  */
 window.atualizarAnalises = function() {
-    console.log('📊 Atualizando análises...');
+    // Verificar se há pedidos
+    if (!AppState.requests || AppState.requests.length === 0) {
+        // Mostrar 0 nos cards se não houver dados
+        document.getElementById('abertosEstaSemana').textContent = '0';
+        document.getElementById('fechadosEstaSemana').textContent = '0';
+        document.getElementById('backlogTotal').textContent = '0';
+        return;
+    }
     
     // Obter filtros
     const empresaFiltro = document.getElementById('analiseEmpresaFilter')?.value || '';
@@ -9050,15 +9208,15 @@ window.atualizarAnalises = function() {
     // Processar dados
     const dadosPorSemana = processarDadosPorSemana(numSemanas, empresaFiltro);
     const dadosBacklog = processarEvolucaoBacklog(numSemanas, empresaFiltro);
-    const dadosPorUtilizador = processarPedidosPorUtilizador(empresaFiltro);  // ✅ v3.7.0.9: NOVO
+    const dadosPorUtilizador = processarPedidosPorUtilizador(empresaFiltro);
     const metricas = calcularMetricasSemana(empresaFiltro);
     
-    console.log('📊 Dados processados:', { dadosPorSemana, dadosBacklog, dadosPorUtilizador, metricas });
+    console.log('✅ Métricas calculadas:', metricas);
     
     // Renderizar gráficos
     renderizarGraficoPedidosPorSemana(dadosPorSemana);
     renderizarGraficoEvolucaoBacklog(dadosBacklog);
-    renderizarGraficoPedidosPorUtilizador(dadosPorUtilizador);  // ✅ v3.7.0.9: NOVO
+    renderizarGraficoPedidosPorUtilizador(dadosPorUtilizador);
     
     // Atualizar métricas
     atualizarCardsMetricas(metricas);
@@ -9219,7 +9377,7 @@ window.enviarPerguntaChatbot = async function() {
     } catch (error) {
         console.error('❌ Erro no chatbot:', error);
         adicionarMensagemChat(
-            'Desculpa, ocorreu um erro ao processar a tua pergunta. Por favor, tenta novamente.',
+            'Desculpa, ocorreu um erro ao processar a tua pergunta. Por favor, tenta novamente ou contacta o administrador.',
             'assistant'
         );
     } finally {
@@ -9324,11 +9482,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const periodoFilter = document.getElementById('analisePeriodoFilter');
     
     if (empresaFilter) {
-        empresaFilter.addEventListener('change', atualizarAnalises);
+        empresaFilter.addEventListener('change', () => window.atualizarAnalises());
     }
     
     if (periodoFilter) {
-        periodoFilter.addEventListener('change', atualizarAnalises);
+        periodoFilter.addEventListener('change', () => window.atualizarAnalises());
     }
 });
 
