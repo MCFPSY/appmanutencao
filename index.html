@@ -5584,7 +5584,7 @@ function setupEventListeners() {
             console.log('👤 Filtro de Responsável mudou:', filterResponsavel.value);
             renderRequestsList();
         });
-        populateResponsavelFilter(); // Popular dropdown ao carregar
+        // Nota: populateResponsavelFilter() é chamado em initializePlanning()
     }
     
     document.getElementById('clearFilters').addEventListener('click', clearFilters);
@@ -5798,12 +5798,19 @@ async function handleFormSubmit(e) {
             }
         }
         
+        const prioridadeValue = document.querySelector('input[name="prioridade"]:checked')?.value;
+        
+        if (!prioridadeValue) {
+            showToast('❌ Por favor, seleciona uma prioridade!', 'error');
+            return;
+        }
+        
         const formData = {
             id: pedidoId,
             tipo: document.getElementById('tipo').value,
             frequencia: document.getElementById('frequencia').value || '-',  // ✅ NOVO campo
             dataPrimeiraIntervencao: document.getElementById('dataPrimeiraIntervencao').value || '',  // ✅ v3.7.0.8: Data 1ª Intervenção
-            prioridade: document.querySelector('input[name="prioridade"]:checked').value,
+            prioridade: prioridadeValue,
             empresa: document.getElementById('empresa').value,
             tipoIntervencao: document.getElementById('tipoIntervencao').value || '-',
             areaEquipamento: document.getElementById('areaEquipamento').value,
@@ -5968,7 +5975,10 @@ function renderRequestsList() {
         const frequencia = request.frequencia || '-';
         const prioridade = request.prioridade || 'Media';
         const estado = request.estado || 'Novo';
-        const prioridadeClass = prioridade.toLowerCase();
+        // Remover acentos para classe CSS
+        const prioridadeClass = prioridade.toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, ''); // Remove acentos
         const estadoClass = estado.toLowerCase().replace(' ', '');
         const descricao = request.descricao || '';
         const nome = request.nome || 'Desconhecido';
@@ -5988,7 +5998,7 @@ function renderRequestsList() {
                 <span class="request-date">${formatDate(request.dataHora)}</span>
             </div>
             <div class="request-body">
-                <h4>${tipo} - ${prioridade}</h4>
+                <h4>${tipo}</h4>
                 <p>${descricao}</p>
             </div>
             <div class="request-footer">
@@ -6025,18 +6035,11 @@ function applyFilters() {
         const areaEquipamentoPedido = (request.areaEquipamento || '').trim();
         const passaEquipamento = !filterEquipamento || areaEquipamentoPedido === filterEquipamento;
         
-        // ✅ v3.7.0.9: NOVO - Filtro de Responsável
+        // ✅ Filtro de Responsável (do PLANEAMENTO)
         const filterResponsavel = document.getElementById('filterResponsavel')?.value || '';
-        const responsavelPedido = (request.responsavel || '').trim();
+        const task = AppState.planning.tasks[request.id];
+        const responsavelPedido = (task?.responsavel || '').trim();
         const passaResponsavel = !filterResponsavel || responsavelPedido === filterResponsavel;
-        
-        // Debug dos filtros
-        if (filterEquipamento) {
-            console.log('🔍 Filtro ativo:', filterEquipamento, '| Pedido:', areaEquipamentoPedido, '| Passa?', passaEquipamento);
-        }
-        if (filterResponsavel) {
-            console.log('👤 Filtro Responsável:', filterResponsavel, '| Pedido:', responsavelPedido, '| Passa?', passaResponsavel);
-        }
         
         // Novos filtros
         const tipoIntervencaoPedido = request.tipoIntervencao || '-';
@@ -6105,32 +6108,48 @@ function populateEquipamentoFilter() {
 // ✅ v3.7.0.9: NOVO - Popular filtro de Responsável
 function populateResponsavelFilter() {
     const select = document.getElementById('filterResponsavel');
-    if (!select) return;
+    if (!select) {
+        console.warn('❌ Elemento #filterResponsavel não encontrado');
+        return;
+    }
+    
+    console.log('🔄 Populando filtro de responsável...');
+    console.log('📊 Total de pedidos:', AppState.requests?.length || 0);
+    console.log('📊 Total de tasks no planeamento:', Object.keys(AppState.planning.tasks || {}).length);
     
     // Limpar opções existentes (exceto a primeira "Todos")
     select.innerHTML = '<option value="">Todos os responsáveis</option>';
     
-    // Obter lista única de responsáveis dos pedidos
+    // Obter lista única de responsáveis do PLANEAMENTO (não dos pedidos)
     const responsaveis = new Set();
     AppState.requests.forEach(request => {
-        const resp = (request.responsavel || '').trim();
+        // Buscar responsável do planeamento
+        const task = AppState.planning.tasks[request.id];
+        const resp = (task?.responsavel || '').trim();
         if (resp && resp !== '') {
+            console.log(`✅ Pedido ${request.id.substring(0, 8)}... tem responsável: ${resp}`);
             responsaveis.add(resp);
         }
     });
+    
+    console.log('📋 Responsáveis únicos encontrados:', Array.from(responsaveis));
     
     // Converter para array, ordenar e adicionar ao select
     const responsaveisArray = Array.from(responsaveis).sort();
     
     responsaveisArray.forEach(responsavel => {
-        const count = AppState.requests.filter(r => r.responsavel === responsavel).length;
+        // Contar pedidos deste responsável (do planeamento)
+        const count = AppState.requests.filter(r => {
+            const task = AppState.planning.tasks[r.id];
+            return task?.responsavel === responsavel;
+        }).length;
         const option = document.createElement('option');
         option.value = responsavel;
         option.textContent = `${responsavel} (${count})`;
         select.appendChild(option);
     });
     
-    console.log('👤 Filtro de Responsável populado com', responsaveisArray.length, 'utilizadores');
+    console.log('✅ Filtro de Responsável populado com', responsaveisArray.length, 'utilizadores');
 }
 
 function clearFilters() {
@@ -6164,6 +6183,7 @@ function toggleSortOrder() {
 function openRequestDetails(id) {
     const request = AppState.requests.find(r => r.id === id);
     if (!request) return;
+    
     const modal = document.getElementById('detailsModal');
     const modalBody = document.getElementById('modalBody');
     
@@ -6182,7 +6202,7 @@ function openRequestDetails(id) {
         </div>
         <div class="detail-group">
             <div class="detail-label">Prioridade</div>
-            <div class="detail-badges"><span class="badge badge-prioridade ${(request.prioridade || 'Media').toLowerCase()}">${request.prioridade || 'Média'}</span></div>
+            <div class="detail-badges"><span class="badge badge-prioridade ${(request.prioridade || 'Media').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}">${request.prioridade || 'Média'}</span></div>
         </div>
         <div class="detail-group">
             <div class="detail-label">Estado</div>
@@ -7072,6 +7092,9 @@ async function initializePlanning() {
         await loadPlanningFromSupabase();  // ✅ v3.7.0.8: Carregar do Supabase
         resetPlanningToToday(); 
         renderPlanningGrid();
+        
+        // ✅ Popular filtro de responsável DEPOIS de carregar planeamento
+        populateResponsavelFilter();
     } catch (error) {
         console.error('❌ Erro ao inicializar planeamento:', error);
         // ✅ FALLBACK: Garantir que datas estão definidas
@@ -7314,7 +7337,7 @@ function renderPlanningGrid() {
     html += '</tr></thead><tbody>';
     activeTasks.forEach(task => {
         html += '<tr>';
-        html += `<td class="task-cell"><div class="task-info"><div class="task-title">${task.descricao}</div><div class="task-meta"><span class="badge badge-tipo">${task.tipo}</span><span class="badge badge-prioridade ${task.prioridade.toLowerCase()}">${task.prioridade}</span>`;
+        html += `<td class="task-cell"><div class="task-info"><div class="task-title">${task.descricao}</div><div class="task-meta"><span class="badge badge-tipo">${task.tipo}</span><span class="badge badge-prioridade ${task.prioridade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}">${task.prioridade}</span>`;
         if (task.responsavel && task.responsavel !== '-') html += `<span class="task-responsible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${task.responsavel}</span>`;
         html += `</div></div></td>`;
         
