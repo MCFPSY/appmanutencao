@@ -445,6 +445,74 @@
             background: rgba(52, 199, 89, 0.05);
         }
         
+        /* ✅ Priority Selector Inline (Modal) */
+        .detail-priority-selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .priority-option-inline {
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .priority-option-inline input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .priority-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .priority-badge svg {
+            width: 14px;
+            height: 14px;
+        }
+        
+        .priority-alta {
+            color: #ff3b30;
+            background: rgba(255, 59, 48, 0.1);
+        }
+        
+        .priority-option-inline.active .priority-alta,
+        .priority-option-inline:hover .priority-alta {
+            border-color: #ff3b30;
+            background: rgba(255, 59, 48, 0.2);
+        }
+        
+        .priority-media {
+            color: #ff9500;
+            background: rgba(255, 149, 0, 0.1);
+        }
+        
+        .priority-option-inline.active .priority-media,
+        .priority-option-inline:hover .priority-media {
+            border-color: #ff9500;
+            background: rgba(255, 149, 0, 0.2);
+        }
+        
+        .priority-baixa {
+            color: #34c759;
+            background: rgba(52, 199, 89, 0.1);
+        }
+        
+        .priority-option-inline.active .priority-baixa,
+        .priority-option-inline:hover .priority-baixa {
+            border-color: #34c759;
+            background: rgba(52, 199, 89, 0.2);
+        }
+        
         /* File Upload */
         .file-upload {
             display: flex;
@@ -3405,7 +3473,17 @@
                     <h2 class="card-title">Criar Novo Pedido</h2>
                     
                     <form id="maintenanceForm" class="maintenance-form">
-                        <!-- Tipo de Manutenção -->
+                        <!-- 1. Empresa -->
+                        <div class="form-group">
+                            <label class="form-label" for="empresa">Empresa *</label>
+                            <select class="form-input" id="empresa" name="empresa" required>
+                                <option value="">Selecione a empresa</option>
+                                <option value="MCF">MCF</option>
+                                <option value="PSY">PSY</option>
+                            </select>
+                        </div>
+
+                        <!-- 2. Tipo de Manutenção -->
                         <div class="form-group">
                             <label class="form-label" for="tipo">Tipo de Manutenção *</label>
                             <select class="form-input" id="tipo" name="tipo" required>
@@ -3443,7 +3521,34 @@
                             <small class="form-hint">Data da primeira intervenção programada</small>
                         </div>
 
-                        <!-- Prioridade -->
+                        <!-- 3. Tipo de Intervenção -->
+                        <div class="form-group">
+                            <label class="form-label" for="tipoIntervencao">Tipo de Intervenção</label>
+                            <select class="form-input" id="tipoIntervencao" name="tipoIntervencao">
+                                <option value="">Selecione o tipo (opcional)</option>
+                                <option value="Eletricidade">Eletricidade</option>
+                                <option value="Mecânica">Mecânica</option>
+                                <option value="Hidráulica / Pneumática">Hidráulica / Pneumática</option>
+                                <option value="Serralharia">Serralharia</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                        </div>
+
+                        <!-- 4. Checkboxes: Urgente e Paragem Produção -->
+                        <div class="form-group">
+                            <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 12px;">
+                                <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="urgente" name="urgente" value="true" style="width: 18px; height: 18px; cursor: pointer;">
+                                    <span style="font-size: 14px; color: #333;">🔴 Urgente (risco paragem / segurança)</span>
+                                </label>
+                                <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="paragemProducao" name="paragemProducao" value="true" style="width: 18px; height: 18px; cursor: pointer;">
+                                    <span style="font-size: 14px; color: #333;">⚠️ Implica paragem de produção</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 5. Prioridade -->
                         <div class="form-group">
                             <label class="form-label">Prioridade *</label>
                             <div class="priority-selector">
@@ -3477,30 +3582,7 @@
                             </div>
                         </div>
 
-                        <!-- Empresa -->
-                        <div class="form-group">
-                            <label class="form-label" for="empresa">Empresa *</label>
-                            <select class="form-input" id="empresa" name="empresa" required>
-                                <option value="">Selecione a empresa</option>
-                                <option value="MCF">MCF</option>
-                                <option value="PSY">PSY</option>
-                            </select>
-                        </div>
-
-                        <!-- Tipo de Intervenção -->
-                        <div class="form-group">
-                            <label class="form-label" for="tipoIntervencao">Tipo de Intervenção</label>
-                            <select class="form-input" id="tipoIntervencao" name="tipoIntervencao">
-                                <option value="">Selecione o tipo (opcional)</option>
-                                <option value="Eletricidade">Eletricidade</option>
-                                <option value="Mecânica">Mecânica</option>
-                                <option value="Hidráulica">Hidráulica</option>
-                                <option value="Serralharia">Serralharia</option>
-                                <option value="Outros">Outros</option>
-                            </select>
-                        </div>
-
-                        <!-- ⚡ NOVO: Área/Equipamento -->
+                        <!-- 6. Área/Equipamento -->
                         <div class="form-group">
                             <label class="form-label" for="areaEquipamento">Área/Equipamento *</label>
                             <select class="form-input" id="areaEquipamento" name="areaEquipamento" required>
@@ -3509,27 +3591,13 @@
                             </select>
                         </div>
 
-                        <!-- ⚡ NOVO: Componente (desabilitado até escolher Área) -->
+                        <!-- 7. Componente (desabilitado até escolher Área) -->
                         <div class="form-group">
                             <label class="form-label" for="componente">Componente *</label>
                             <select class="form-input" id="componente" name="componente" required disabled>
                                 <option value="">Escolha primeiro a área/equipamento</option>
                                 <!-- Preenchido dinamicamente via JavaScript -->
                             </select>
-                        </div>
-
-                        <!-- Checkboxes: Urgente e Paragem Produção -->
-                        <div class="form-group">
-                            <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 12px;">
-                                <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" id="urgente" name="urgente" value="true" style="width: 18px; height: 18px; cursor: pointer;">
-                                    <span style="font-size: 14px; color: #333;">🔴 Urgente</span>
-                                </label>
-                                <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" id="paragemProducao" name="paragemProducao" value="true" style="width: 18px; height: 18px; cursor: pointer;">
-                                    <span style="font-size: 14px; color: #333;">⚠️ Implica paragem de produção</span>
-                                </label>
-                            </div>
                         </div>
 
                         <!-- Departamento -->
@@ -4451,10 +4519,16 @@ async function addPedido(pedido) {
 }
 
 async function updatePedido(id, pedido) {
-    return await supabaseFetch(`pedidos?ID=eq.${id}`, {
+    console.log(`🔄 SupabaseAPI.updatePedido chamado para ID: ${id}`);
+    console.log('📦 Dados do pedido:', pedido);
+    
+    const result = await supabaseFetch(`pedidos?ID=eq.${id}`, {
         method: 'PATCH',
         body: JSON.stringify(pedido)
     });
+    
+    console.log('✅ SupabaseAPI.updatePedido: Resposta recebida:', result);
+    return result;
 }
 
 async function deletePedido(id) {
@@ -6202,7 +6276,35 @@ function openRequestDetails(id) {
         </div>
         <div class="detail-group">
             <div class="detail-label">Prioridade</div>
-            <div class="detail-badges"><span class="badge badge-prioridade ${(request.prioridade || 'Media').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}">${request.prioridade || 'Média'}</span></div>
+            <div class="detail-priority-selector">
+                <label class="priority-option-inline ${request.prioridade === 'Alta' ? 'active' : ''}" onclick="changePriority('${request.id}', 'Alta')">
+                    <input type="radio" name="priority-${request.id}" value="Alta" ${request.prioridade === 'Alta' ? 'checked' : ''}>
+                    <span class="priority-badge priority-alta">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                            <path d="M12 2L2 12h3v8h14v-8h3L12 2z"/>
+                        </svg>
+                        Alta
+                    </span>
+                </label>
+                <label class="priority-option-inline ${request.prioridade === 'Média' ? 'active' : ''}" onclick="changePriority('${request.id}', 'Média')">
+                    <input type="radio" name="priority-${request.id}" value="Média" ${request.prioridade === 'Média' ? 'checked' : ''}>
+                    <span class="priority-badge priority-media">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                            <circle cx="12" cy="12" r="10"/>
+                        </svg>
+                        Média
+                    </span>
+                </label>
+                <label class="priority-option-inline ${request.prioridade === 'Baixa' ? 'active' : ''}" onclick="changePriority('${request.id}', 'Baixa')">
+                    <input type="radio" name="priority-${request.id}" value="Baixa" ${request.prioridade === 'Baixa' ? 'checked' : ''}>
+                    <span class="priority-badge priority-baixa">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                            <path d="M12 22L22 12h-3V4H5v8H2l10 10z"/>
+                        </svg>
+                        Baixa
+                    </span>
+                </label>
+            </div>
         </div>
         <div class="detail-group">
             <div class="detail-label">Estado</div>
@@ -6470,6 +6572,60 @@ async function deleteRequest(id) {
     showToast('Pedido eliminado com sucesso.', 'success');
 }
 
+// ✅ v3.7.0.9: Alterar Prioridade do Pedido
+async function changePriority(id, novaPrioridade) {
+    console.log(`🔄 Alterando prioridade do pedido ${id}: ${novaPrioridade}`);
+    
+    const request = AppState.requests.find(r => r.id === id);
+    if (!request) {
+        console.error('❌ Pedido não encontrado:', id);
+        return;
+    }
+    
+    // Se já está na mesma prioridade, não fazer nada
+    if (request.prioridade === novaPrioridade) {
+        console.log('✅ Prioridade já é', novaPrioridade);
+        return;
+    }
+    
+    const prioridadeAnterior = request.prioridade;
+    console.log(`📝 Prioridade anterior: ${prioridadeAnterior} → Nova: ${novaPrioridade}`);
+    
+    request.prioridade = novaPrioridade;
+    
+    // Atualizar localStorage
+    saveToLocalStorage();
+    console.log('✅ Prioridade atualizada no localStorage');
+    
+    // Atualizar Supabase
+    if (AppState.isOnline) {
+        try {
+            console.log('🔄 Atualizando prioridade no Supabase...');
+            await updateInGoogleSheets(request);  // 🔥 Nome legacy, usa Supabase
+            console.log('✅ Prioridade atualizada no Supabase com sucesso!');
+            showToast(`✅ Prioridade alterada: ${prioridadeAnterior} → ${novaPrioridade}`, 'success');
+        } catch (error) {
+            console.error('❌ Erro ao atualizar prioridade no Supabase:', error);
+            showToast('❌ Erro ao atualizar prioridade no servidor', 'error');
+            // Reverter mudança em caso de erro
+            request.prioridade = prioridadeAnterior;
+            saveToLocalStorage();
+            console.log('↩️ Prioridade revertida devido a erro');
+        }
+    } else {
+        console.log('⚠️ App offline - prioridade guardada apenas localmente');
+        showToast(`Prioridade alterada: ${prioridadeAnterior} → ${novaPrioridade} (offline)`, 'info');
+    }
+    
+    // Atualizar lista de pedidos
+    renderRequestsList();
+    console.log('✅ Lista de pedidos atualizada');
+    
+    // Reabrir modal com dados atualizados
+    openRequestDetails(id);
+    console.log('✅ Modal reaberto com dados atualizados');
+}
+
 // ===================================
 // SINCRONIZAÇÃO COM SUPABASE
 // ===================================
@@ -6514,6 +6670,8 @@ async function sendToGoogleSheets(data) {
 
 async function updateInGoogleSheets(data) {
     try {
+        console.log('📤 Preparando atualização no Supabase para pedido:', data.id);
+        
         // Converter formato da app → formato Supabase
         const supabaseData = {
             'Data/hora': data.dataHora,
@@ -6536,11 +6694,18 @@ async function updateInGoogleSheets(data) {
             'Horas Estimadas': data.horasEstimadas || 0  // ✅ ADICIONADO
         };
         
+        console.log('📊 Dados a enviar para Supabase:', {
+            ID: data.id,
+            Prioridade: supabaseData.Prioridade,
+            Estado: supabaseData.Estado
+        });
+        
         await window.SupabaseAPI.updatePedido(data.id, supabaseData);
-        console.log('✅ Pedido atualizado no Supabase');
+        console.log('✅ Pedido atualizado no Supabase com sucesso!');
         
     } catch (error) {
         console.error('❌ Erro ao atualizar Supabase:', error);
+        console.error('❌ Detalhes do erro:', error.message);
         addToOfflineQueue({ action: 'update', data: data });
         throw error;
     }
@@ -7962,12 +8127,16 @@ async function syncMovimentoToGoogleSheets(movimento) {
         console.log('🔄 Sincronizando movimento com Supabase...');
         
         // Converter formato app → formato Supabase
+        const quantidadeParaSupabase = (movimento.tipo === 'Saída' || movimento.tipo === 'Baixa') 
+            ? -Math.abs(movimento.quantidade)  // ✅ Saída/Baixa = negativo
+            : Math.abs(movimento.quantidade);   // ✅ Entrada = positivo
+        
         const supabaseMovimento = {
             'ID': movimento.id || 'MOV' + Date.now(),
             'Data/Hora': movimento.dataHora ? new Date(movimento.dataHora).toISOString() : new Date().toISOString(),
             'Artigo ID': movimento.artigoId || '',
             'Tipo': movimento.tipo || '',
-            'Quantidade': String(movimento.quantidade || 0),
+            'Quantidade': String(quantidadeParaSupabase),  // ✅ Negativo para Saída/Baixa
             'Pedido ID': movimento.pedidoId || '',
             'Responsável': movimento.responsavel || '',
             'Observações': movimento.observacoes || '',
@@ -8029,17 +8198,17 @@ function initializeStockModule() {
     }
 }
 
-// 🔥 v3.6.14: Função auxiliar para calcular stock atual
+// 🔥 v3.7.0.9: Função auxiliar para calcular stock atual (FIX: quantidade já vem com sinal)
 function calcularStockAtual(artigoId) {
     const movimentosArtigo = AppState.movimentos.filter(m => m.artigoId === artigoId);
     let stockAtual = 0;
     
+    // ✅ SIMPLIFICADO: Quantidade já vem com o sinal correto do Supabase
+    // Entrada: +10
+    // Saída:   -5
+    // Baixa:   -3
     movimentosArtigo.forEach(mov => {
-        if (mov.tipo === 'Entrada') {
-            stockAtual += mov.quantidade;
-        } else if (mov.tipo === 'Saída' || mov.tipo === 'Baixa') {
-            stockAtual -= mov.quantidade;
-        }
+        stockAtual += mov.quantidade;  // ✅ Simplesmente somar (funciona para positivos e negativos)
     });
     
     return stockAtual;
@@ -9516,3 +9685,4 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
+
