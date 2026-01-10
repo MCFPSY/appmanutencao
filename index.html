@@ -1,22 +1,31 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.7.0.8
-    📅 Data: 2025-12-29
+    📦 Versão: v3.7.1.1
+    📅 Data: 2026-01-10
+    
+    🎯 v3.7.1.1: PERMISSÕES SIMPLIFICADAS 🔐
+    ───────────────────────────────────────────────────────────
+    ✅ Sistema de permissões clarificado (Admin vs User)
+    ✅ User pode ver mas não editar Planeamento
+    ✅ Utilizador registado automaticamente em movimentos
+    ✅ Removido role "visualizador" (não usado)
+    
+    🎯 v3.7.1.0: ASSOCIAÇÃO DE STOCKS A ORDENS DE TRABALHO 💰
+    ───────────────────────────────────────────────────────────
+    ✅ Modal de Baixa Múltipla de Stock (vários artigos de uma vez)
+    ✅ Associação opcional de movimentos a OTs (campo pedidoId)
+    ✅ Botão "Dar Baixa de Stock" no modal de detalhes da OT
+    ✅ Secção "Materiais Usados" mostrando custos por OT
+    ✅ Rastreabilidade completa: artigo, qtd, responsável, data, custo
+    ✅ Cálculo automático de custo total da OT
+    ✅ Suporta baixas sem OT (consumíveis gerais)
+    
+    🎯 v3.7.0.11: Histórico de Movimentos reformulado
+    🎯 v3.7.0.10: Badges melhorados + Prioridade opcional
     
     🎯 v3.7.0.8: PREVENTIVAS COMPLETAS + CHATBOT IA (GEMINI 2.5 FLASH)
-    ───────────────────────────────────────────────────────────────
-    ✅ Campo "Data 1ª Intervenção" no formulário
-    ✅ Cálculo automático da próxima intervenção
-    ✅ Ordenação por urgência no resumo
-    ✅ Indicadores visuais: HOJE | ⚡ Em X dias | ⚠️ Atrasada
-    ✅ Chatbot com IA Gemini 2.5 Flash
-    
     🧹 v3.6.7: Limpeza profunda (↓25% ficheiros, ↓30% tamanho, zero 404)
-    ⚠️ v3.6.6: Alertas de Stock Mínimo ACIMA do histórico (reordenado)
-    ✨ v3.6.5: Dropdown responsável no planeamento
-    ⚡ v3.6.4: Cache inteligente 1min + invalidação automática
-    🐛 v3.6.3: "Resolvido" agora atualiza linha existente
 -->
 <html lang="pt">
 <head>
@@ -3419,13 +3428,13 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 5v14M5 12h14"/>
                 </svg>
-                Novo Pedido
+                Nova OT
             </button>
             <button class="tab-btn" data-tab="lista">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
                 </svg>
-                Lista de Pedidos
+                Lista de OTs
             </button>
             <button class="tab-btn" data-tab="stock">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -3466,11 +3475,11 @@
             </button>
         </nav>
 
-        <!-- Novo Pedido Tab -->
+        <!-- Nova Ordem de Trabalho Tab -->
         <section class="tab-content active" id="tab-novo">
             <div class="container">
                 <div class="card form-card">
-                    <h2 class="card-title">Criar Novo Pedido</h2>
+                    <h2 class="card-title">Criar Nova Ordem de Trabalho</h2>
                     
                     <form id="maintenanceForm" class="maintenance-form">
                         <!-- 1. Empresa -->
@@ -3548,12 +3557,12 @@
                             </div>
                         </div>
 
-                        <!-- 5. Prioridade -->
-                        <div class="form-group">
+                        <!-- 5. Prioridade (oculta em Preventivas) -->
+                        <div class="form-group" id="prioridadeGroup">
                             <label class="form-label">Prioridade *</label>
                             <div class="priority-selector">
                                 <label class="priority-option priority-alta">
-                                    <input type="radio" name="prioridade" value="Alta" required>
+                                    <input type="radio" name="prioridade" value="Alta" id="prioridadeAlta">
                                     <span class="priority-label">
                                         <svg viewBox="0 0 24 24" fill="currentColor">
                                             <path d="M12 2L2 12h3v8h14v-8h3L12 2z"/>
@@ -3562,7 +3571,7 @@
                                     </span>
                                 </label>
                                 <label class="priority-option priority-media">
-                                    <input type="radio" name="prioridade" value="Média" required>
+                                    <input type="radio" name="prioridade" value="Média" id="prioridadeMedia">
                                     <span class="priority-label">
                                         <svg viewBox="0 0 24 24" fill="currentColor">
                                             <circle cx="12" cy="12" r="10"/>
@@ -3571,7 +3580,7 @@
                                     </span>
                                 </label>
                                 <label class="priority-option priority-baixa">
-                                    <input type="radio" name="prioridade" value="Baixa" required>
+                                    <input type="radio" name="prioridade" value="Baixa" id="prioridadeBaixa">
                                     <span class="priority-label">
                                         <svg viewBox="0 0 24 24" fill="currentColor">
                                             <path d="M12 22L22 12h-3V4H5v8H2l10 10z"/>
@@ -3644,7 +3653,7 @@
                                     <polyline points="17 21 17 13 7 13 7 21"/>
                                     <polyline points="7 3 7 8 15 8"/>
                                 </svg>
-                                Criar Pedido
+                                Criar Ordem
                             </button>
                         </div>
                     </form>
@@ -3652,7 +3661,7 @@
             </div>
         </section>
 
-        <!-- Lista de Pedidos Tab -->
+        <!-- Lista de Ordens de Trabalho Tab -->
         <section class="tab-content" id="tab-lista">
             <div class="container">
                 <!-- Filtros -->
@@ -3803,7 +3812,7 @@
                     </button>
                 </div>
 
-                <!-- Lista de Pedidos -->
+                <!-- Lista de Ordens de Trabalho -->
                 <div id="requestsList" class="requests-list">
                     <!-- Pedidos serão inseridos aqui dinamicamente -->
                 </div>
@@ -3814,7 +3823,7 @@
                         <path d="M9 11l3 3L22 4"/>
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                     </svg>
-                    <h3>Nenhum pedido encontrado</h3>
+                    <h3>Nenhuma ordem de trabalho encontrada</h3>
                     <p>Crie o primeiro pedido ou ajuste os filtros</p>
                 </div>
             </div>
@@ -3893,6 +3902,139 @@
                             </button>
                         </div>
                     </div>
+                    
+                    <!-- ✅ v3.7.0.9: NOVO - Filtros de Planeamento -->
+                    <div class="filters-header" style="margin-top: 20px;">
+                        <h3>Filtros</h3>
+                        <button class="btn-text" id="clearPlanningFilters">Limpar</button>
+                    </div>
+                    
+                    <div class="filters-grid" style="margin-top: 12px;">
+                        <div class="filter-group">
+                            <label class="filter-label">Tipo</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Preventiva" class="planning-filter-tipo" checked>
+                                    <span>Preventiva</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Corretiva" class="planning-filter-tipo" checked>
+                                    <span>Corretiva</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Melhoria" class="planning-filter-tipo" checked>
+                                    <span>Melhoria</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label">Prioridade</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Alta" class="planning-filter-prioridade" checked>
+                                    <span>Alta</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Média" class="planning-filter-prioridade" checked>
+                                    <span>Média</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Baixa" class="planning-filter-prioridade" checked>
+                                    <span>Baixa</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label">Estado</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Novo" class="planning-filter-estado" checked>
+                                    <span>Novo</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Em curso" class="planning-filter-estado" checked>
+                                    <span>Em curso</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Resolvido" class="planning-filter-estado">
+                                    <span>Resolvido</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label">Empresa</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="MCF" class="planning-filter-empresa" checked>
+                                    <span>MCF</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="PSY" class="planning-filter-empresa" checked>
+                                    <span>PSY</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label">🔧 Área/Equipamento</label>
+                            <select id="planningFilterEquipamento" class="form-input" style="width: 100%; margin-top: 8px;">
+                                <option value="">Todos os equipamentos</option>
+                                <!-- Populado dinamicamente -->
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label">👤 Responsável</label>
+                            <select id="planningFilterResponsavel" class="form-input" style="width: 100%; margin-top: 8px;">
+                                <option value="">Todos os responsáveis</option>
+                                <!-- Populado dinamicamente -->
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label">Tipo de Intervenção</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Eletricidade" class="planning-filter-tipoIntervencao" checked>
+                                    <span>Eletricidade</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Mecânica" class="planning-filter-tipoIntervencao" checked>
+                                    <span>Mecânica</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Hidráulica / Pneumática" class="planning-filter-tipoIntervencao" checked>
+                                    <span>Hidráulica / Pneumática</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Serralharia" class="planning-filter-tipoIntervencao" checked>
+                                    <span>Serralharia</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Outros" class="planning-filter-tipoIntervencao" checked>
+                                    <span>Outros</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label">Especiais</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="true" class="planning-filter-urgente">
+                                    <span>🔴 Urgente</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="true" class="planning-filter-paragemProducao">
+                                    <span>⚠️ Paragem Produção</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="planning-filters">
                         <button class="btn btn-secondary" id="todayBtn">Hoje</button>
                         <button class="btn btn-secondary" id="savePlanningBtn">Salvar Planeamento</button>
@@ -4051,13 +4193,13 @@
                 <!-- SECÇÃO 2: REGISTAR NOVO MOVIMENTO -->
                 <div class="card" style="margin-top: var(--spacing-lg);">
                     <h2 class="card-title">➕ Registar Novo Movimento</h2>
-                    <p class="card-description">Criar entrada, saída ou ajuste de stock manualmente</p>
+                    <p class="card-description">Criar entrada, saída ou ajuste de stock (único ou múltiplo)</p>
                     
-                    <button class="btn btn-primary" onclick="openNovoMovimentoModal()" style="width: 100%; padding: var(--spacing-md);">
+                    <button class="btn btn-primary" onclick="openBaixaMultiplaModal()" style="width: 100%; padding: var(--spacing-md);">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; margin-right: 8px;">
                             <path d="M12 5v14M5 12h14"/>
                         </svg>
-                        Novo Movimento de Stock
+                        Movimento Stock
                     </button>
                 </div>
                 
@@ -4075,47 +4217,65 @@
                 <div class="card" style="margin-top: var(--spacing-lg);">
                     <h2 class="card-title">📋 Histórico de Movimentos</h2>
                     
-                    <!-- Filtros de Movimentos -->
-                    <div class="movimento-filters">
-                        <select class="form-input" id="movimentoTipoFilter" onchange="renderMovimentos()">
-                            <option value="TODOS">Todos os Tipos</option>
-                            <option value="Entrada">📥 Entradas</option>
-                            <option value="Saída">📤 Saídas</option>
-                            <option value="Ajuste">⚙️ Ajustes</option>
-                        </select>
-                        <input type="number" 
+                    <!-- Pesquisa de Artigo -->
+                    <div class="form-group">
+                        <label class="form-label">Procurar Artigo</label>
+                        <input type="text" 
                                class="form-input" 
-                               id="movimentoLimitFilter" 
-                               value="20" 
-                               min="10" 
-                               max="100" 
-                               step="10"
-                               onchange="renderMovimentos()"
-                               placeholder="Limite">
+                               id="historicoSearchInput" 
+                               placeholder="Digite nome, família, referência, fornecedor ou código...">
                     </div>
                     
-                    <!-- Tabela de Movimentos -->
-                    <div class="stock-table-container">
-                        <table class="stock-table">
-                            <thead>
-                                <tr>
-                                    <th>Data/Hora</th>
-                                    <th>Artigo</th>
-                                    <th>Tipo</th>
-                                    <th>Quantidade</th>
-                                    <th>Responsável</th>
-                                    <th>Observações</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="movimentosTableBody">
-                                <!-- Preenchido dinamicamente -->
-                            </tbody>
-                        </table>
+                    <!-- Filtros de Movimentos (aparecem após selecionar artigo) -->
+                    <div id="historicoFilters" style="display: none; margin-top: var(--spacing-md);">
+                        <div class="movimento-filters">
+                            <select class="form-input" id="movimentoTipoFilter" onchange="renderMovimentosByArtigo()">
+                                <option value="TODOS">Todos os Tipos</option>
+                                <option value="Entrada">📥 Entradas</option>
+                                <option value="Saída">📤 Saídas</option>
+                                <option value="Ajuste">⚙️ Ajustes</option>
+                            </select>
+                            <input type="number" 
+                                   class="form-input" 
+                                   id="movimentoLimitFilter" 
+                                   value="20" 
+                                   min="10" 
+                                   max="100" 
+                                   step="10"
+                                   onchange="renderMovimentosByArtigo()"
+                                   placeholder="Limite">
+                            <button class="btn btn-secondary btn-sm" onclick="clearHistoricoSearch()">✕ Limpar</button>
+                        </div>
                     </div>
                     
-                    <div id="movimentosEmptyState" class="empty-state-small" style="display: none;">
-                        <p>📭 Nenhum movimento registado</p>
+                    <!-- Tabela de Movimentos (aparece após selecionar artigo) -->
+                    <div id="historicoTableContainer" style="display: none; margin-top: var(--spacing-md);">
+                        <div class="stock-table-container">
+                            <table class="stock-table">
+                                <thead>
+                                    <tr>
+                                        <th>Data/Hora</th>
+                                        <th>Tipo</th>
+                                        <th>Quantidade</th>
+                                        <th>Responsável</th>
+                                        <th>Observações</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="movimentosTableBody">
+                                    <!-- Preenchido dinamicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Estado Vazio -->
+                    <div id="historicoEmptyState" class="empty-state-small">
+                        <p>🔍 Digite acima para procurar um artigo e ver seu histórico</p>
+                    </div>
+                    
+                    <div id="historicoNoMovimentos" class="empty-state-small" style="display: none;">
+                        <p>📭 Nenhum movimento registado para este artigo</p>
                     </div>
                 </div>
             </div>
@@ -4127,7 +4287,7 @@
         <div class="modal-overlay"></div>
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle">Detalhes do Pedido</h2>
+                <h2 id="modalTitle">Detalhes da Ordem de Trabalho</h2>
                 <button class="btn-close" id="closeModal">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 6L6 18M6 6l12 12"/>
@@ -4233,6 +4393,91 @@
         </div>
     </div>
 
+    <!-- 🆕 Modal: Baixa Múltipla de Stock -->
+    <div class="modal" id="baixaMultiplaModal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 id="baixaMultiplaModalTitle">💰 Baixa de Stock</h2>
+                <button class="btn-close" onclick="closeBaixaMultiplaModal()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Associar a OT (opcional) -->
+                <div class="form-group" style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                    <label class="form-label">🔗 Associar a Ordem de Trabalho (opcional)</label>
+                    <input type="text" 
+                           class="form-input" 
+                           id="baixaMultiplaOTSearch" 
+                           placeholder="Digite ID da OT (ex: OT_00067) ou deixe vazio..."
+                           style="margin-bottom: 8px;">
+                    <div id="baixaMultiplaOTInfo" style="display: none; padding: 12px; background: white; border-radius: 8px; border: 1px solid #dee2e6;">
+                        <!-- Info da OT selecionada -->
+                    </div>
+                </div>
+
+                <!-- Lista de Artigos para Baixa -->
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label class="form-label" style="margin: 0;">📦 Artigos para Baixa</label>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="adicionarLinhaBaixa()">
+                            ➕ Adicionar Artigo
+                        </button>
+                    </div>
+                    
+                    <div id="baixaMultiplaLinhas" style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Linhas de artigos adicionadas dinamicamente -->
+                    </div>
+                </div>
+
+                <!-- Resumo e Total -->
+                <div id="baixaMultiplaResumo" style="display: none; padding: 16px; background: #e8f5e9; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="font-weight: 600; margin-bottom: 8px;">📊 Resumo da Baixa:</div>
+                    <div id="baixaMultiplaResumoConteudo"></div>
+                </div>
+
+                <!-- Campos Comuns -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label">Empresa *</label>
+                        <select class="form-input" id="baixaMultiplaEmpresa" required>
+                            <option value="MCF" selected>MCF</option>
+                            <option value="PSY">PSY</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label">Responsável *</label>
+                        <input type="text" 
+                               class="form-input" 
+                               id="baixaMultiplaResponsavel" 
+                               placeholder="Nome do responsável"
+                               required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Observações</label>
+                    <textarea class="form-input" 
+                              id="baixaMultiplaObservacoes" 
+                              rows="2" 
+                              placeholder="Observações gerais sobre esta baixa..."></textarea>
+                </div>
+
+                <!-- Ações -->
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeBaixaMultiplaModal()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmarBaixaMultipla()">
+                        ✅ Confirmar Baixa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Login - Apple Style Clean -->
     <div class="login-screen" id="loginModal" style="display: none;">
         <div class="login-card-wrapper">
@@ -4294,7 +4539,7 @@
                             </svg>
                         </div>
                         <div class="analytics-card-content">
-                            <div class="analytics-card-label">Abertos Esta Semana</div>
+                            <div class="analytics-card-label">Ordens Abertas Esta Semana</div>
                             <div class="analytics-card-value" id="abertosEstaSemana">-</div>
                         </div>
                     </div>
@@ -4307,7 +4552,7 @@
                             </svg>
                         </div>
                         <div class="analytics-card-content">
-                            <div class="analytics-card-label">Fechados Esta Semana</div>
+                            <div class="analytics-card-label">Ordens Fechadas Esta Semana</div>
                             <div class="analytics-card-value" id="fechadosEstaSemana">-</div>
                         </div>
                     </div>
@@ -4351,9 +4596,9 @@
                     </button>
                 </div>
 
-                <!-- Gráfico: Pedidos por Semana -->
+                <!-- Gráfico: Ordens de Trabalho por Semana -->
                 <div class="analytics-chart-container">
-                    <h3 class="analytics-chart-title">Pedidos por Semana</h3>
+                    <h3 class="analytics-chart-title">Ordens de Trabalho por Semana</h3>
                     <canvas id="chartPedidosPorSemana"></canvas>
                 </div>
 
@@ -4512,15 +4757,21 @@ async function getPedidos() {
 }
 
 async function addPedido(pedido) {
-    return await supabaseFetch('pedidos', {
+    console.log('🔥 DEBUG addPedido: ID recebido =', pedido.ID);
+    console.log('🔥 DEBUG addPedido: Body completo =', JSON.stringify(pedido, null, 2));
+    
+    const result = await supabaseFetch('pedidos', {
         method: 'POST',
         body: JSON.stringify(pedido)
     });
+    
+    console.log('🔥 DEBUG addPedido: Resultado do Supabase =', result);
+    return result;
 }
 
 async function updatePedido(id, pedido) {
     console.log(`🔄 SupabaseAPI.updatePedido chamado para ID: ${id}`);
-    console.log('📦 Dados do pedido:', pedido);
+    console.log('📦 Dados da ordem de trabalho:', pedido);
     
     const result = await supabaseFetch(`pedidos?ID=eq.${id}`, {
         method: 'PATCH',
@@ -4580,7 +4831,7 @@ async function uploadFoto(pedidoId, file) {
     try {
         console.log('📸 Iniciando upload...', file.name, (file.size / 1024 / 1024).toFixed(2) + ' MB');
         
-        // Nome do ficheiro = ID do pedido + extensão
+        // Nome do ficheiro = ID da ordem + extensão
         const ext = file.type.split('/')[1] || 'jpg';
         const fileName = `${pedidoId}.${ext}`;
         
@@ -5107,16 +5358,31 @@ async function handleLogin(event) {
         // 🔥 LOGIN COM SUPABASE v3.6.8
         const user = await window.SupabaseAPI.loginUtilizador(username, password);
         
+        console.log('🔥 DEBUG LOGIN - Dados do utilizador:', user);
+        console.log('🔥 DEBUG LOGIN - Pode editar valor:', user['Pode editar'], 'Tipo:', typeof user['Pode editar']);
+        console.log('🔥 DEBUG LOGIN - Role valor:', user.Role, 'Tipo:', typeof user.Role);
+        
         // Criar sessão local
         const sessionData = {
             username: user.Username,
             nomeCompleto: user['Nome Completo'],
             departamento: user.Departamento,
             role: user.Role,
-            podeEditarPlaneamento: user['Pode editar'] === 'Sim' || user['Pode editar'] === true,
-            ativo: user.Ativo === 'Sim' || user.Ativo === true,
+            // 🔧 Aceitar: 'Sim', 'true', true, TRUE
+            podeEditarPlaneamento: user['Pode editar'] === 'Sim' || 
+                                  user['Pode editar'] === 'true' || 
+                                  user['Pode editar'] === true || 
+                                  user['Pode editar'] === 'TRUE',
+            // 🔧 Aceitar: 'Sim', 'true', true, TRUE
+            ativo: user.Ativo === 'Sim' || 
+                   user.Ativo === 'true' || 
+                   user.Ativo === true || 
+                   user.Ativo === 'TRUE',
             token: 'supabase_' + Date.now()
         };
+        
+        console.log('🔥 DEBUG LOGIN - Sessão criada:', sessionData);
+        console.log('🔥 DEBUG LOGIN - podeEditarPlaneamento final:', sessionData.podeEditarPlaneamento);
         
         AppState.currentUser = sessionData;
         localStorage.setItem(CONFIG.STORAGE_KEYS.USER_SESSION, JSON.stringify(sessionData));
@@ -5196,7 +5462,7 @@ async function loadDataFromSupabase() {
         // Guardar localmente
         localStorage.setItem(CONFIG.STORAGE_KEYS.REQUESTS, JSON.stringify(AppState.requests));
         
-        console.log(`✅ ${AppState.requests.length} pedidos carregados do Supabase`);
+        console.log(`✅ ${AppState.requests.length} ordens de trabalho carregadas do Supabase`);
         
     } catch (error) {
         console.error('❌ Erro ao carregar dados do Supabase:', error);
@@ -5336,18 +5602,6 @@ function applyPermissions() {
             warningDiv.innerHTML = '<strong>⚠️ Visualização apenas:</strong> Não tem permissão para editar o planeamento.';
             planningTab.insertBefore(warningDiv, planningTab.firstChild);
         }
-    }
-    
-    // Outras permissões (visualizador)
-    if (role === 'visualizador') {
-        // Desativar botões de criar/editar
-        document.querySelectorAll('.btn-primary, button[type="submit"]').forEach(btn => {
-            if (!btn.id.includes('login')) {
-                btn.disabled = true;
-                btn.style.opacity = '0.5';
-                btn.title = 'Sem permissão para criar/editar';
-            }
-        });
     }
     
     console.log('🔒 Permissões aplicadas - Role:', role, '| Editar Planeamento:', podeEditarPlaneamento);
@@ -5614,10 +5868,13 @@ function setupEventListeners() {
     const frequenciaSelect = document.getElementById('frequencia');
     const dataPrimeiraIntervencaoGroup = document.getElementById('dataPrimeiraIntervencaoGroup');
     const dataPrimeiraIntervencaoInput = document.getElementById('dataPrimeiraIntervencao');
+    const prioridadeGroup = document.getElementById('prioridadeGroup');
+    const prioridadeInputs = document.querySelectorAll('input[name="prioridade"]');
     
     if (tipoSelect && frequenciaGroup && frequenciaSelect) {
         tipoSelect.addEventListener('change', () => {
             if (tipoSelect.value === 'Preventiva') {
+                // Mostrar campos de preventiva
                 frequenciaGroup.style.display = 'block';
                 frequenciaSelect.required = true;
                 // ✅ v3.7.0.8: Mostrar Data 1ª Intervenção
@@ -5625,7 +5882,16 @@ function setupEventListeners() {
                     dataPrimeiraIntervencaoGroup.style.display = 'block';
                     dataPrimeiraIntervencaoInput.required = true;
                 }
+                // 🆕 Ocultar prioridade em Preventivas
+                if (prioridadeGroup) {
+                    prioridadeGroup.style.display = 'none';
+                    prioridadeInputs.forEach(input => {
+                        input.required = false;
+                        input.checked = false;
+                    });
+                }
             } else {
+                // Ocultar campos de preventiva
                 frequenciaGroup.style.display = 'none';
                 frequenciaSelect.required = false;
                 frequenciaSelect.value = '';
@@ -5634,6 +5900,13 @@ function setupEventListeners() {
                     dataPrimeiraIntervencaoGroup.style.display = 'none';
                     dataPrimeiraIntervencaoInput.required = false;
                     dataPrimeiraIntervencaoInput.value = '';
+                }
+                // 🆕 Mostrar prioridade em Corretivas/Melhorias
+                if (prioridadeGroup) {
+                    prioridadeGroup.style.display = 'block';
+                    prioridadeInputs.forEach(input => {
+                        input.required = true;
+                    });
                 }
             }
         });
@@ -5675,6 +5948,26 @@ function setupEventListeners() {
     const atualizarPreventivasBtn = document.getElementById('atualizarPreventivasBtn');
     if (atualizarPreventivasBtn) {
         atualizarPreventivasBtn.addEventListener('click', renderPreventivasList);
+    }
+    
+    // ✅ v3.7.0.9: Event listeners para filtros do planeamento
+    document.querySelectorAll('.planning-filter-tipo, .planning-filter-prioridade, .planning-filter-estado, .planning-filter-empresa, .planning-filter-tipoIntervencao, .planning-filter-urgente, .planning-filter-paragemProducao').forEach(cb => {
+        cb.addEventListener('change', renderPlanningGrid);
+    });
+    
+    const planningFilterEquipamento = document.getElementById('planningFilterEquipamento');
+    if (planningFilterEquipamento) {
+        planningFilterEquipamento.addEventListener('change', renderPlanningGrid);
+    }
+    
+    const planningFilterResponsavel = document.getElementById('planningFilterResponsavel');
+    if (planningFilterResponsavel) {
+        planningFilterResponsavel.addEventListener('change', renderPlanningGrid);
+    }
+    
+    const clearPlanningFilters = document.getElementById('clearPlanningFilters');
+    if (clearPlanningFilters) {
+        clearPlanningFilters.addEventListener('click', clearPlanningFiltersFunc);
     }
     
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
@@ -5777,7 +6070,7 @@ function handleTabChange(e) {
     // ✅ NOVO: Renderizar alertas de stock mínimo ao abrir tab Stock
     if (tab === 'stock') {
         renderStockMinimo();
-        renderMovimentos();
+        // renderMovimentos() - removido, agora usa pesquisa
     }
     
     // ✅ v3.7.0: Atualizar análises ao abrir tab Análise
@@ -5816,7 +6109,7 @@ function restoreActiveTab() {
                 // ✅ Renderizar conteúdo se necessário
                 if (activeTab === 'stock') {
                     renderStockMinimo();
-                    renderMovimentos();
+                    // renderMovimentos() - removido, agora usa pesquisa
                 }
                 
                 // ✅ v3.7.0: Atualizar análises ao restaurar tab Análise
@@ -5849,7 +6142,8 @@ async function handleFormSubmit(e) {
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
     try {
-        const pedidoId = generateUUID();
+        // ✅ v3.7.0.9: Gerar ID sequencial OT_XXXXX
+        const pedidoId = await generateOTID();
         
         // 📸 v3.6.18: Upload foto ANTES de criar pedido
         let fotoUrl = '';
@@ -5872,19 +6166,21 @@ async function handleFormSubmit(e) {
             }
         }
         
+        const tipoValue = document.getElementById('tipo').value;
         const prioridadeValue = document.querySelector('input[name="prioridade"]:checked')?.value;
         
-        if (!prioridadeValue) {
+        // 🆕 Prioridade só é obrigatória para Corretivas e Melhorias
+        if (!prioridadeValue && tipoValue !== 'Preventiva') {
             showToast('❌ Por favor, seleciona uma prioridade!', 'error');
             return;
         }
         
         const formData = {
             id: pedidoId,
-            tipo: document.getElementById('tipo').value,
+            tipo: tipoValue,
             frequencia: document.getElementById('frequencia').value || '-',  // ✅ NOVO campo
             dataPrimeiraIntervencao: document.getElementById('dataPrimeiraIntervencao').value || '',  // ✅ v3.7.0.8: Data 1ª Intervenção
-            prioridade: prioridadeValue,
+            prioridade: prioridadeValue || '-',  // 🆕 "-" se não houver prioridade (Preventivas)
             empresa: document.getElementById('empresa').value,
             tipoIntervencao: document.getElementById('tipoIntervencao').value || '-',
             areaEquipamento: document.getElementById('areaEquipamento').value,
@@ -6063,11 +6359,13 @@ function renderRequestsList() {
         return `<div class="request-card" onclick="openRequestDetails('${request.id}')">
             <div class="request-header">
                 <div class="request-badges">
+                    <span class="badge" style="background: #2c3e50; color: white; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;">🆔 ${request.id}</span>
                     <span class="badge badge-tipo">${tipo}</span>
                     ${tipo === 'Preventiva' && frequencia !== '-' ? `<span class="badge" style="background: #4CAF50; color: white; font-size: 11px;">⏱️ ${frequencia}</span>` : ''}
-                    <span class="badge badge-prioridade ${prioridadeClass}">${prioridade}</span>
+                    ${tipo !== 'Preventiva' ? `<span class="badge badge-prioridade ${prioridadeClass}">${prioridade}</span>` : ''}
                     <span class="badge badge-estado ${estadoClass}">${estado}</span>
-                    ${areaEquipamento && areaEquipamento !== '-' ? `<span class="badge" style="background: #667eea; color: white; font-size: 11px;" title="${componente}">🔧 ${areaEquipamento}</span>` : ''}
+                    ${areaEquipamento && areaEquipamento !== '-' ? `<span class="badge" style="background: #667eea; color: white; font-size: 11px;">🔧 ${areaEquipamento}</span>` : ''}
+                    ${componente && componente !== '-' ? `<span class="badge" style="background: #9b59b6; color: white; font-size: 11px;">⚙️ ${componente}</span>` : ''}
                 </div>
                 <span class="request-date">${formatDate(request.dataHora)}</span>
             </div>
@@ -6188,13 +6486,13 @@ function populateResponsavelFilter() {
     }
     
     console.log('🔄 Populando filtro de responsável...');
-    console.log('📊 Total de pedidos:', AppState.requests?.length || 0);
+    console.log('📊 Total de ordens de trabalho:', AppState.requests?.length || 0);
     console.log('📊 Total de tasks no planeamento:', Object.keys(AppState.planning.tasks || {}).length);
     
     // Limpar opções existentes (exceto a primeira "Todos")
     select.innerHTML = '<option value="">Todos os responsáveis</option>';
     
-    // Obter lista única de responsáveis do PLANEAMENTO (não dos pedidos)
+    // Obter lista única de responsáveis do PLANEAMENTO (não das ordens de trabalho)
     const responsaveis = new Set();
     AppState.requests.forEach(request => {
         // Buscar responsável do planeamento
@@ -6224,6 +6522,75 @@ function populateResponsavelFilter() {
     });
     
     console.log('✅ Filtro de Responsável populado com', responsaveisArray.length, 'utilizadores');
+}
+
+// ✅ v3.7.0.9: Popular filtros do planeamento
+function populatePlanningFilters() {
+    // Popular dropdown de Equipamento
+    const planningFilterEquipamento = document.getElementById('planningFilterEquipamento');
+    if (planningFilterEquipamento) {
+        const areasUnicas = [...new Set(AppState.equipamentos.map(e => e.area))].sort();
+        planningFilterEquipamento.innerHTML = '<option value="">Todos os equipamentos</option>';
+        areasUnicas.forEach(area => {
+            const option = document.createElement('option');
+            option.value = area;
+            option.textContent = area;
+            planningFilterEquipamento.appendChild(option);
+        });
+    }
+    
+    // Popular dropdown de Responsável
+    const planningFilterResponsavel = document.getElementById('planningFilterResponsavel');
+    if (planningFilterResponsavel) {
+        const responsaveis = new Set();
+        AppState.requests.forEach(request => {
+            const task = AppState.planning.tasks[request.id];
+            const resp = (task?.responsavel || '').trim();
+            if (resp && resp !== '') {
+                responsaveis.add(resp);
+            }
+        });
+        
+        const responsaveisArray = Array.from(responsaveis).sort();
+        planningFilterResponsavel.innerHTML = '<option value="">Todos os responsáveis</option>';
+        responsaveisArray.forEach(responsavel => {
+            const count = AppState.requests.filter(r => {
+                const task = AppState.planning.tasks[r.id];
+                return task?.responsavel === responsavel;
+            }).length;
+            const option = document.createElement('option');
+            option.value = responsavel;
+            option.textContent = `${responsavel} (${count})`;
+            planningFilterResponsavel.appendChild(option);
+        });
+        
+        console.log('✅ Filtros de Planeamento populados');
+    }
+}
+
+// ✅ v3.7.0.9: Limpar filtros do planeamento
+function clearPlanningFiltersFunc() {
+    // Marcar todas as checkboxes
+    document.querySelectorAll('.planning-filter-tipo, .planning-filter-prioridade, .planning-filter-tipoIntervencao, .planning-filter-empresa').forEach(cb => cb.checked = true);
+    
+    // Estado: marcar apenas Novo e Em curso
+    document.querySelectorAll('.planning-filter-estado').forEach(cb => {
+        cb.checked = (cb.value === 'Novo' || cb.value === 'Em curso');
+    });
+    
+    // Desmarcar Especiais
+    document.querySelectorAll('.planning-filter-urgente, .planning-filter-paragemProducao').forEach(cb => cb.checked = false);
+    
+    // Limpar dropdowns
+    const planningFilterEquipamento = document.getElementById('planningFilterEquipamento');
+    if (planningFilterEquipamento) planningFilterEquipamento.value = '';
+    
+    const planningFilterResponsavel = document.getElementById('planningFilterResponsavel');
+    if (planningFilterResponsavel) planningFilterResponsavel.value = '';
+    
+    // Re-renderizar grid
+    renderPlanningGrid();
+    showToast('Filtros do planeamento limpos', 'success');
 }
 
 function clearFilters() {
@@ -6263,7 +6630,7 @@ function openRequestDetails(id) {
     
     let html = `
         <div class="detail-group">
-            <div class="detail-label">ID do Pedido</div>
+            <div class="detail-label">ID da Ordem</div>
             <div class="detail-value">${request.id}</div>
         </div>
         <div class="detail-group">
@@ -6273,7 +6640,11 @@ function openRequestDetails(id) {
         <div class="detail-group">
             <div class="detail-label">Tipo</div>
             <div class="detail-badges"><span class="badge badge-tipo">${request.tipo}</span></div>
-        </div>
+        </div>`;
+    
+    // 🆕 Prioridade só aparece se NÃO for Preventiva
+    if (request.tipo !== 'Preventiva') {
+        html += `
         <div class="detail-group">
             <div class="detail-label">Prioridade</div>
             <div class="detail-priority-selector">
@@ -6305,7 +6676,10 @@ function openRequestDetails(id) {
                     </span>
                 </label>
             </div>
-        </div>
+        </div>`;
+    }
+    
+    html += `
         <div class="detail-group">
             <div class="detail-label">Estado</div>
             <div class="detail-badges"><span class="badge badge-estado ${(request.estado || 'Novo').toLowerCase().replace(' ', '')}">${request.estado || 'Novo'}</span></div>
@@ -6417,9 +6791,43 @@ function openRequestDetails(id) {
         <div class="detail-group">
             <div class="detail-label">Fotografia</div>
             <img src="${fotoSrc}" 
-                 alt="Foto do pedido" 
+                 alt="Foto da ordem de trabalho" 
                  class="detail-image"
                  onerror="this.style.display='none'; this.parentElement.innerHTML='<p style=color:red>⚠️ Foto não disponível</p>'">
+        </div>`;
+    }
+    
+    // 🆕 MATERIAIS USADOS (sempre visível)
+    const materiaisUsados = AppState.movimentos.filter(m => m.pedidoId === request.id);
+    if (materiaisUsados.length > 0) {
+        let custoTotal = 0;
+        html += `
+        <div class="detail-group" style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-top: 20px;">
+            <div class="detail-label" style="font-size: 16px; margin-bottom: 12px;">💰 Materiais Usados</div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">`;
+        
+        materiaisUsados.forEach(mov => {
+            const artigo = AppState.artigos.find(a => a.id === mov.artigoId);
+            if (artigo) {
+                const custo = Math.abs(mov.quantidade) * artigo.preco;
+                custoTotal += custo;
+                const dataFormatada = new Date(mov.dataHora).toLocaleString('pt-PT', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+                html += `
+                <div style="display: flex; justify-content: space-between; padding: 8px; background: white; border-radius: 4px; border: 1px solid #dee2e6;">
+                    <div>
+                        <strong>${artigo.designacao}</strong><br>
+                        <small style="color: #6c757d;">${Math.abs(mov.quantidade)} ${artigo.unidade || 'un'} × €${artigo.preco.toFixed(2)} | ${dataFormatada} | ${mov.responsavel}</small>
+                    </div>
+                    <div style="font-weight: 600; color: #dc3545;">€${custo.toFixed(2)}</div>
+                </div>`;
+            }
+        });
+        
+        html += `
+            </div>
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 2px solid #dee2e6; text-align: right; font-size: 18px; font-weight: 700; color: #dc3545;">
+                Total: €${custoTotal.toFixed(2)}
+            </div>
         </div>`;
     }
     
@@ -6431,6 +6839,9 @@ function openRequestDetails(id) {
                 <rect x="6" y="14" width="12" height="8"/>
             </svg>
             Imprimir
+        </button>
+        <button class="btn btn-secondary" onclick="openBaixaMultiplaModal('${request.id}')" style="background: #28a745; color: white;">
+            + Movimento
         </button>`;
     if (request.estado !== 'Resolvido') {
         html += `
@@ -6453,11 +6864,11 @@ function closeModal() {
     document.getElementById('detailsModal').classList.remove('active');
 }
 
-// ✅ v3.7.0.9: Imprimir Pedido (MÉTODO SIMPLES - SEM BLOQUEIOS)
+// ✅ v3.7.0.9: Imprimir Ordem de Trabalho (MÉTODO SIMPLES - SEM BLOQUEIOS)
 function printRequest(id) {
     const request = AppState.requests.find(r => r.id === id);
     if (!request) {
-        alert('Pedido não encontrado!');
+        alert('Ordem de trabalho não encontrada!');
         return;
     }
     
@@ -6496,7 +6907,7 @@ function printRequest(id) {
     if (request.foto) {
         html += '<div class="print-section photo-section">';
         html += '<h2>Fotografia</h2>';
-        html += '<img src="' + request.foto + '" alt="Foto do pedido">';
+        html += '<img src="' + request.foto + '" alt="Foto da ordem de trabalho">';
         html += '</div>';
     }
     
@@ -6562,23 +6973,23 @@ async function changeRequestState(id) {
 }
 
 async function deleteRequest(id) {
-    if (!confirm('Tem a certeza que deseja eliminar este pedido?')) return;
+    if (!confirm('Tem a certeza que deseja eliminar esta ordem de trabalho?')) return;
     const index = AppState.requests.findIndex(r => r.id === id);
     if (index === -1) return;
     AppState.requests.splice(index, 1);
     saveToLocalStorage();
     if (AppState.isOnline) await deleteFromGoogleSheets(id);  // 🔥 Nome legacy, usa Supabase
     renderRequestsList();
-    showToast('Pedido eliminado com sucesso.', 'success');
+    showToast('Ordem de trabalho eliminada com sucesso.', 'success');
 }
 
 // ✅ v3.7.0.9: Alterar Prioridade do Pedido
 async function changePriority(id, novaPrioridade) {
-    console.log(`🔄 Alterando prioridade do pedido ${id}: ${novaPrioridade}`);
+    console.log(`🔄 Alterando prioridade da ordem ${id}: ${novaPrioridade}`);
     
     const request = AppState.requests.find(r => r.id === id);
     if (!request) {
-        console.error('❌ Pedido não encontrado:', id);
+        console.error('❌ Ordem de trabalho não encontrada:', id);
         return;
     }
     
@@ -6617,9 +7028,9 @@ async function changePriority(id, novaPrioridade) {
         showToast(`Prioridade alterada: ${prioridadeAnterior} → ${novaPrioridade} (offline)`, 'info');
     }
     
-    // Atualizar lista de pedidos
+    // Atualizar lista de ordens de trabalho
     renderRequestsList();
-    console.log('✅ Lista de pedidos atualizada');
+    console.log('✅ Lista de ordens de trabalho atualizada');
     
     // Reabrir modal com dados atualizados
     openRequestDetails(id);
@@ -6634,6 +7045,8 @@ async function changePriority(id, novaPrioridade) {
 
 async function sendToGoogleSheets(data) {
     try {
+        console.log('🔥 DEBUG: ID gerado no JavaScript:', data.id);
+        
         // Converter formato da app → formato Supabase
         const supabaseData = {
             ID: data.id,
@@ -6658,8 +7071,11 @@ async function sendToGoogleSheets(data) {
             'Horas Estimadas': data.horasEstimadas || 0  // ✅ ADICIONADO
         };
         
-        await window.SupabaseAPI.addPedido(supabaseData);
+        console.log('🔥 DEBUG: Dados enviados para Supabase:', JSON.stringify(supabaseData, null, 2));
+        
+        const result = await window.SupabaseAPI.addPedido(supabaseData);
         console.log('✅ Pedido guardado no Supabase');
+        console.log('🔥 DEBUG: Resposta do Supabase:', result);
         
     } catch (error) {
         console.error('❌ Erro ao enviar para Supabase:', error);
@@ -6701,7 +7117,7 @@ async function updateInGoogleSheets(data) {
         });
         
         await window.SupabaseAPI.updatePedido(data.id, supabaseData);
-        console.log('✅ Pedido atualizado no Supabase com sucesso!');
+        console.log('✅ Ordem de trabalho atualizada no Supabase com sucesso!');
         
     } catch (error) {
         console.error('❌ Erro ao atualizar Supabase:', error);
@@ -6714,7 +7130,7 @@ async function updateInGoogleSheets(data) {
 async function deleteFromGoogleSheets(id) {
     try {
         await window.SupabaseAPI.deletePedido(id);
-        console.log('✅ Pedido eliminado do Supabase');
+        console.log('✅ Ordem de trabalho eliminada do Supabase');
         
     } catch (error) {
         console.error('❌ Erro ao eliminar do Supabase:', error);
@@ -7190,6 +7606,45 @@ function hideLoadingSpinner() {
 }
 
 // UTILS
+// ✅ v3.7.0.9: Gerar ID sequencial para Ordens de Trabalho (OT_XXXXX)
+async function generateOTID() {
+    try {
+        // Obter todas as OTs do Supabase para descobrir o próximo número
+        const response = await window.SupabaseAPI.getPedidos();
+        
+        let nextNumber = 1;
+        
+        if (response && response.length > 0) {
+            // Filtrar apenas IDs do formato OT_XXXXX e ordenar
+            const otIDs = response
+                .map(r => r.ID)
+                .filter(id => id && id.startsWith('OT_') && !isNaN(parseInt(id.replace('OT_', ''))))
+                .map(id => parseInt(id.replace('OT_', '')))
+                .sort((a, b) => b - a); // Ordenar decrescente
+            
+            if (otIDs.length > 0) {
+                nextNumber = otIDs[0] + 1;
+            } else {
+                // Se não há OT_XXXXX, contar total de registros
+                nextNumber = response.length + 1;
+            }
+        }
+        
+        // Formatar como OT_00001, OT_00002, etc.
+        const otID = `OT_${String(nextNumber).padStart(5, '0')}`;
+        console.log(`✅ Novo ID gerado: ${otID} (próximo após ${nextNumber - 1})`);
+        return otID;
+        
+    } catch (error) {
+        console.error('❌ Erro ao gerar ID OT:', error);
+        // Fallback: usar timestamp
+        const fallbackID = `OT_${Date.now()}`;
+        console.warn(`⚠️ Usando ID fallback: ${fallbackID}`);
+        return fallbackID;
+    }
+}
+
+// Manter generateUUID para compatibilidade (caso seja usado em outro lugar)
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -7258,8 +7713,9 @@ async function initializePlanning() {
         resetPlanningToToday(); 
         renderPlanningGrid();
         
-        // ✅ Popular filtro de responsável DEPOIS de carregar planeamento
+        // ✅ Popular filtros DEPOIS de carregar planeamento
         populateResponsavelFilter();
+        populatePlanningFilters();  // ✅ v3.7.0.9: Popular filtros do planeamento
     } catch (error) {
         console.error('❌ Erro ao inicializar planeamento:', error);
         // ✅ FALLBACK: Garantir que datas estão definidas
@@ -7474,6 +7930,62 @@ function renderPreventivasList() {
     preventivasList.innerHTML = html;
 }
 
+// ✅ v3.7.0.9: Obter filtros do planeamento
+function getPlanningFilters() {
+    const filters = {
+        tipo: Array.from(document.querySelectorAll('.planning-filter-tipo:checked')).map(cb => cb.value),
+        prioridade: Array.from(document.querySelectorAll('.planning-filter-prioridade:checked')).map(cb => cb.value),
+        estado: Array.from(document.querySelectorAll('.planning-filter-estado:checked')).map(cb => cb.value),
+        empresa: Array.from(document.querySelectorAll('.planning-filter-empresa:checked')).map(cb => cb.value),
+        equipamento: document.getElementById('planningFilterEquipamento')?.value || '',
+        responsavel: document.getElementById('planningFilterResponsavel')?.value || '',
+        tipoIntervencao: Array.from(document.querySelectorAll('.planning-filter-tipoIntervencao:checked')).map(cb => cb.value),
+        urgente: Array.from(document.querySelectorAll('.planning-filter-urgente:checked')).map(cb => cb.value),
+        paragemProducao: Array.from(document.querySelectorAll('.planning-filter-paragemProducao:checked')).map(cb => cb.value)
+    };
+    return filters;
+}
+
+// ✅ v3.7.0.9: Aplicar filtros aos pedidos do planeamento
+function applyPlanningFilters(requests) {
+    const filters = getPlanningFilters();
+    
+    return requests.filter(request => {
+        // Tipo
+        const passaTipo = filters.tipo.length === 0 || filters.tipo.includes(request.tipo);
+        
+        // Prioridade
+        const passaPrioridade = filters.prioridade.length === 0 || filters.prioridade.includes(request.prioridade);
+        
+        // Estado
+        const passaEstado = filters.estado.length === 0 || filters.estado.includes(request.estado);
+        
+        // Empresa
+        const passaEmpresa = filters.empresa.length === 0 || filters.empresa.includes(request.empresa);
+        
+        // Equipamento
+        const equipamentoPedido = request.areaEquipamento || '';
+        const passaEquipamento = !filters.equipamento || equipamentoPedido === filters.equipamento;
+        
+        // Responsável (do planeamento)
+        const responsavelPedido = AppState.planning.tasks[request.id]?.responsavel || '';
+        const passaResponsavel = !filters.responsavel || responsavelPedido === filters.responsavel;
+        
+        // Tipo de Intervenção
+        const passaTipoIntervencao = filters.tipoIntervencao.length === 0 || filters.tipoIntervencao.includes(request.tipoIntervencao);
+        
+        // Urgente
+        const passaUrgente = filters.urgente.length === 0 || (filters.urgente.includes('true') && request.urgente);
+        
+        // Paragem Produção
+        const passaParagem = filters.paragemProducao.length === 0 || (filters.paragemProducao.includes('true') && request.paragemProducao);
+        
+        return passaTipo && passaPrioridade && passaEstado && passaEmpresa && 
+               passaEquipamento && passaResponsavel && passaTipoIntervencao && 
+               passaUrgente && passaParagem;
+    });
+}
+
 function renderPlanningGrid() {
     const grid = document.getElementById('planningGrid');
     
@@ -7487,12 +7999,15 @@ function renderPlanningGrid() {
     const dates = generateDateRange();
     const rangeText = `${formatDateShort(AppState.planning.startDate)} - ${formatDateShort(AppState.planning.endDate)}`;
     document.getElementById('planningRange').textContent = rangeText;
-    const activeTasks = AppState.requests.filter(r => r.estado !== 'Resolvido');
+    
+    // ✅ v3.7.0.9: Aplicar filtros
+    const allRequests = AppState.requests.filter(r => r.estado !== 'Resolvido');
+    const activeTasks = applyPlanningFilters(allRequests);
     if (activeTasks.length === 0) {
-        grid.innerHTML = `<tr><td colspan="${dates.length + 1}" style="text-align: center; padding: var(--spacing-xl);"><p>Não há pedidos ativos para planear.</p><p style="color: var(--color-text-secondary); font-size: 0.875rem;">Crie novos pedidos na tab "Novo Pedido"</p></td></tr>`;
+        grid.innerHTML = `<tr><td colspan="${dates.length + 1}" style="text-align: center; padding: var(--spacing-xl);"><p>Não há ordens de trabalho ativas para planear.</p><p style="color: var(--color-text-secondary); font-size: 0.875rem;">Crie novas ordens na tab "Nova Ordem"</p></td></tr>`;
         return;
     }
-    let html = '<thead><tr><th class="task-header">Pedido / Tarefa</th><th class="responsible-header">Responsável</th><th class="hours-header">Horas</th>';
+    let html = '<thead><tr><th class="task-header">Ordem / Tarefa</th><th class="responsible-header">Responsável</th><th class="hours-header">Horas</th>';
     dates.forEach(date => {
         const isWeekend = date.getDay() === 0 || date.getDay() === 6, weekendClass = isWeekend ? 'weekend' : '';
         const dayName = date.toLocaleDateString('pt-PT', { weekday: 'short' }), dayNum = date.getDate();
@@ -7506,7 +8021,7 @@ function renderPlanningGrid() {
         if (task.responsavel && task.responsavel !== '-') html += `<span class="task-responsible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${task.responsavel}</span>`;
         html += `</div></div></td>`;
         
-        // ✅ v3.7.0.8: Ler dados do PLANEAMENTO (não do pedido)
+        // ✅ v3.7.0.8: Ler dados do PLANEAMENTO (não da ordem de trabalho)
         const planningData = AppState.planning.tasks[task.id] || { responsavel: '', horasEstimadas: 0, diasAlocados: [] };
         const taskResponsavel = planningData.responsavel || task.responsavel || '';  // Fallback: pedido se não tiver no planeamento
         const taskHours = planningData.horasEstimadas || task.horasEstimadas || '';  // Fallback: pedido se não tiver no planeamento
@@ -7567,7 +8082,7 @@ function toggleAllocation(taskId, dateKey) {
     renderPlanningGrid();
     savePlanningToStorage();
 }
-// ✅ v3.7.0.8: Atualizar horas NO PLANEAMENTO (não no pedido)
+// ✅ v3.7.0.8: Atualizar horas NO PLANEAMENTO (não na ordem de trabalho)
 async function updateTaskHours(taskId, hours) {
     // Inicializar objeto do task se não existir
     if (!AppState.planning.tasks[taskId]) {
@@ -7595,7 +8110,7 @@ async function updateTaskHours(taskId, hours) {
     showToast(`Horas atualizadas: ${hours || 0}h`, 'success');
 }
 
-// ✅ v3.7.0.8: Atualizar responsável NO PLANEAMENTO (não no pedido)
+// ✅ v3.7.0.8: Atualizar responsável NO PLANEAMENTO (não na ordem de trabalho)
 async function updateTaskResponsible(taskId, responsavel) {
     // Inicializar objeto do task se não existir
     if (!AppState.planning.tasks[taskId]) {
@@ -8177,7 +8692,7 @@ function initializeStockModule() {
     const stockTab = document.querySelector('.tab-btn[data-tab="stock"]');
     if (stockTab) {
         stockTab.addEventListener('click', () => {
-            renderMovimentos();
+            // renderMovimentos() - removido, agora usa pesquisa
         });
     }
     
@@ -8189,6 +8704,56 @@ function initializeStockModule() {
             searchTimeout = setTimeout(() => {
                 searchArtigos(e.target.value);
             }, 300); // Debounce de 300ms
+        });
+    }
+    
+    // 🆕 Event listener para pesquisa de histórico
+    const historicoSearchInput = document.getElementById('historicoSearchInput');
+    if (historicoSearchInput) {
+        let historicoTimeout;
+        historicoSearchInput.addEventListener('input', (e) => {
+            clearTimeout(historicoTimeout);
+            historicoTimeout = setTimeout(() => {
+                searchArtigoHistorico(e.target.value);
+            }, 300); // Debounce de 300ms
+        });
+    }
+    
+    // 🆕 Event listener para pesquisa de OT na baixa múltipla
+    const baixaOTSearch = document.getElementById('baixaMultiplaOTSearch');
+    if (baixaOTSearch) {
+        baixaOTSearch.addEventListener('input', (e) => {
+            const otId = e.target.value.trim().toUpperCase();
+            const otInfo = document.getElementById('baixaMultiplaOTInfo');
+            
+            if (otId.length > 2) {
+                const ot = AppState.requests.find(r => r.id.toUpperCase().includes(otId));
+                if (ot) {
+                    otInfo.style.display = 'block';
+                    const descricaoPreview = ot.descricao && ot.descricao.length > 60 
+                        ? ot.descricao.substring(0, 60) + '...' 
+                        : ot.descricao || '';
+                    otInfo.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+                            <div style="flex: 1;">
+                                <div style="margin-bottom: 4px;">
+                                    <strong style="font-size: 15px;">${ot.id}</strong> 
+                                    <span class="badge badge-tipo" style="font-size: 11px; margin-left: 8px;">${ot.tipo}</span>
+                                    <span class="badge badge-estado ${ot.estado.toLowerCase()}" style="font-size: 11px; margin-left: 4px;">${ot.estado}</span>
+                                </div>
+                                <div style="color: #6c757d; font-size: 13px; margin-bottom: 4px;">
+                                    ${ot.areaEquipamento || ''} ${ot.componente ? '→ ' + ot.componente : ''}
+                                </div>
+                                ${descricaoPreview ? `<div style="color: #495057; font-size: 12px; font-style: italic;">"${descricaoPreview}"</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    otInfo.style.display = 'none';
+                }
+            } else {
+                otInfo.style.display = 'none';
+            }
         });
     }
     
@@ -8419,6 +8984,507 @@ function clearStockSearch() {
     document.getElementById('stockEmptySearch').innerHTML = '<p>🔍 Digite acima para procurar artigos</p>';
 }
 
+// 🆕 HISTÓRICO DE MOVIMENTOS - Pesquisar artigo
+let selectedArtigoHistorico = null;
+
+function searchArtigoHistorico(term) {
+    const historicoFilters = document.getElementById('historicoFilters');
+    const historicoTableContainer = document.getElementById('historicoTableContainer');
+    const historicoEmptyState = document.getElementById('historicoEmptyState');
+    const historicoNoMovimentos = document.getElementById('historicoNoMovimentos');
+    
+    // Resetar seleção
+    selectedArtigoHistorico = null;
+    historicoFilters.style.display = 'none';
+    historicoTableContainer.style.display = 'none';
+    historicoNoMovimentos.style.display = 'none';
+    
+    if (!term || term.trim().length < 2) {
+        historicoEmptyState.style.display = 'block';
+        historicoEmptyState.innerHTML = '<p>🔍 Digite acima para procurar um artigo e ver seu histórico</p>';
+        return;
+    }
+    
+    const searchTerm = term.toLowerCase();
+    const artigos = AppState.artigos.filter(a => 
+        a.designacao && a.designacao.toLowerCase().includes(searchTerm) ||
+        a.referencia && a.referencia.toLowerCase().includes(searchTerm) ||
+        a.id && a.id.toLowerCase().includes(searchTerm) ||
+        a.fornecedor && a.fornecedor.toLowerCase().includes(searchTerm) ||
+        a.familia && a.familia.toLowerCase().includes(searchTerm)
+    );
+    
+    if (artigos.length === 0) {
+        historicoEmptyState.style.display = 'block';
+        historicoEmptyState.innerHTML = '<p>❌ Nenhum artigo encontrado</p>';
+        return;
+    }
+    
+    // Se encontrou exatamente 1 artigo, selecionar automaticamente
+    if (artigos.length === 1) {
+        selectArtigoHistorico(artigos[0].id);
+        historicoEmptyState.style.display = 'none';
+        return;
+    }
+    
+    // Se encontrou múltiplos, mostrar lista para seleção
+    historicoEmptyState.style.display = 'block';
+    historicoEmptyState.innerHTML = `
+        <div style="text-align: left;">
+            <strong>📦 ${artigos.length} artigos encontrados - Selecione um:</strong>
+            <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                ${artigos.map(a => `
+                    <button class="btn btn-secondary" onclick="selectArtigoHistorico('${a.id}')" style="text-align: left; padding: 12px;">
+                        <strong>${a.designacao}</strong><br>
+                        <small style="color: var(--color-text-secondary);">${a.referencia} | ${a.familia}</small>
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// 🆕 Selecionar artigo e mostrar histórico
+function selectArtigoHistorico(artigoId) {
+    selectedArtigoHistorico = artigoId;
+    const artigo = AppState.artigos.find(a => a.id === artigoId);
+    
+    if (!artigo) return;
+    
+    const historicoEmptyState = document.getElementById('historicoEmptyState');
+    const historicoFilters = document.getElementById('historicoFilters');
+    
+    // Atualizar input com nome do artigo
+    document.getElementById('historicoSearchInput').value = artigo.designacao;
+    
+    // Ocultar estado vazio e mostrar filtros
+    historicoEmptyState.style.display = 'none';
+    historicoFilters.style.display = 'block';
+    
+    // Renderizar movimentos
+    renderMovimentosByArtigo();
+}
+
+// 🆕 Renderizar movimentos de um artigo específico
+function renderMovimentosByArtigo() {
+    if (!selectedArtigoHistorico) return;
+    
+    const tbody = document.getElementById('movimentosTableBody');
+    const tableContainer = document.getElementById('historicoTableContainer');
+    const noMovimentos = document.getElementById('historicoNoMovimentos');
+    
+    const tipoFilter = document.getElementById('movimentoTipoFilter')?.value || 'TODOS';
+    const limit = parseInt(document.getElementById('movimentoLimitFilter')?.value || 20);
+    
+    // Filtrar movimentos do artigo selecionado
+    let movimentos = AppState.movimentos.filter(m => m.artigoId === selectedArtigoHistorico);
+    
+    // Filtrar por tipo
+    if (tipoFilter !== 'TODOS') {
+        movimentos = movimentos.filter(m => m.tipo === tipoFilter);
+    }
+    
+    // Ordenar por data (mais recente primeiro)
+    movimentos.sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
+    
+    // Limitar quantidade
+    movimentos = movimentos.slice(0, limit);
+    
+    if (movimentos.length === 0) {
+        tableContainer.style.display = 'none';
+        noMovimentos.style.display = 'block';
+        return;
+    }
+    
+    noMovimentos.style.display = 'none';
+    tableContainer.style.display = 'block';
+    
+    const artigo = AppState.artigos.find(a => a.id === selectedArtigoHistorico);
+    
+    tbody.innerHTML = movimentos.map(mov => {
+        const dataFormatada = formatDateTime(mov.dataHora);
+        const qtdClass = mov.quantidade > 0 ? 'positivo' : 'negativo';
+        const badgeClass = mov.tipo === 'Entrada' ? 'badge-entrada' : mov.tipo === 'Saída' ? 'badge-saida' : 'badge-ajuste';
+        
+        return `
+            <tr>
+                <td><small>${dataFormatada}</small></td>
+                <td><span class="badge ${badgeClass}">${mov.tipo}</span></td>
+                <td>
+                    <span class="quantidade-badge ${qtdClass}">
+                        ${mov.quantidade > 0 ? '+' : ''}${mov.quantidade} ${artigo?.unidade || 'un'}
+                    </span>
+                </td>
+                <td>${mov.responsavel}</td>
+                <td><small>${mov.observacoes || '-'}</small></td>
+                <td>
+                    <div class="stock-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="editarMovimento('${mov.id}')" title="Editar">
+                            ✏️
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="eliminarMovimento('${mov.id}')" title="Eliminar">
+                            🗑️
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// 🆕 Limpar pesquisa de histórico
+function clearHistoricoSearch() {
+    selectedArtigoHistorico = null;
+    document.getElementById('historicoSearchInput').value = '';
+    document.getElementById('historicoFilters').style.display = 'none';
+    document.getElementById('historicoTableContainer').style.display = 'none';
+    document.getElementById('historicoNoMovimentos').style.display = 'none';
+    document.getElementById('historicoEmptyState').style.display = 'block';
+    document.getElementById('historicoEmptyState').innerHTML = '<p>🔍 Digite acima para procurar um artigo e ver seu histórico</p>';
+}
+
+// ============================================
+// 💰 BAIXA MÚLTIPLA DE STOCK
+// ============================================
+
+let baixaMultiplaOTSelecionada = null;
+let baixaMultiplaLinhasCount = 0;
+
+// Abrir modal de baixa múltipla
+function openBaixaMultiplaModal(otId = null) {
+    baixaMultiplaOTSelecionada = otId;
+    baixaMultiplaLinhasCount = 0;
+    
+    const modal = document.getElementById('baixaMultiplaModal');
+    const otSearch = document.getElementById('baixaMultiplaOTSearch');
+    const otInfo = document.getElementById('baixaMultiplaOTInfo');
+    const linhasContainer = document.getElementById('baixaMultiplaLinhas');
+    const responsavelInput = document.getElementById('baixaMultiplaResponsavel');
+    
+    // Resetar
+    linhasContainer.innerHTML = '';
+    otSearch.value = '';
+    otInfo.style.display = 'none';
+    document.getElementById('baixaMultiplaResumo').style.display = 'none';
+    
+    // Se veio de uma OT, pré-preencher
+    if (otId) {
+        const ot = AppState.requests.find(r => r.id === otId);
+        if (ot) {
+            otSearch.value = otId;
+            otInfo.style.display = 'block';
+            const descricaoPreview = ot.descricao && ot.descricao.length > 60 
+                ? ot.descricao.substring(0, 60) + '...' 
+                : ot.descricao || '';
+            otInfo.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+                    <div style="flex: 1;">
+                        <div style="margin-bottom: 4px;">
+                            <strong style="font-size: 15px;">${otId}</strong> 
+                            <span class="badge badge-tipo" style="font-size: 11px; margin-left: 8px;">${ot.tipo}</span>
+                            <span class="badge badge-estado ${ot.estado.toLowerCase()}" style="font-size: 11px; margin-left: 4px;">${ot.estado}</span>
+                        </div>
+                        <div style="color: #6c757d; font-size: 13px; margin-bottom: 4px;">
+                            ${ot.areaEquipamento || ''} ${ot.componente ? '→ ' + ot.componente : ''}
+                        </div>
+                        ${descricaoPreview ? `<div style="color: #495057; font-size: 12px; font-style: italic;">"${descricaoPreview}"</div>` : ''}
+                    </div>
+                </div>
+            `;
+            otSearch.disabled = true;
+        }
+    }
+    
+    // Pré-preencher responsável
+    if (AppState.currentUser) {
+        responsavelInput.value = AppState.currentUser.nomeCompleto;
+    }
+    
+    // Adicionar primeira linha
+    adicionarLinhaBaixa();
+    
+    modal.classList.add('active');
+}
+
+// Fechar modal
+function closeBaixaMultiplaModal() {
+    document.getElementById('baixaMultiplaModal').classList.remove('active');
+    baixaMultiplaOTSelecionada = null;
+    baixaMultiplaLinhasCount = 0;
+}
+
+// Adicionar linha de artigo
+function adicionarLinhaBaixa() {
+    const container = document.getElementById('baixaMultiplaLinhas');
+    const linhaId = `baixa-linha-${baixaMultiplaLinhasCount++}`;
+    
+    const linha = document.createElement('div');
+    linha.id = linhaId;
+    linha.style.cssText = 'display: grid; grid-template-columns: 1fr 2fr 1fr auto; gap: 8px; padding: 12px; background: #f8f9fa; border-radius: 8px; align-items: end;';
+    
+    // Obter famílias únicas
+    const familias = [...new Set(AppState.artigos.filter(a => a.visivel !== false).map(a => a.familia))].sort();
+    
+    linha.innerHTML = `
+        <div class="form-group" style="margin: 0;">
+            <label class="form-label" style="font-size: 12px; margin-bottom: 4px;">📦 Família</label>
+            <select class="form-input baixa-familia-select" data-linha="${linhaId}" onchange="filtrarArtigosBaixaLinha('${linhaId}')" required>
+                <option value="">Escolher família...</option>
+                ${familias.map(f => `<option value="${f}">${f}</option>`).join('')}
+            </select>
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label class="form-label" style="font-size: 12px; margin-bottom: 4px;">Artigo</label>
+            <select class="form-input baixa-artigo-select" data-linha="${linhaId}" onchange="updateLinhaBaixaInfo('${linhaId}')" required disabled>
+                <option value="">Escolha família primeiro...</option>
+            </select>
+            <small class="baixa-linha-info" style="display: none; margin-top: 4px; color: #6c757d;"></small>
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label class="form-label" style="font-size: 12px; margin-bottom: 4px;">Quantidade</label>
+            <input type="number" 
+                   class="form-input baixa-quantidade-input" 
+                   data-linha="${linhaId}"
+                   min="0.01" 
+                   step="0.01" 
+                   value="1" 
+                   onchange="calcularResumoBaixa()"
+                   required>
+        </div>
+        <button type="button" 
+                class="btn btn-secondary btn-sm" 
+                onclick="removerLinhaBaixa('${linhaId}')" 
+                style="height: 38px; padding: 0 12px;"
+                title="Remover">
+            🗑️
+        </button>
+    `;
+    
+    container.appendChild(linha);
+    calcularResumoBaixa();
+}
+
+// Remover linha
+function removerLinhaBaixa(linhaId) {
+    const linha = document.getElementById(linhaId);
+    if (linha) {
+        linha.remove();
+        calcularResumoBaixa();
+    }
+}
+
+// Filtrar artigos por família na linha
+function filtrarArtigosBaixaLinha(linhaId) {
+    const linha = document.getElementById(linhaId);
+    if (!linha) return;
+    
+    const familiaSelect = linha.querySelector('.baixa-familia-select');
+    const artigoSelect = linha.querySelector('.baixa-artigo-select');
+    const familiaSelecionada = familiaSelect.value;
+    
+    // Resetar artigo
+    artigoSelect.innerHTML = '<option value="">Selecione um artigo...</option>';
+    artigoSelect.disabled = !familiaSelecionada;
+    
+    if (familiaSelecionada) {
+        // Filtrar artigos da família
+        const artigosFiltrados = AppState.artigos.filter(a => 
+            a.visivel !== false && a.familia === familiaSelecionada
+        );
+        
+        artigosFiltrados.forEach(a => {
+            const stock = calcularStockAtual(a.id);
+            const option = document.createElement('option');
+            option.value = a.id;
+            option.dataset.stock = stock;
+            option.dataset.preco = a.preco;
+            option.dataset.unidade = a.unidade || 'un';
+            option.textContent = `${a.designacao} (Stock: ${stock} ${a.unidade || 'un'})`;
+            artigoSelect.appendChild(option);
+        });
+        
+        console.log(`✅ ${artigosFiltrados.length} artigos da família "${familiaSelecionada}" carregados`);
+    }
+    
+    // Resetar info e resumo
+    const info = linha.querySelector('.baixa-linha-info');
+    if (info) info.style.display = 'none';
+    calcularResumoBaixa();
+}
+
+// Atualizar info da linha
+function updateLinhaBaixaInfo(linhaId) {
+    const linha = document.getElementById(linhaId);
+    if (!linha) return;
+    
+    const select = linha.querySelector('.baixa-artigo-select');
+    const info = linha.querySelector('.baixa-linha-info');
+    
+    if (select.value) {
+        const option = select.options[select.selectedIndex];
+        const stock = option.dataset.stock;
+        const preco = parseFloat(option.dataset.preco);
+        const unidade = option.dataset.unidade;
+        
+        info.style.display = 'block';
+        info.innerHTML = `Stock atual: ${stock} ${unidade} | Preço: €${preco.toFixed(2)}/${unidade}`;
+        
+        // Verificar stock baixo
+        const artigo = AppState.artigos.find(a => a.id === select.value);
+        if (artigo && parseFloat(stock) <= artigo.stockMinimo) {
+            info.style.color = '#dc3545';
+            info.innerHTML += ' ⚠️ Stock baixo!';
+        }
+    } else {
+        info.style.display = 'none';
+    }
+    
+    calcularResumoBaixa();
+}
+
+// Calcular resumo
+function calcularResumoBaixa() {
+    const linhas = document.querySelectorAll('#baixaMultiplaLinhas > div');
+    const resumoDiv = document.getElementById('baixaMultiplaResumo');
+    const resumoConteudo = document.getElementById('baixaMultiplaResumoConteudo');
+    
+    let totalItens = 0;
+    let custoTotal = 0;
+    const artigos = [];
+    
+    linhas.forEach(linha => {
+        const select = linha.querySelector('.baixa-artigo-select');
+        const qtdInput = linha.querySelector('.baixa-quantidade-input');
+        
+        if (select.value && qtdInput.value) {
+            const option = select.options[select.selectedIndex];
+            const quantidade = parseFloat(qtdInput.value);
+            const preco = parseFloat(option.dataset.preco);
+            const unidade = option.dataset.unidade;
+            const artigoNome = option.text.split(' (Stock:')[0];
+            
+            const custo = quantidade * preco;
+            custoTotal += custo;
+            totalItens++;
+            
+            artigos.push({ nome: artigoNome, quantidade, unidade, preco, custo });
+        }
+    });
+    
+    if (totalItens > 0) {
+        resumoDiv.style.display = 'block';
+        resumoConteudo.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;">
+                ${artigos.map(a => `
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>${a.nome} (${a.quantidade} ${a.unidade})</span>
+                        <strong>€${a.custo.toFixed(2)}</strong>
+                    </div>
+                `).join('')}
+            </div>
+            <div style="padding-top: 8px; border-top: 2px solid #28a745; display: flex; justify-content: space-between; font-size: 16px;">
+                <strong>${totalItens} ${totalItens === 1 ? 'artigo' : 'artigos'}</strong>
+                <strong style="color: #dc3545;">Total: €${custoTotal.toFixed(2)}</strong>
+            </div>
+        `;
+    } else {
+        resumoDiv.style.display = 'none';
+    }
+}
+
+// Confirmar baixa múltipla
+async function confirmarBaixaMultipla() {
+    const linhas = document.querySelectorAll('#baixaMultiplaLinhas > div');
+    const empresa = document.getElementById('baixaMultiplaEmpresa').value;
+    const responsavel = document.getElementById('baixaMultiplaResponsavel').value;
+    const observacoesGerais = document.getElementById('baixaMultiplaObservacoes').value;
+    const otSearch = document.getElementById('baixaMultiplaOTSearch');
+    
+    // Validar
+    if (!responsavel.trim()) {
+        showToast('❌ Por favor, preencha o responsável!', 'error');
+        return;
+    }
+    
+    const movimentos = [];
+    let erro = false;
+    
+    linhas.forEach((linha, index) => {
+        const select = linha.querySelector('.baixa-artigo-select');
+        const qtdInput = linha.querySelector('.baixa-quantidade-input');
+        
+        if (!select.value) {
+            showToast(`❌ Linha ${index + 1}: Selecione um artigo!`, 'error');
+            erro = true;
+            return;
+        }
+        
+        if (!qtdInput.value || parseFloat(qtdInput.value) <= 0) {
+            showToast(`❌ Linha ${index + 1}: Quantidade inválida!`, 'error');
+            erro = true;
+            return;
+        }
+        
+        const artigo = AppState.artigos.find(a => a.id === select.value);
+        const quantidade = parseFloat(qtdInput.value);
+        
+        movimentos.push({
+            id: 'MOV' + Date.now() + '_' + index,
+            dataHora: new Date().toISOString(),
+            artigoId: artigo.id,
+            tipo: 'Saída',
+            quantidade: -quantidade,  // Negativo para saída
+            empresa: empresa,
+            pedidoId: otSearch.value.trim() || '',  // 🔥 ID da OT (ou vazio)
+            responsavel: responsavel,
+            observacoes: observacoesGerais || `Baixa múltipla - ${artigo.designacao}`
+        });
+    });
+    
+    if (erro || movimentos.length === 0) {
+        return;
+    }
+    
+    // Confirmar
+    const totalMovimentos = movimentos.length;
+    if (!confirm(`Confirmar baixa de ${totalMovimentos} ${totalMovimentos === 1 ? 'artigo' : 'artigos'}?`)) {
+        return;
+    }
+    
+    try {
+        // Processar todos os movimentos
+        for (const movimento of movimentos) {
+            AppState.movimentos.unshift(movimento);
+            
+            // Sincronizar com Supabase
+            const syncedId = await syncMovimentoToGoogleSheets(movimento);
+            if (syncedId) {
+                movimento.id = syncedId;
+            }
+        }
+        
+        saveToLocalStorage();
+        showToast(`✅ ${totalMovimentos} ${totalMovimentos === 1 ? 'artigo dado' : 'artigos dados'} baixa com sucesso!`, 'success');
+        
+        // Atualizar histórico se necessário
+        if (selectedArtigoHistorico) {
+            renderMovimentosByArtigo();
+        }
+        
+        // Recarregar OT se estava aberta
+        if (baixaMultiplaOTSelecionada) {
+            closeModal();
+            setTimeout(() => openRequestDetails(baixaMultiplaOTSelecionada), 300);
+        }
+        
+        closeBaixaMultiplaModal();
+        
+    } catch (error) {
+        console.error('❌ Erro ao processar baixas:', error);
+        showToast('❌ Erro ao processar baixas!', 'error');
+    }
+}
+
 // Dar baixa rápida
 async function darBaixaRapida(artigoId) {
     const artigo = AppState.artigos.find(a => a.id === artigoId);
@@ -8467,77 +9533,14 @@ async function darBaixaRapida(artigoId) {
     
     // Atualizar visualizações
     searchArtigos(document.getElementById('stockSearchInput').value);
-    renderMovimentos();
+    if (selectedArtigoHistorico) {
+        renderMovimentosByArtigo(); // Atualizar histórico se tiver artigo selecionado
+    }
     saveToLocalStorage();
 }
 
 // Renderizar movimentos
-function renderMovimentos() {
-    const tbody = document.getElementById('movimentosTableBody');
-    const emptyState = document.getElementById('movimentosEmptyState');
-    
-    if (!tbody) return;
-    
-    const tipoFilter = document.getElementById('movimentoTipoFilter')?.value || 'TODOS';
-    const limit = parseInt(document.getElementById('movimentoLimitFilter')?.value || 20);
-    
-    let movimentos = [...AppState.movimentos];
-    
-    // Filtrar por tipo
-    if (tipoFilter !== 'TODOS') {
-        movimentos = movimentos.filter(m => m.tipo === tipoFilter);
-    }
-    
-    // Ordenar por data (mais recente primeiro)
-    movimentos.sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
-    
-    // Limitar quantidade
-    movimentos = movimentos.slice(0, limit);
-    
-    if (movimentos.length === 0) {
-        tbody.innerHTML = '';
-        emptyState.style.display = 'block';
-        return;
-    }
-    
-    emptyState.style.display = 'none';
-    
-    tbody.innerHTML = movimentos.map(mov => {
-        const artigo = AppState.artigos.find(a => a.id === mov.artigoId);
-        const artigoNome = artigo ? artigo.designacao : mov.artigoId;
-        const dataFormatada = formatDateTime(mov.dataHora);
-        const qtdClass = mov.quantidade > 0 ? 'positivo' : 'negativo';
-        const badgeClass = mov.tipo === 'Entrada' ? 'badge-entrada' : mov.tipo === 'Saída' ? 'badge-saida' : 'badge-ajuste';
-        
-        return `
-            <tr>
-                <td><small>${dataFormatada}</small></td>
-                <td>
-                    <strong>${artigoNome}</strong><br>
-                    <small><code>${mov.artigoId}</code></small>
-                </td>
-                <td><span class="badge ${badgeClass}">${mov.tipo}</span></td>
-                <td>
-                    <span class="quantidade-badge ${qtdClass}">
-                        ${mov.quantidade > 0 ? '+' : ''}${mov.quantidade}
-                    </span>
-                </td>
-                <td>${mov.responsavel}</td>
-                <td><small>${mov.observacoes || '-'}</small></td>
-                <td>
-                    <div class="stock-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="editarMovimento('${mov.id}')" title="Editar">
-                            ✏️
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="eliminarMovimento('${mov.id}')" title="Eliminar">
-                            🗑️
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
+// 🆕 Função antiga removida - agora usa renderMovimentosByArtigo()
 
 // ✅ v3.6.16: Renderizar alertas de stock mínimo (CORRIGIDO)
 function renderStockMinimo() {
@@ -8696,7 +9699,9 @@ async function editarMovimento(movId) {
     }
     
     showToast('✅ Movimento atualizado!', 'success');
-    renderMovimentos();
+    if (selectedArtigoHistorico) {
+        renderMovimentosByArtigo(); // Atualizar histórico se tiver artigo selecionado
+    }
     searchArtigos(document.getElementById('stockSearchInput').value);
     saveToLocalStorage();
 }
@@ -8732,7 +9737,9 @@ async function eliminarMovimento(movId) {
     AppState.movimentos = AppState.movimentos.filter(m => m.id !== movId);
     
     showToast('✅ Movimento eliminado!', 'success');
-    renderMovimentos();
+    if (selectedArtigoHistorico) {
+        renderMovimentosByArtigo(); // Atualizar histórico se tiver artigo selecionado
+    }
     searchArtigos(document.getElementById('stockSearchInput').value);
     saveToLocalStorage();
 }
@@ -8805,7 +9812,9 @@ async function handleMovimentoSubmit(e) {
         closeMovimentoModal();
         
         // Re-renderizar
-        renderMovimentos();
+        if (selectedArtigoHistorico) {
+            renderMovimentosByArtigo(); // Atualizar histórico se tiver artigo selecionado
+        }
         searchArtigos(document.getElementById('stockSearchInput').value);
         saveToLocalStorage();
         
@@ -8883,7 +9892,7 @@ function formatWeekLabel(year, week) {
 }
 
 /**
- * Processar dados de pedidos por semana
+ * Processar dados de ordens de trabalho por semana
  */
 function processarDadosPorSemana(numSemanas = 12, empresaFiltro = '') {
     const hoje = new Date();
@@ -9002,7 +10011,7 @@ function calcularMetricasSemana(empresaFiltro = '') {
         ? AppState.requests.filter(r => r.empresa === empresaFiltro)
         : AppState.requests;
     
-    // Contar pedidos desta semana
+    // Contar ordens de trabalho desta semana
     const pedidosEstaSemana = pedidosFiltrados.filter(p => {
         const data = new Date(p.dataHora);
         return data.getFullYear() === anoAtual && getWeekNumber(data) === semanaAtual;
@@ -9070,7 +10079,7 @@ function processarPedidosPorUtilizador(empresaFiltro = '') {
 // ===================================
 
 /**
- * Criar/atualizar gráfico de pedidos por semana
+ * Criar/atualizar gráfico de ordens de trabalho por semana
  */
 function renderizarGraficoPedidosPorSemana(dados) {
     const ctx = document.getElementById('chartPedidosPorSemana');
@@ -9087,7 +10096,7 @@ function renderizarGraficoPedidosPorSemana(dados) {
             labels: dados.map(d => d.label),
             datasets: [
                 {
-                    label: 'Pedidos Abertos',
+                    label: 'Ordens Abertas',
                     data: dados.map(d => d.abertos),
                     backgroundColor: 'rgba(255, 152, 0, 0.7)',
                     borderColor: 'rgba(255, 152, 0, 1)',
@@ -9095,7 +10104,7 @@ function renderizarGraficoPedidosPorSemana(dados) {
                     borderRadius: 6
                 },
                 {
-                    label: 'Pedidos Fechados',
+                    label: 'Ordens Fechadas',
                     data: dados.map(d => d.fechados),
                     backgroundColor: 'rgba(76, 175, 80, 0.7)',
                     borderColor: 'rgba(76, 175, 80, 1)',
@@ -9183,7 +10192,7 @@ function renderizarGraficoEvolucaoBacklog(dados) {
             labels: dados.map(d => d.label),
             datasets: [
                 {
-                    label: 'Backlog (Pedidos Pendentes)',
+                    label: 'Backlog (Ordens Pendentes)',
                     data: dados.map(d => d.backlog),
                     backgroundColor: 'rgba(33, 150, 243, 0.1)',
                     borderColor: 'rgba(33, 150, 243, 1)',
@@ -9260,7 +10269,7 @@ function renderizarGraficoEvolucaoBacklog(dados) {
 }
 
 /**
- * ✅ v3.7.0.9: Criar/atualizar gráfico de pedidos fechados por utilizador
+ * ✅ v3.7.0.9: Criar/atualizar gráfico de ordens de trabalho fechadas por utilizador
  */
 function renderizarGraficoPedidosPorUtilizador(dados) {
     const ctx = document.getElementById('chartPedidosPorUtilizador');
@@ -9273,7 +10282,7 @@ function renderizarGraficoPedidosPorUtilizador(dados) {
     
     if (dados.length === 0) {
         // Mostrar mensagem se não há dados
-        ctx.parentElement.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">Nenhum pedido fechado esta semana</p>';
+        ctx.parentElement.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">Nenhuma ordem de trabalho fechada esta semana</p>';
         return;
     }
     
@@ -9283,7 +10292,7 @@ function renderizarGraficoPedidosPorUtilizador(dados) {
             labels: dados.map(d => d.nome),
             datasets: [
                 {
-                    label: 'Pedidos Fechados',
+                    label: 'Ordens Fechadas',
                     data: dados.map(d => d.count),
                     backgroundColor: 'rgba(76, 175, 80, 0.7)',
                     borderColor: 'rgba(76, 175, 80, 1)',
@@ -9465,7 +10474,7 @@ function mostrarChatbotStatus(mostrar = true) {
  * Preparar contexto dos dados para o chatbot
  */
 function prepararContextoDados() {
-    // Resumo dos pedidos
+    // Resumo das ordens de trabalho
     const totalPedidos = AppState.requests.length;
     const pedidosAbertos = AppState.requests.filter(p => p.estado !== 'Resolvido').length;
     const pedidosResolvidos = AppState.requests.filter(p => p.estado === 'Resolvido').length;
@@ -9620,7 +10629,7 @@ function gerarRespostaSimulada(pergunta, contexto) {
             .sort((a, b) => b[1] - a[1])
             .map(([tipo, count]) => `• ${tipo}: ${count} pedidos`)
             .join('\n');
-        return `**Pedidos por tipo:**\n\n${tiposList}`;
+        return `**Ordens de trabalho por tipo:**\n\n${tiposList}`;
     }
     
     if (p.includes('tendência') || p.includes('evolução') || p.includes('backlog')) {
@@ -9639,7 +10648,7 @@ function gerarRespostaSimulada(pergunta, contexto) {
     // Resposta padrão
     return `Analisei a tua pergunta. No momento, tenho dados sobre **${contexto.resumo.total} pedidos** no sistema.\n\n` +
            `Podes perguntar-me sobre:\n` +
-           `• Número de pedidos abertos ou fechados\n` +
+           `• Número de ordens de trabalho abertas ou fechadas\n` +
            `• Comparação entre MCF e PSY\n` +
            `• Máquinas/equipamentos com mais avarias\n` +
            `• Tipos de pedidos mais comuns\n` +
@@ -9685,4 +10694,3 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
-
