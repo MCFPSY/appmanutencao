@@ -1,8 +1,29 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.7.1.1
+    📦 Versão: v3.7.1.6
     📅 Data: 2026-01-10
+    
+    🎯 v3.7.1.4: FIX CRÍTICO - ERRO renderMovimentos() BLOQUEAVA ANÁLISES 🐛
+    ───────────────────────────────────────────────────────────
+    ✅ Removida referência a renderMovimentos() (função obsoleta)
+    ✅ Erro "renderMovimentos is not defined" estava a parar TODO o JavaScript
+    ✅ window.atualizarAnalises agora é definida corretamente
+    ✅ Análises funcionam!
+    
+    🎯 v3.7.1.3: FIX CRÍTICO - ANÁLISES CARREGAM DADOS DO SUPABASE 🐛
+    ───────────────────────────────────────────────────────────
+    ✅ Sincronização do Supabase ANTES de restaurar aba ativa
+    ✅ Timeout aumentado (300ms→500ms) para garantir dados carregados
+    ✅ Logs para debug na chamada de atualizarAnalises()
+    ✅ Await explícito na sincronização para garantir ordem
+    
+    🎯 v3.7.1.2: CORREÇÕES CRÍTICAS - ANÁLISES & CHATBOT 🐛
+    ───────────────────────────────────────────────────────────
+    ✅ Removida declaração window.atualizarAnalises = null (bug crítico)
+    ✅ Try/catch em todas as funções de renderização de gráficos
+    ✅ Validação de Chart.js carregado
+    ✅ Mensagens de erro mais claras no chatbot
     
     🎯 v3.7.1.1: PERMISSÕES SIMPLIFICADAS 🔐
     ───────────────────────────────────────────────────────────
@@ -3312,6 +3333,29 @@
             max-height: 400px;
         }
         
+        /* Filtros de Análise */
+        .filter-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            background: var(--color-white);
+            color: var(--color-text-primary);
+            cursor: pointer;
+            font-size: 13px;
+            font-family: var(--font-family);
+            transition: all 0.2s ease;
+        }
+        
+        .filter-btn:hover {
+            background: var(--color-background);
+        }
+        
+        .filter-btn.active {
+            background: var(--color-blue);
+            color: var(--color-white);
+            border-color: var(--color-blue);
+        }
+        
         /* Chatbot */
         .chatbot-history {
             max-height: 500px;
@@ -4596,22 +4640,30 @@
                     </button>
                 </div>
 
-                <!-- Gráfico: Ordens de Trabalho por Semana -->
+                <!-- ✅ Gráfico 1: Pedidos Fechados por Utilizador -->
+                <div class="analytics-chart-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                        <h3 class="analytics-chart-title" style="margin: 0;">📊 Pedidos Fechados por Utilizador</h3>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="filter-btn active" data-period="7" onclick="filtrarPorUtilizadorPeriodo(7)">Última Semana</button>
+                            <button class="filter-btn" data-period="30" onclick="filtrarPorUtilizadorPeriodo(30)">Último Mês</button>
+                            <button class="filter-btn" data-period="180" onclick="filtrarPorUtilizadorPeriodo(180)">6 Meses</button>
+                            <button class="filter-btn" data-period="365" onclick="filtrarPorUtilizadorPeriodo(365)">Último Ano</button>
+                        </div>
+                    </div>
+                    <canvas id="chartPedidosPorUtilizador"></canvas>
+                </div>
+
+                <!-- Gráfico 2: Ordens de Trabalho por Semana -->
                 <div class="analytics-chart-container">
                     <h3 class="analytics-chart-title">Ordens de Trabalho por Semana</h3>
                     <canvas id="chartPedidosPorSemana"></canvas>
                 </div>
 
-                <!-- Gráfico: Evolução do Backlog -->
+                <!-- Gráfico 3: Evolução do Backlog -->
                 <div class="analytics-chart-container">
                     <h3 class="analytics-chart-title">Evolução do Backlog</h3>
                     <canvas id="chartEvolucaoBacklog"></canvas>
-                </div>
-                
-                <!-- ✅ NOVO v3.7.0.9: Gráfico de Pedidos Fechados por Utilizador -->
-                <div class="analytics-chart-container">
-                    <h3 class="analytics-chart-title">📊 Pedidos Fechados por Utilizador (Última Semana)</h3>
-                    <canvas id="chartPedidosPorUtilizador"></canvas>
                 </div>
             </div>
 
@@ -4678,14 +4730,6 @@
     
     <!-- 🔥 Supabase Client INLINE v3.6.8 -->
     <script>
-// ================================================
-// 🔥 DECLARAÇÕES GLOBAIS ANTECIPADAS
-// ================================================
-
-// Placeholder - será substituído quando script carregar completamente
-// Função será definida mais à frente no código
-window.atualizarAnalises = null;
-
 // ================================================
 // 🔥 SUPABASE CLIENT - INLINE
 // ================================================
@@ -5838,15 +5882,27 @@ async function initializeApp() {
     
     APP_INITIALIZED = true;
     
+    console.log('📥 Carregando dados do localStorage...');
     loadFromLocalStorage();
+    console.log('📊 Pedidos do localStorage:', AppState.requests?.length || 0);
+    
     loadSavedUserName();
-    if (AppState.isOnline) await syncWithGoogleSheets();  // 🔥 Nome legacy, usa Supabase internamente
+    
+    // 🔥 AGUARDAR sincronização ANTES de restaurar aba
+    if (AppState.isOnline) {
+        console.log('🌐 Online - sincronizando com Supabase...');
+        await syncWithGoogleSheets();  // 🔥 Nome legacy, usa Supabase internamente
+        console.log('✅ Sincronização completa - Pedidos:', AppState.requests?.length || 0);
+    } else {
+        console.warn('📵 Offline - usando apenas localStorage');
+    }
+    
     renderRequestsList();
     await initializePlanning();  // ✅ v3.7.0.8: AWAIT para carregar planeamento do Supabase
     initializeAutonomousMaintenance();
     initializeStockModule();
     
-    // ✅ CORREÇÃO 1: Restaurar aba ativa IMEDIATAMENTE (sem flash)
+    // ✅ CORREÇÃO: Restaurar aba ativa DEPOIS dos dados carregarem
     restoreActiveTab();
 }
 
@@ -6077,9 +6133,12 @@ function handleTabChange(e) {
     if (tab === 'analise') {
         setTimeout(() => {
             if (typeof window.atualizarAnalises === 'function') {
+                console.log('📊 Chamando atualizarAnalises() - Pedidos:', AppState.requests?.length || 0);
                 window.atualizarAnalises();
+            } else {
+                console.error('❌ window.atualizarAnalises não é uma função!');
             }
-        }, 100);
+        }, 300); // Aumentado de 100ms para 300ms
     }
     
     // Re-aplicar auto-preenchimento quando mudar de tab
@@ -6116,9 +6175,12 @@ function restoreActiveTab() {
                 if (activeTab === 'analise') {
                     setTimeout(() => {
                         if (typeof window.atualizarAnalises === 'function') {
+                            console.log('📊 Chamando atualizarAnalises() - Pedidos:', AppState.requests?.length || 0);
                             window.atualizarAnalises();
+                        } else {
+                            console.error('❌ window.atualizarAnalises não é uma função!');
                         }
-                    }, 200);
+                    }, 500); // Aumentado de 200ms para 500ms
                 }
                 
                 console.log('✅ Aba restaurada:', activeTab);
@@ -9841,7 +9903,8 @@ window.filtrarArtigosPorFamilia = filtrarArtigosPorFamilia;
 window.searchArtigos = searchArtigos;
 window.clearStockSearch = clearStockSearch;
 window.darBaixaRapida = darBaixaRapida;
-window.renderMovimentos = renderMovimentos;
+// ❌ REMOVIDO - Função foi substituída por renderMovimentosByArtigo()
+// window.renderMovimentos = renderMovimentos;
 window.editarMovimento = editarMovimento;
 window.eliminarMovimento = eliminarMovimento;
 window.openNovoMovimentoModal = openNovoMovimentoModal;
@@ -9854,6 +9917,9 @@ window.openNovoMovimentoModal = openNovoMovimentoModal;
 let chartPedidosPorSemana = null;
 let chartEvolucaoBacklog = null;
 let chartPedidosPorUtilizador = null;  // ✅ v3.7.0.9: NOVO gráfico
+
+// ✅ Período selecionado para gráfico por utilizador (em dias)
+let periodoUtilizadorSelecionado = 7; // Default: última semana
 
 // ===================================
 // FUNÇÕES DE PROCESSAMENTO DE DADOS
@@ -10038,24 +10104,24 @@ function calcularMetricasSemana(empresaFiltro = '') {
 }
 
 /**
- * ✅ v3.7.0.9: Processar pedidos fechados por utilizador (última semana)
+ * ✅ v3.7.0.9: Processar pedidos fechados por utilizador
+ * @param {string} empresaFiltro - Filtro por empresa
+ * @param {number} dias - Número de dias a considerar (7, 30, 180, 365)
  */
-function processarPedidosPorUtilizador(empresaFiltro = '') {
+function processarPedidosPorUtilizador(empresaFiltro = '', dias = 7) {
     const hoje = new Date();
-    const anoAtual = hoje.getFullYear();
-    const semanaAtual = getWeekNumber(hoje);
+    const dataLimite = new Date(hoje);
+    dataLimite.setDate(dataLimite.getDate() - dias);
     
     // Filtrar pedidos
     const pedidosFiltrados = empresaFiltro 
         ? AppState.requests.filter(r => r.empresa === empresaFiltro)
         : AppState.requests;
     
-    // Pedidos fechados esta semana
+    // Pedidos fechados no período
     const pedidosFechados = pedidosFiltrados.filter(p => {
         const data = new Date(p.dataHora);
-        return p.estado === 'Resolvido' && 
-               data.getFullYear() === anoAtual && 
-               getWeekNumber(data) === semanaAtual;
+        return p.estado === 'Resolvido' && data >= dataLimite;
     });
     
     // Contar por responsável
@@ -10082,15 +10148,24 @@ function processarPedidosPorUtilizador(empresaFiltro = '') {
  * Criar/atualizar gráfico de ordens de trabalho por semana
  */
 function renderizarGraficoPedidosPorSemana(dados) {
-    const ctx = document.getElementById('chartPedidosPorSemana');
-    if (!ctx) return;
-    
-    // Destruir gráfico anterior se existir
-    if (chartPedidosPorSemana) {
-        chartPedidosPorSemana.destroy();
-    }
-    
-    chartPedidosPorSemana = new Chart(ctx, {
+    try {
+        const ctx = document.getElementById('chartPedidosPorSemana');
+        if (!ctx) {
+            console.error('❌ Canvas chartPedidosPorSemana não encontrado!');
+            return;
+        }
+        
+        // Destruir gráfico anterior se existir
+        if (chartPedidosPorSemana) {
+            chartPedidosPorSemana.destroy();
+        }
+        
+        if (typeof Chart === 'undefined') {
+            console.error('❌ Chart.js não está carregado!');
+            return;
+        }
+        
+        chartPedidosPorSemana = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: dados.map(d => d.label),
@@ -10172,14 +10247,21 @@ function renderizarGraficoPedidosPorSemana(dados) {
             }
         }
     });
+    } catch (error) {
+        console.error('❌ Erro ao renderizar gráfico por semana:', error);
+    }
 }
 
 /**
  * Criar/atualizar gráfico de evolução do backlog
  */
 function renderizarGraficoEvolucaoBacklog(dados) {
-    const ctx = document.getElementById('chartEvolucaoBacklog');
-    if (!ctx) return;
+    try {
+        const ctx = document.getElementById('chartEvolucaoBacklog');
+        if (!ctx) {
+            console.error('❌ Canvas chartEvolucaoBacklog não encontrado!');
+            return;
+        }
     
     // Destruir gráfico anterior se existir
     if (chartEvolucaoBacklog) {
@@ -10266,14 +10348,21 @@ function renderizarGraficoEvolucaoBacklog(dados) {
             }
         }
     });
+    } catch (error) {
+        console.error('❌ Erro ao renderizar gráfico backlog:', error);
+    }
 }
 
 /**
  * ✅ v3.7.0.9: Criar/atualizar gráfico de ordens de trabalho fechadas por utilizador
  */
 function renderizarGraficoPedidosPorUtilizador(dados) {
-    const ctx = document.getElementById('chartPedidosPorUtilizador');
-    if (!ctx) return;
+    try {
+        const ctx = document.getElementById('chartPedidosPorUtilizador');
+        if (!ctx) {
+            console.error('❌ Canvas chartPedidosPorUtilizador não encontrado!');
+            return;
+        }
     
     // Destruir gráfico anterior se existir
     if (chartPedidosPorUtilizador) {
@@ -10352,6 +10441,9 @@ function renderizarGraficoPedidosPorUtilizador(dados) {
             }
         }
     });
+    } catch (error) {
+        console.error('❌ Erro ao renderizar gráfico por utilizador:', error);
+    }
 }
 
 /**
@@ -10393,36 +10485,72 @@ function atualizarCardsMetricas(metricas) {
  * Função principal para atualizar análises
  */
 window.atualizarAnalises = function() {
-    // Verificar se há pedidos
-    if (!AppState.requests || AppState.requests.length === 0) {
-        // Mostrar 0 nos cards se não houver dados
-        document.getElementById('abertosEstaSemana').textContent = '0';
-        document.getElementById('fechadosEstaSemana').textContent = '0';
-        document.getElementById('backlogTotal').textContent = '0';
-        return;
+    try {
+        // Verificar se há pedidos
+        if (!AppState.requests || AppState.requests.length === 0) {
+            // Mostrar 0 nos cards se não houver dados
+            document.getElementById('abertosEstaSemana').textContent = '0';
+            document.getElementById('fechadosEstaSemana').textContent = '0';
+            document.getElementById('backlogTotal').textContent = '0';
+            return;
+        }
+        
+        // Obter filtros
+        const empresaFiltro = document.getElementById('analiseEmpresaFilter')?.value || '';
+        const numSemanas = parseInt(document.getElementById('analisePeriodoFilter')?.value || '12');
+        
+        // Processar dados
+        const dadosPorSemana = processarDadosPorSemana(numSemanas, empresaFiltro);
+        const dadosBacklog = processarEvolucaoBacklog(numSemanas, empresaFiltro);
+        const dadosPorUtilizador = processarPedidosPorUtilizador(empresaFiltro, periodoUtilizadorSelecionado);
+        const metricas = calcularMetricasSemana(empresaFiltro);
+        
+        console.log('✅ Métricas calculadas:', metricas);
+        
+        // Renderizar gráficos
+        renderizarGraficoPedidosPorSemana(dadosPorSemana);
+        renderizarGraficoEvolucaoBacklog(dadosBacklog);
+        renderizarGraficoPedidosPorUtilizador(dadosPorUtilizador);
+        
+        // Atualizar métricas
+        atualizarCardsMetricas(metricas);
+        
+        showToast('✅ Análises atualizadas!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro em atualizarAnalises():', error);
+        showToast('❌ Erro ao atualizar análises: ' + error.message, 'error');
     }
+};
+
+/**
+ * ✅ Filtrar gráfico por utilizador por período
+ */
+window.filtrarPorUtilizadorPeriodo = function(dias) {
+    // Atualizar variável global
+    periodoUtilizadorSelecionado = dias;
     
-    // Obter filtros
+    // Atualizar botões ativos
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (parseInt(btn.getAttribute('data-period')) === dias) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Reprocessar dados e atualizar gráfico
     const empresaFiltro = document.getElementById('analiseEmpresaFilter')?.value || '';
-    const numSemanas = parseInt(document.getElementById('analisePeriodoFilter')?.value || '12');
-    
-    // Processar dados
-    const dadosPorSemana = processarDadosPorSemana(numSemanas, empresaFiltro);
-    const dadosBacklog = processarEvolucaoBacklog(numSemanas, empresaFiltro);
-    const dadosPorUtilizador = processarPedidosPorUtilizador(empresaFiltro);
-    const metricas = calcularMetricasSemana(empresaFiltro);
-    
-    console.log('✅ Métricas calculadas:', metricas);
-    
-    // Renderizar gráficos
-    renderizarGraficoPedidosPorSemana(dadosPorSemana);
-    renderizarGraficoEvolucaoBacklog(dadosBacklog);
+    const dadosPorUtilizador = processarPedidosPorUtilizador(empresaFiltro, dias);
     renderizarGraficoPedidosPorUtilizador(dadosPorUtilizador);
     
-    // Atualizar métricas
-    atualizarCardsMetricas(metricas);
-    
-    showToast('✅ Análises atualizadas!', 'success');
+    // Atualizar título do gráfico com período
+    const titulos = {
+        7: 'Última Semana',
+        30: 'Último Mês',
+        180: 'Últimos 6 Meses',
+        365: 'Último Ano'
+    };
+    console.log(`📊 Gráfico atualizado: ${titulos[dias]}`);
 };
 
 // ===================================
@@ -10577,8 +10705,9 @@ window.enviarPerguntaChatbot = async function() {
         
     } catch (error) {
         console.error('❌ Erro no chatbot:', error);
+        console.error('❌ URL:', CHATBOT_WORKER_URL);
         adicionarMensagemChat(
-            'Desculpa, ocorreu um erro ao processar a tua pergunta. Por favor, tenta novamente ou contacta o administrador.',
+            `Desculpa, ocorreu um erro ao comunicar com o servidor de IA.\n\n**Erro:** ${error.message}\n\nPor favor, verifica se o Cloudflare Worker está a funcionar ou contacta o administrador.`,
             'assistant'
         );
     } finally {
