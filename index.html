@@ -10600,9 +10600,16 @@ function mostrarChatbotStatus(mostrar = true) {
 
 /**
  * Preparar contexto dos dados para o chatbot
+ * ✅ v3.7.1.9 - CONTEXTO ADAPTATIVO (envia apenas dados relevantes à pergunta)
  */
-function prepararContextoDados() {
-    // Resumo das ordens de trabalho
+function prepararContextoDados(pergunta = '') {
+    const agora = new Date();
+    const umMesAtras = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const umaSemanaAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
+    // ===================================
+    // 1. RESUMO GERAL (sempre enviado)
+    // ===================================
     const totalPedidos = AppState.requests.length;
     const pedidosAbertos = AppState.requests.filter(p => p.estado !== 'Resolvido').length;
     const pedidosResolvidos = AppState.requests.filter(p => p.estado === 'Resolvido').length;
@@ -10617,9 +10624,14 @@ function prepararContextoDados() {
         tipos[p.tipo] = (tipos[p.tipo] || 0) + 1;
     });
     
-    // Por área/equipamento (top 10)
+    // Top áreas (últimos 30 dias)
+    const pedidosRecentes = AppState.requests.filter(p => {
+        const dataPedido = new Date(p.dataHora);
+        return dataPedido >= umMesAtras;
+    });
+    
     const areas = {};
-    AppState.requests.forEach(p => {
+    pedidosRecentes.forEach(p => {
         if (p.areaEquipamento) {
             areas[p.areaEquipamento] = (areas[p.areaEquipamento] || 0) + 1;
         }
@@ -10629,26 +10641,117 @@ function prepararContextoDados() {
         .slice(0, 10)
         .map(([area, count]) => `${area}: ${count} pedidos`);
     
+    // ===================================
+    // 2. CONTEXTO ADAPTATIVO (baseado na pergunta)
+    // ===================================
+    const perguntaLower = pergunta.toLowerCase();
+    let pedidosFiltrados = [];
+    let filtroAplicado = 'geral';
+    
+    // 🔍 Detectar EQUIPAMENTO/ÁREA específica
+    const equipamentosMencionados = Object.keys(areas).filter(area => 
+        perguntaLower.includes(area.toLowerCase())
+    );
+    
+    if (equipamentosMencionados.length > 0) {
+        // ✅ Filtrar por equipamento mencionado
+        pedidosFiltrados = AppState.requests.filter(p => 
+            equipamentosMencionados.some(eq => 
+                p.areaEquipamento && p.areaEquipamento.toLowerCase().includes(eq.toLowerCase())
+            )
+        ).slice(0, 30);  // Máximo 30 pedidos do equipamento
+        filtroAplicado = `equipamento: ${equipamentosMencionados.join(', ')}`;
+    }
+    // 🔍 Detectar EMPRESA (MCF ou PSY)
+    else if (perguntaLower.includes('mcf') && !perguntaLower.includes('psy')) {
+        pedidosFiltrados = AppState.requests
+            .filter(p => p.empresa === 'MCF')
+            .slice(0, 20);
+        filtroAplicado = 'empresa: MCF';
+    }
+    else if (perguntaLower.includes('psy') && !perguntaLower.includes('mcf')) {
+        pedidosFiltrados = AppState.requests
+            .filter(p => p.empresa === 'PSY')
+            .slice(0, 20);
+        filtroAplicado = 'empresa: PSY';
+    }
+    // 🔍 Detectar URGENTES
+    else if (perguntaLower.includes('urgente') || perguntaLower.includes('prioridade')) {
+        pedidosFiltrados = AppState.requests
+            .filter(p => p.urgente === 'Sim' || p.prioridade === 'Alta')
+            .slice(0, 20);
+        filtroAplicado = 'urgentes/prioridade alta';
+    }
+    // 🔍 Detectar PERÍODO (última semana, mês, etc.)
+    else if (perguntaLower.includes('última semana') || perguntaLower.includes('ultima semana')) {
+        pedidosFiltrados = AppState.requests
+            .filter(p => new Date(p.dataHora) >= umaSemanaAtras)
+            .slice(0, 30);
+        filtroAplicado = 'última semana';
+    }
+    else if (perguntaLower.includes('último mês') || perguntaLower.includes('ultimo mes')) {
+        pedidosFiltrados = pedidosRecentes.slice(0, 30);
+        filtroAplicado = 'último mês';
+    }
+    // 🔍 Detectar ABERTOS
+    else if (perguntaLower.includes('aberto') || perguntaLower.includes('pendente')) {
+        pedidosFiltrados = AppState.requests
+            .filter(p => p.estado !== 'Resolvido')
+            .slice(0, 20);
+        filtroAplicado = 'pedidos abertos';
+    }
+    // 🔍 Perguntas GERAIS (estatísticas)
+    else if (perguntaLower.includes('quantos') || perguntaLower.includes('total') || 
+             perguntaLower.includes('resumo') || perguntaLower.includes('geral')) {
+        // ✅ NÃO enviar pedidos detalhados, apenas estatísticas
+        pedidosFiltrados = [];
+        filtroAplicado = 'estatísticas apenas';
+    }
+    // 🔍 Default: últimos 10 pedidos (se nenhum filtro)
+    else {
+        pedidosFiltrados = AppState.requests
+            .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora))
+            .slice(0, 10);
+        filtroAplicado = 'últimos 10 pedidos';
+    }
+    
+    // Mapear campos mínimos
+    const pedidosParaEnviar = pedidosFiltrados.map(p => ({
+        id: p.id,
+        tipo: p.tipo,
+        area: p.areaEquipamento,
+        empresa: p.empresa,
+        estado: p.estado,
+        prioridade: p.prioridade,
+        urgente: p.urgente,
+        data: p.dataHora
+    }));
+    
+    console.log(`🤖 Contexto adaptativo: ${filtroAplicado} (${pedidosParaEnviar.length} pedidos)`);
+    
+    // ===================================
+    // 3. RETORNAR CONTEXTO
+    // ===================================
     return {
         resumo: {
             total: totalPedidos,
             abertos: pedidosAbertos,
             resolvidos: pedidosResolvidos,
             mcf: pedidosMCF,
-            psy: pedidosPSY
+            psy: pedidosPSY,
+            taxaResolucao: totalPedidos > 0 ? Math.round((pedidosResolvidos / totalPedidos) * 100) : 0
         },
         tipos,
         topAreas,
-        ultimosPedidos: AppState.requests
-            .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora))
-            .slice(0, 20)
-            .map(p => ({
-                tipo: p.tipo,
-                area: p.areaEquipamento,
-                empresa: p.empresa,
-                estado: p.estado,
-                data: p.dataHora
-            }))
+        // ✅ NOVO: Pedidos filtrados baseados na pergunta
+        pedidosRelevantes: pedidosParaEnviar,
+        filtroAplicado: filtroAplicado,
+        // Estatísticas do último mês
+        ultimoMes: {
+            total: pedidosRecentes.length,
+            abertos: pedidosRecentes.filter(p => p.estado !== 'Resolvido').length,
+            fechados: pedidosRecentes.filter(p => p.estado === 'Resolvido').length
+        }
     };
 }
 
@@ -10676,8 +10779,8 @@ window.enviarPerguntaChatbot = async function() {
     mostrarChatbotStatus(true);
     
     try {
-        // Preparar contexto dos dados
-        const contexto = prepararContextoDados();
+        // ✅ v3.7.1.9 - Preparar contexto ADAPTATIVO baseado na pergunta
+        const contexto = prepararContextoDados(pergunta);
         
         // 🚀 MODO PRODUÇÃO: IA Real com Gemini via Cloudflare Worker
         const response = await fetch(CHATBOT_WORKER_URL, {
