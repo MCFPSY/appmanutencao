@@ -1,8 +1,23 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.7.1.6
-    📅 Data: 2026-01-10
+    📦 Versão: v3.7.2.1
+    📅 Data: 2026-01-12
+    
+    🎯 v3.7.2.1: CORREÇÕES DE UX 🎨
+    ───────────────────────────────────────────────────────────
+    ✅ Botão de alertas otimizado (apenas ícone 🚨, mostra alertas ao clicar)
+    ✅ Filtro de equipamentos por empresa (MCF vs PSY)
+    ✅ Dropdown desabilitado até empresa ser selecionada
+    ✅ Componentes filtram por empresa E área
+    
+    🎯 v3.7.2.0: ALERTAS DE PRODUTIVIDADE 🚨
+    ───────────────────────────────────────────────────────────
+    ✅ Banner de alerta para Marco e Gonçalo se técnicos não fecharem OTs
+    ✅ Verificação automática no último dia útil (Segunda-Sábado)
+    ✅ Lógica: Segunda→Sábado, Terça-Sábado→dia anterior, Domingo→sem verificação
+    ✅ Alerta aparece 1x por dia, visual vermelho com botão "Entendido"
+    ✅ Logs detalhados no Console (F12) para debug
     
     🎯 v3.7.1.4: FIX CRÍTICO - ERRO renderMovimentos() BLOQUEAVA ANÁLISES 🐛
     ───────────────────────────────────────────────────────────
@@ -3449,6 +3464,33 @@
                 Manutenção
             </h1>
             <div class="header-actions">
+                <!-- 🚨 BOTÃO DE ALERTAS (SÓ ÍCONE) -->
+                <button 
+                    id="testarAlertasBtn" 
+                    onclick="mostrarAlertasPendentes()" 
+                    style="
+                        width: 40px;
+                        height: 40px;
+                        background: #ff6b6b;
+                        color: white;
+                        border: none;
+                        border-radius: 50%;
+                        cursor: pointer;
+                        font-size: 20px;
+                        display: none;
+                        align-items: center;
+                        justify-content: center;
+                        margin-right: 12px;
+                        transition: all 0.2s;
+                        box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+                    "
+                    onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 12px rgba(255, 107, 107, 0.5)';"
+                    onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(255, 107, 107, 0.3)';"
+                    title="Ver alertas de produtividade"
+                >
+                    🚨
+                </button>
+                
                 <div id="userInfo" class="user-info" style="display: none;">
                     <span class="user-name"></span>
                     <span class="user-dept"></span>
@@ -5334,7 +5376,9 @@ async function checkAuthentication() {
         try {
             const userData = JSON.parse(savedSession);
             console.log('✅ Sessão restaurada:', userData.username);
+            console.log('🚨 [DEBUG] userData completo:', userData);
             AppState.currentUser = userData;
+            console.log('🚨 [DEBUG] AppState.currentUser definido:', AppState.currentUser);
             showUserInterface();
             return true;
         } catch (e) {
@@ -5574,6 +5618,18 @@ function showUserInterface() {
         logoutBtn.style.display = 'flex';
     }
     
+    // 🧪 Mostrar botão de teste para Marco e Gonçalo
+    const testarAlertasBtn = document.getElementById('testarAlertasBtn');
+    if (testarAlertasBtn) {
+        const utilizadorNormalizado = AppState.currentUser.username.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const isMarcoOuGoncalo = utilizadorNormalizado === 'marco' || utilizadorNormalizado === 'goncalo';
+        
+        if (isMarcoOuGoncalo) {
+            testarAlertasBtn.style.display = 'block';
+            console.log('🧪 [DEBUG] Botão de teste de alertas ativado para', AppState.currentUser.username);
+        }
+    }
+    
     applyUserAutoFill();
     applyPermissions();
     
@@ -5807,7 +5863,15 @@ async function testarEquipamentos() {
         if (total > 0) {
             statusEl.textContent = `✅ ${total} equipamentos carregados!`;
             statusEl.style.color = '#4CAF50';
-            populateAreaEquipamento();
+            
+            // ✅ NÃO popular equipamentos automaticamente
+            // Aguardar utilizador selecionar empresa primeiro
+            const areaSelect = document.getElementById('areaEquipamento');
+            if (areaSelect) {
+                areaSelect.innerHTML = '<option value="">Escolha primeiro a empresa</option>';
+                areaSelect.disabled = true;
+            }
+            
             populateEquipamentoFilter();
         } else {
             statusEl.textContent = '❌ ERRO: Supabase retornou 0 equipamentos!';
@@ -5904,7 +5968,347 @@ async function initializeApp() {
     
     // ✅ CORREÇÃO: Restaurar aba ativa DEPOIS dos dados carregarem
     restoreActiveTab();
+    
+    // 🚨 ALERTAS DE PRODUTIVIDADE: Verificar se técnicos fecharam OTs ontem
+    // Aguardar um momento para garantir que AppState.currentUser está carregado
+    setTimeout(() => {
+        console.log('🚨 [DEBUG] AppState.currentUser antes de verificar alertas:', AppState.currentUser);
+        verificarAlertasDiarios();
+    }, 500);
 }
+
+// ===========================================
+// 🚨 SISTEMA DE ALERTAS DE PRODUTIVIDADE
+// ===========================================
+
+/**
+ * Calcular o último dia útil (Segunda a Sábado)
+ * @returns {Date|null} Data do último dia útil ou null se hoje for domingo
+ */
+function calcularUltimoDiaUtil() {
+    const hoje = new Date();
+    const diaDaSemana = hoje.getDay(); // 0=Domingo, 1=Segunda, ..., 6=Sábado
+    
+    // 🚫 Se hoje é DOMINGO (0), não alertar (sem produção)
+    if (diaDaSemana === 0) {
+        console.log('📅 Hoje é Domingo - SEM ALERTAS');
+        return null;
+    }
+    
+    // ✅ Se hoje é SEGUNDA-FEIRA (1), verificar SÁBADO
+    if (diaDaSemana === 1) {
+        const sabado = new Date(hoje);
+        sabado.setDate(hoje.getDate() - 2); // Sábado = Segunda - 2 dias
+        console.log('📅 Segunda-feira → Verificar Sábado:', sabado.toLocaleDateString('pt-PT'));
+        return sabado;
+    }
+    
+    // ✅ Terça a Sábado (2-6): verificar DIA ANTERIOR
+    const ontem = new Date(hoje);
+    ontem.setDate(hoje.getDate() - 1);
+    console.log('📅 Dia útil → Verificar ontem:', ontem.toLocaleDateString('pt-PT'));
+    return ontem;
+}
+
+/**
+ * Verificar se técnicos fecharam OTs no último dia útil
+ * Alertar Marco e Gonçalo se algum técnico não produziu
+ */
+async function verificarAlertasDiarios() {
+    console.log('🚨 [DEBUG] Iniciando verificação de alertas diários...');
+    
+    // 🔒 Apenas para Marco e Gonçalo (com ou sem cedilha)
+    // Usar 'username' em vez de 'name'
+    const utilizadorAtual = AppState.currentUser?.username || '';
+    console.log('🚨 [DEBUG] Utilizador atual:', utilizadorAtual);
+    
+    // Normalizar nome (remover acentos para comparação)
+    const utilizadorNormalizado = utilizadorAtual.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const isMarcoOuGoncalo = utilizadorNormalizado === 'marco' || utilizadorNormalizado === 'goncalo';
+    
+    if (!isMarcoOuGoncalo) {
+        console.log('🚨 [DEBUG] Utilizador não é Marco/Gonçalo - SEM ALERTAS');
+        return; // Não mostrar alertas para outros utilizadores
+    }
+    
+    console.log('✅ [DEBUG] Utilizador é Marco ou Gonçalo - CONTINUAR VERIFICAÇÃO');
+    
+    // 📅 Calcular último dia útil
+    const ultimoDiaUtil = calcularUltimoDiaUtil();
+    console.log('🚨 [DEBUG] Último dia útil calculado:', ultimoDiaUtil);
+    
+    if (!ultimoDiaUtil) {
+        console.log('🚨 [DEBUG] Hoje é Domingo - SEM VERIFICAÇÃO');
+        return; // Domingo - sem verificação
+    }
+    
+    // 🔄 Verificar se já foi alertado HOJE
+    const hoje = new Date().toISOString().split('T')[0];
+    const ultimaVerificacao = localStorage.getItem('ultima_verificacao_alertas');
+    
+    if (ultimaVerificacao === hoje) {
+        console.log('✅ Alertas já verificados hoje');
+        return; // Já foi alertado hoje
+    }
+    
+    // 🕐 Definir horário do dia útil (00:00:00 até 23:59:59)
+    const inicioDia = new Date(ultimoDiaUtil);
+    inicioDia.setHours(0, 0, 0, 0);
+    
+    const fimDia = new Date(ultimoDiaUtil);
+    fimDia.setHours(23, 59, 59, 999);
+    
+    console.log(`📊 Verificar OTs fechadas entre ${inicioDia.toLocaleString('pt-PT')} e ${fimDia.toLocaleString('pt-PT')}`);
+    
+    // 🔍 PRIMEIRO: Buscar TODOS os pedidos do Supabase
+    console.log('🔍 [DEBUG] Buscando todos os pedidos do Supabase...');
+    const todosPedidos = await window.SupabaseAPI.getPedidos();
+    
+    if (todosPedidos && todosPedidos.length > 0) {
+        const responsaveisUnicos = [...new Set(todosPedidos.map(p => p['Responsável']).filter(r => r))].sort();
+        console.log('🔍 [DEBUG] Responsáveis encontrados no Supabase:', responsaveisUnicos);
+    }
+    
+    // 👥 Técnicos a monitorizar
+    const tecnicos = ['Vítor', 'Alan', 'Paulo'];
+    console.log('👥 [DEBUG] Técnicos a verificar:', tecnicos);
+    const tecnicosSemProducao = [];
+    
+    // 🔍 Verificar cada técnico
+    for (const tecnico of tecnicos) {
+        try {
+            console.log(`🔎 [DEBUG] Verificando técnico: "${tecnico}"...`);
+            
+            // Filtrar pedidos do técnico, estado Resolvido e no período
+            const pedidosFiltrados = todosPedidos.filter(p => {
+                const dataPedido = new Date(p['Data/hora']);
+                return p['Responsável'] === tecnico &&
+                       p.Estado === 'Resolvido' &&
+                       dataPedido >= inicioDia &&
+                       dataPedido <= fimDia;
+            });
+            
+            const data = pedidosFiltrados;
+            const error = null;
+            
+            if (error) {
+                console.error(`❌ Erro ao verificar OTs de ${tecnico}:`, error);
+                continue;
+            }
+            
+            const totalOTsFechadas = data?.length || 0;
+            console.log(`📋 ${tecnico}: ${totalOTsFechadas} OT(s) fechadas`);
+            
+            // 🐛 [DEBUG] Mostrar OTs encontradas
+            if (data && data.length > 0) {
+                console.log(`   ↳ OTs de ${tecnico}:`, data.map(ot => ({
+                    id: ot.ID,
+                    responsavel: ot['Responsável'],
+                    estado: ot.Estado,
+                    data: new Date(ot['Data/hora']).toLocaleString('pt-PT')
+                })));
+            } else {
+                console.log(`   ↳ ${tecnico}: NENHUMA OT fechada no período!`);
+            }
+            
+            // 🚨 Se ZERO OTs fechadas, adicionar à lista
+            if (totalOTsFechadas === 0) {
+                tecnicosSemProducao.push(tecnico);
+            }
+            
+        } catch (err) {
+            console.error(`❌ Erro na verificação de ${tecnico}:`, err);
+        }
+    }
+    
+    // 🎯 Mostrar banner se houver técnicos sem produção
+    if (tecnicosSemProducao.length > 0) {
+        console.log('🚨 Técnicos sem produção:', tecnicosSemProducao);
+        mostrarBannerAlerta(tecnicosSemProducao, ultimoDiaUtil);
+        
+        // 💾 Guardar alertas pendentes
+        localStorage.setItem('alertas_pendentes', JSON.stringify({
+            tecnicos: tecnicosSemProducao,
+            data: ultimoDiaUtil.toISOString(),
+            timestamp: new Date().toISOString()
+        }));
+    } else {
+        console.log('✅ Todos os técnicos produziram OTs');
+    }
+    
+    // 🗓️ Marcar como verificado HOJE
+    localStorage.setItem('ultima_verificacao_alertas', hoje);
+}
+
+/**
+ * Mostrar banner de alerta no topo da página
+ * @param {string[]} tecnicos - Lista de técnicos sem produção
+ * @param {Date} dataReferencia - Data do último dia útil
+ */
+function mostrarBannerAlerta(tecnicos, dataReferencia) {
+    // 🗑️ Remover banner antigo (se existir)
+    const bannerAntigo = document.getElementById('bannerAlertaProducao');
+    if (bannerAntigo) {
+        bannerAntigo.remove();
+    }
+    
+    // 📅 Formatar data
+    const dataFormatada = dataReferencia.toLocaleDateString('pt-PT', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+    });
+    
+    // 🎨 Criar HTML do banner
+    const banner = document.createElement('div');
+    banner.id = 'bannerAlertaProducao';
+    banner.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+        color: white;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        z-index: 10000;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        animation: slideDown 0.3s ease-out;
+    `;
+    
+    // Adicionar animação CSS
+    if (!document.getElementById('alertaAnimationStyle')) {
+        const style = document.createElement('style');
+        style.id = 'alertaAnimationStyle';
+        style.textContent = `
+            @keyframes slideDown {
+                from {
+                    transform: translateY(-100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // 📝 Texto do alerta
+    const tecnicosTexto = tecnicos.length === 1 
+        ? tecnicos[0] 
+        : tecnicos.slice(0, -1).join(', ') + ' e ' + tecnicos[tecnicos.length - 1];
+    
+    const mensagem = tecnicos.length === 1
+        ? `${tecnicosTexto} não fechou nenhuma Ordem de Trabalho em ${dataFormatada}.`
+        : `${tecnicosTexto} não fecharam nenhuma Ordem de Trabalho em ${dataFormatada}.`;
+    
+    banner.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+            <div style="font-size: 24px;">⚠️</div>
+            <div>
+                <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px;">
+                    Alerta de Produtividade
+                </div>
+                <div style="font-size: 13px; opacity: 0.95;">
+                    ${mensagem}
+                </div>
+            </div>
+        </div>
+        <button 
+            onclick="fecharAlerta()" 
+            style="
+                background: rgba(255, 255, 255, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+                transition: all 0.2s;
+                backdrop-filter: blur(10px);
+            "
+            onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'"
+            onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'"
+        >
+            Entendido
+        </button>
+    `;
+    
+    // 📍 Inserir no início do body
+    document.body.insertBefore(banner, document.body.firstChild);
+    
+    // ⬇️ Ajustar padding do conteúdo principal
+    const mainContent = document.querySelector('.app-wrapper') || document.body;
+    const bannerHeight = banner.offsetHeight;
+    mainContent.style.paddingTop = `${bannerHeight + 20}px`;
+    
+    console.log('🚨 Banner de alerta exibido');
+}
+
+/**
+ * Fechar banner de alerta
+ */
+window.fecharAlerta = function() {
+    const banner = document.getElementById('bannerAlertaProducao');
+    if (banner) {
+        // Animação de saída
+        banner.style.animation = 'slideDown 0.3s ease-out reverse';
+        setTimeout(() => {
+            banner.remove();
+            // ⬆️ Remover padding do conteúdo principal
+            const mainContent = document.querySelector('.app-wrapper') || document.body;
+            mainContent.style.paddingTop = '';
+        }, 300);
+        
+        console.log('✅ Banner fechado');
+    }
+};
+
+/**
+ * Mostrar alertas pendentes (ao clicar no botão)
+ */
+window.mostrarAlertasPendentes = async function() {
+    console.log('🚨 Verificando alertas pendentes...');
+    
+    // Verificar se há alertas guardados
+    const alertasPendentes = localStorage.getItem('alertas_pendentes');
+    
+    if (alertasPendentes) {
+        try {
+            const alertasData = JSON.parse(alertasPendentes);
+            const dataAlerta = new Date(alertasData.data);
+            
+            console.log('🚨 Alertas pendentes encontrados:', alertasData);
+            
+            // Mostrar banner com alertas guardados
+            mostrarBannerAlerta(alertasData.tecnicos, dataAlerta);
+            
+        } catch (e) {
+            console.error('❌ Erro ao ler alertas pendentes:', e);
+        }
+    } else {
+        // Se não há alertas, forçar nova verificação
+        console.log('🔄 Sem alertas pendentes - forçando nova verificação...');
+        
+        // Limpar flag de verificação para forçar nova checagem
+        localStorage.removeItem('ultima_verificacao_alertas');
+        
+        // Fechar banner existente (se houver)
+        const bannerAntigo = document.getElementById('bannerAlertaProducao');
+        if (bannerAntigo) {
+            bannerAntigo.remove();
+        }
+        
+        // Forçar nova verificação
+        await verificarAlertasDiarios();
+    }
+};
 
 // EVENT LISTENERS
 function setupEventListeners() {
@@ -6031,22 +6435,49 @@ function setupEventListeners() {
     // ⚡ Event listeners para Equipamentos/Componentes
     const areaSelect = document.getElementById('areaEquipamento');
     const componenteSelect = document.getElementById('componente');
+    const empresaSelect = document.getElementById('empresa');
     
     if (areaSelect) {
         areaSelect.addEventListener('change', handleAreaEquipamentoChange);
         // ⚠️ NÃO popular aqui! Será populado DEPOIS de carregar do Supabase em syncWithSupabase()
     }
+    
+    // ✅ Event listener para EMPRESA → Filtrar equipamentos
+    if (empresaSelect) {
+        empresaSelect.addEventListener('change', (e) => {
+            const empresaSelecionada = e.target.value;
+            console.log('🏢 Empresa selecionada:', empresaSelecionada);
+            
+            if (empresaSelecionada) {
+                // Popular e habilitar dropdown de áreas/equipamentos
+                populateAreaEquipamento(empresaSelecionada);
+                if (areaSelect) {
+                    areaSelect.disabled = false;
+                }
+            } else {
+                // Se não houver empresa, limpar e desabilitar equipamentos
+                if (areaSelect) {
+                    areaSelect.innerHTML = '<option value="">Escolha primeiro a empresa</option>';
+                    areaSelect.disabled = true;
+                }
+                if (componenteSelect) {
+                    componenteSelect.innerHTML = '<option value="">Escolha primeiro a área/equipamento</option>';
+                    componenteSelect.disabled = true;
+                }
+            }
+        });
+    }
 }
 
-// ⚡ EQUIPAMENTOS - Popular dropdown de Áreas/Equipamentos
-function populateAreaEquipamento() {
+// ⚡ EQUIPAMENTOS - Popular dropdown de Áreas/Equipamentos (filtrado por empresa)
+function populateAreaEquipamento(empresaFiltro = null) {
     const areaSelect = document.getElementById('areaEquipamento');
     if (!areaSelect) {
         console.error('❌ Elemento areaEquipamento não encontrado!');
         return;
     }
     
-    console.log('🔄 populateAreaEquipamento chamado');
+    console.log('🔄 populateAreaEquipamento chamado - Empresa filtro:', empresaFiltro);
     console.log('📊 AppState.equipamentos:', AppState.equipamentos.length, 'registos');
     
     // Limpar opções existentes (exceto a primeira)
@@ -6057,8 +6488,20 @@ function populateAreaEquipamento() {
         return;
     }
     
-    // ✅ v3.7.0.9: Obter áreas únicas do Supabase
-    const areasUnicas = [...new Set(AppState.equipamentos.map(e => e.area))].sort();
+    // 🔍 Log primeiro equipamento para ver estrutura
+    if (AppState.equipamentos.length > 0) {
+        console.log('📋 Exemplo de equipamento:', AppState.equipamentos[0]);
+    }
+    
+    // ✅ Filtrar por empresa (se especificada)
+    let equipamentosFiltrados = AppState.equipamentos;
+    if (empresaFiltro) {
+        equipamentosFiltrados = AppState.equipamentos.filter(e => e.empresa === empresaFiltro);
+        console.log(`🏢 Equipamentos filtrados para ${empresaFiltro}:`, equipamentosFiltrados.length);
+    }
+    
+    // ✅ Obter áreas únicas
+    const areasUnicas = [...new Set(equipamentosFiltrados.map(e => e.area))].sort();
     console.log('📋 Áreas únicas extraídas:', areasUnicas);
     
     areasUnicas.forEach(area => {
@@ -6069,12 +6512,20 @@ function populateAreaEquipamento() {
     });
     
     console.log('✅ Áreas/Equipamentos populadas:', areasUnicas.length);
+    
+    // Limpar componente também
+    const componenteSelect = document.getElementById('componente');
+    if (componenteSelect) {
+        componenteSelect.innerHTML = '<option value="">Escolha primeiro a área/equipamento</option>';
+        componenteSelect.disabled = true;
+    }
 }
 
 // ⚡ EQUIPAMENTOS - Filtrar componentes ao escolher área
 function handleAreaEquipamentoChange(e) {
     const areaSelected = e.target.value;
     const componenteSelect = document.getElementById('componente');
+    const empresaSelect = document.getElementById('empresa');
     
     if (!componenteSelect) return;
     
@@ -6085,10 +6536,18 @@ function handleAreaEquipamentoChange(e) {
         return;
     }
     
-    // ✅ v3.7.0.9: Obter componentes da área selecionada do Supabase
-    const componentes = AppState.equipamentos
-        .filter(e => e.area === areaSelected)
-        .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    // Obter empresa selecionada
+    const empresaSelecionada = empresaSelect?.value || null;
+    
+    // ✅ Filtrar por área E empresa
+    let componentes = AppState.equipamentos.filter(e => e.area === areaSelected);
+    
+    // Se houver empresa selecionada, filtrar também por ela
+    if (empresaSelecionada) {
+        componentes = componentes.filter(e => e.empresa === empresaSelecionada);
+    }
+    
+    componentes.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
     
     // Limpar e popular dropdown de componentes
     componenteSelect.innerHTML = '<option value="">Selecione o componente</option>';
@@ -6103,7 +6562,7 @@ function handleAreaEquipamentoChange(e) {
     // Habilitar dropdown
     componenteSelect.disabled = false;
     
-    console.log('⚡ Componentes filtrados para "' + areaSelected + '":', componentes.length);
+    console.log(`⚡ Componentes filtrados para "${areaSelected}" (Empresa: ${empresaSelecionada}):`, componentes.length);
 }
 
 function handleTabChange(e) {
@@ -7305,9 +7764,15 @@ async function syncWithSupabase() {
         atualizarPainelDebug();
         
         // ✅ v3.7.0.9: Popular dropdowns DEPOIS de carregar equipamentos
-        populateAreaEquipamento();
+        // ✅ NÃO popular área/equipamento automaticamente - aguardar empresa ser selecionada
+        const areaSelect = document.getElementById('areaEquipamento');
+        if (areaSelect) {
+            areaSelect.innerHTML = '<option value="">Escolha primeiro a empresa</option>';
+            areaSelect.disabled = true;
+        }
+        
         populateEquipamentoFilter();
-        console.log('✅ Dropdowns de equipamentos populados');
+        console.log('✅ Dropdowns de equipamentos configurados (aguardando seleção de empresa)');
         
         // Guardar localmente
         saveToLocalStorage();
