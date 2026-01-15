@@ -7627,7 +7627,14 @@ async function extractTextFromPDF(file, progressCallback = null) {
         const chunks = dividirEmSeccoes(textoCompleto, pdf.numPages);
         
         // Converter chunks para o formato esperado pela API do Supabase
+        console.log(`🔍 [DEBUG] Chunks retornados:`, chunks.length);
         chunks.forEach((chunk, idx) => {
+            console.log(`🔍 [DEBUG] Chunk ${idx + 1}:`, {
+                titulo: chunk.titulo,
+                textoLength: chunk.texto?.length || 0,
+                temTexto: !!chunk.texto
+            });
+            
             secoes.push({
                 secao: chunk.titulo,                // Título do capítulo
                 conteudo: chunk.texto,              // Texto completo do capítulo
@@ -7733,13 +7740,19 @@ async function processarManual(equipamento, titulo, descricao, file) {
             // Gerar embedding se estiver ativado
             let embedding = null;
             if (USE_EMBEDDINGS && OPENAI_API_KEY && OPENAI_API_KEY !== 'sk-proj-...') {
-                try {
-                    console.log(`🧠 [EMBEDDING] Gerando embedding para: "${secao.secao}"`);
-                    embedding = await gerarEmbedding(secao.conteudo);  // 🆕 v3.7.6.10: Usar "conteudo" (não "texto")
-                    console.log(`✅ [EMBEDDING] Embedding gerado (${embedding.length} dimensões)`);
-                } catch (error) {
-                    console.error('⚠️ [EMBEDDING] Erro ao gerar embedding:', error);
-                    // Continuar sem embedding
+                // 🆕 v3.7.6.10: Validar que conteudo existe
+                if (!secao.conteudo) {
+                    console.error(`❌ [EMBEDDING] Secção ${i + 1} SEM CONTEÚDO! Secao:`, secao.secao);
+                    console.error(`❌ [DEBUG] Objeto secao completo:`, secao);
+                } else {
+                    try {
+                        console.log(`🧠 [EMBEDDING] Gerando embedding para: "${secao.secao}" (${secao.conteudo.length} chars)`);
+                        embedding = await gerarEmbedding(secao.conteudo);  // 🆕 v3.7.6.10: Usar "conteudo" (não "texto")
+                        console.log(`✅ [EMBEDDING] Embedding gerado (${embedding.length} dimensões)`);
+                    } catch (error) {
+                        console.error('⚠️ [EMBEDDING] Erro ao gerar embedding:', error);
+                        // Continuar sem embedding
+                    }
                 }
             }
             
