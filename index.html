@@ -13364,6 +13364,9 @@ window.enviarPerguntaChatbot = async function() {
         
         const data = await response.json();
         
+        // 🆕 v3.7.6.10: Debug - ver o que veio do Worker
+        console.log('🔍 [DEBUG] Resposta do Worker:', data);
+        
         // 🆕 v3.7.6.10: Mostrar logs de debug do Worker
         if (data.debug_logs) {
             console.log('🔍 [WORKER DEBUG LOGS]:');
@@ -13372,6 +13375,11 @@ window.enviarPerguntaChatbot = async function() {
         
         if (data.erro) {
             throw new Error(data.erro);
+        }
+        
+        if (!data.resposta) {
+            console.error('❌ Resposta do Worker não contém "resposta":', data);
+            throw new Error('Resposta inválida do servidor: campo "resposta" ausente');
         }
         
         adicionarMensagemChat(data.resposta, 'assistant');
@@ -13496,3 +13504,4 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
+
