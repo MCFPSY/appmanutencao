@@ -7609,36 +7609,36 @@ async function extractTextFromPDF(file, progressCallback = null) {
                 }
             }
             
+            // 🆕 v3.7.6.10: Re-criar textoCompleto COM as URLs das imagens
+            textoCompleto = '';
+            for (let p = 1; p <= pdf.numPages; p++) {
+                if (textosPorPagina[p]) {
+                    textoCompleto += textosPorPagina[p] + '\n\n';
+                }
+            }
+            console.log('✅ [CHUNKING] Texto completo atualizado com URLs de imagens');
+            
         } else {
             console.log('✅ Texto nativo extraído com sucesso (PDF não escaneado)');
         }
         
-        // PASSO 3: Criar secções (cada 3 páginas)
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-            if (pageNum % 3 === 0 || pageNum === pdf.numPages) {
-                const inicio = Math.max(1, pageNum - 2);
-                const fim = pageNum;
-                const tituloSecao = `Páginas ${inicio}-${fim}`;
-                
-                // Juntar texto das páginas desta secção
-                let textoSecao = '';
-                for (let p = inicio; p <= fim; p++) {
-                    if (textosPorPagina[p]) {
-                        textoSecao += textosPorPagina[p] + '\n\n';
-                    }
-                }
-                
-                if (textoSecao.trim()) {
-                    secoes.push({
-                        pagina_inicio: inicio,
-                        pagina_fim: fim,
-                        secao: tituloSecao,
-                        conteudo: textoSecao.trim(),
-                        ordem: secoes.length + 1
-                    });
-                }
-            }
-        }
+        // PASSO 3: 🆕 v3.7.6.10 - Dividir texto em chunks inteligentes (por capítulos)
+        console.log('🧠 [CHUNKING] Iniciando divisão inteligente do manual...');
+        const chunks = dividirEmSeccoes(textoCompleto, pdf.numPages);
+        
+        // Converter chunks para o formato esperado pela API do Supabase
+        chunks.forEach((chunk, idx) => {
+            secoes.push({
+                secao: chunk.titulo,                // Título do capítulo
+                conteudo: chunk.texto,              // Texto completo do capítulo
+                pagina_inicio: chunk.paginaInicio,  // Página estimada
+                pagina_fim: chunk.paginaFim,        // Página estimada
+                palavras_chave: chunk.palavrasChave, // Keywords extraídas
+                ordem: idx + 1
+            });
+        });
+        
+        console.log(`✅ [CHUNKING] ${secoes.length} chunks criados com sucesso!`);
         
         console.log(`✅ Texto extraído: ${textoCompleto.length} caracteres, ${secoes.length} secções`);
         console.log(`📊 Método usado: ${usouOCR ? 'OCR (Tesseract.js)' : 'Texto nativo (PDF.js)'}`);
@@ -7734,8 +7734,8 @@ async function processarManual(equipamento, titulo, descricao, file) {
             let embedding = null;
             if (USE_EMBEDDINGS && OPENAI_API_KEY && OPENAI_API_KEY !== 'sk-proj-...') {
                 try {
-                    console.log(`🧠 [EMBEDDING] Gerando embedding para: "${secao.titulo}"`);
-                    embedding = await gerarEmbedding(secao.texto);
+                    console.log(`🧠 [EMBEDDING] Gerando embedding para: "${secao.secao}"`);
+                    embedding = await gerarEmbedding(secao.conteudo);  // 🆕 v3.7.6.10: Usar "conteudo" (não "texto")
                     console.log(`✅ [EMBEDDING] Embedding gerado (${embedding.length} dimensões)`);
                 } catch (error) {
                     console.error('⚠️ [EMBEDDING] Erro ao gerar embedding:', error);
@@ -7782,6 +7782,11 @@ async function gerarEmbedding(texto) {
     // Validar API key
     if (!OPENAI_API_KEY || OPENAI_API_KEY === 'sk-proj-...') {
         throw new Error('OPENAI_API_KEY não configurada! Insira sua chave na linha ~12888');
+    }
+    
+    // 🆕 v3.7.6.10: Validar que texto não é undefined/null
+    if (!texto || typeof texto !== 'string') {
+        throw new Error(`gerarEmbedding() recebeu texto inválido: ${typeof texto}`);
     }
     
     // Limitar tamanho do texto (OpenAI tem limite de ~8000 tokens)
@@ -12966,7 +12971,7 @@ const CHATBOT_WORKER_URL = 'https://chatbot-manutencao.goncalobarata.workers.dev
  * 
  * ROLLBACK: Comente estas linhas e mude USE_EMBEDDINGS para false
  */
-const OPENAI_API_KEY = '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'; // ✅ API Key configurada!
+const OPENAI_API_KEY = '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'; // ✅ v3.7.6.10
 const OPENAI_EMBEDDINGS_MODEL = 'text-embedding-3-small'; // Modelo mais barato
 const USE_EMBEDDINGS = true; // 🔄 ROLLBACK: Mude para false para desativar embeddings
 
