@@ -7770,6 +7770,10 @@ async function processarManual(equipamento, titulo, descricao, file) {
             processado: true
         });
         
+        // 7. 🆕 v3.7.6.10: Recarregar manuais em background para o chatbot
+        console.log('🔄 Recarregando manuais para o chatbot...');
+        await carregarManuaisBackground();
+        
         setProgress('✅ Concluído!', 100);
         
         return manual;
@@ -7870,7 +7874,15 @@ async function carregarManuaisBackground() {
             AppState.manuaisConteudo = {};
             for (let i = 0; i < Math.min(5, manuais.length); i++) {
                 const m = manuais[i];
+                console.log(`🔍 [DEBUG] Carregando conteúdo do manual: ${m.titulo} (${m.id})`);
                 const conteudo = await window.SupabaseAPI.getConteudoManual(m.id);
+                console.log(`🔍 [DEBUG] Conteúdo recebido:`, conteudo.length, 'secções');
+                if (conteudo.length > 0) {
+                    console.log(`🔍 [DEBUG] Primeira secção:`, {
+                        secao: conteudo[0].secao,
+                        conteudoLength: conteudo[0].conteudo?.length || 0
+                    });
+                }
                 AppState.manuaisConteudo[m.id] = conteudo;
             }
             console.log(`📚 Conteúdo de ${Object.keys(AppState.manuaisConteudo).length} manuais carregado`);
@@ -12986,7 +12998,7 @@ const CHATBOT_WORKER_URL = 'https://chatbot-manutencao.goncalobarata.workers.dev
  */
 const OPENAI_API_KEY = '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'; // ✅ v3.7.6.10
 const OPENAI_EMBEDDINGS_MODEL = 'text-embedding-3-small'; // Modelo mais barato
-const USE_EMBEDDINGS = true; // 🔄 ROLLBACK: Mude para false para desativar embeddings
+const USE_EMBEDDINGS = false; // 🔄 v3.7.6.10: DESATIVADO (API key com erro 401)
 
 /**
  * Adicionar mensagem ao histórico do chat
@@ -13275,24 +13287,32 @@ function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
     
     // Se encontrou manuais relevantes, incluir secções de conteúdo
     if (manuaisRelevantes.length > 0) {
+        console.log(`🔍 [DEBUG-CHATBOT] Manuais relevantes encontrados:`, manuaisRelevantes.length);
+        console.log(`🔍 [DEBUG-CHATBOT] AppState.manuaisConteudo keys:`, Object.keys(AppState.manuaisConteudo || {}));
+        
         return {
             disponivel: true,
             quantidade: manuaisRelevantes.length,
-            manuais: manuaisRelevantes.map(m => ({
-                id: m.id,
-                equipamento: m.equipamento_nome,
-                titulo: m.titulo,
-                descricao: m.descricao,
-                num_paginas: m.num_paginas,
-                // Incluir conteúdo se estiver disponível
-                conteudo: AppState.manuaisConteudo && AppState.manuaisConteudo[m.id] 
-                    ? AppState.manuaisConteudo[m.id].map(s => ({
-                        titulo: s.secao,  // SQL usa 'secao' não 'titulo'
-                        paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
-                        texto: s.conteudo  // 🆕 v3.7.6.9.3: Enviar conteúdo COMPLETO (não cortar!)
-                    }))
-                    : []
-            }))
+            manuais: manuaisRelevantes.map(m => {
+                const temConteudo = AppState.manuaisConteudo && AppState.manuaisConteudo[m.id];
+                console.log(`🔍 [DEBUG-CHATBOT] Manual ${m.titulo} (${m.id}): tem conteúdo? ${!!temConteudo}, secções: ${temConteudo?.length || 0}`);
+                
+                return {
+                    id: m.id,
+                    equipamento: m.equipamento_nome,
+                    titulo: m.titulo,
+                    descricao: m.descricao,
+                    num_paginas: m.num_paginas,
+                    // Incluir conteúdo se estiver disponível
+                    conteudo: temConteudo
+                        ? AppState.manuaisConteudo[m.id].map(s => ({
+                            titulo: s.secao,  // SQL usa 'secao' não 'titulo'
+                            paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
+                            texto: s.conteudo  // 🆕 v3.7.6.9.3: Enviar conteúdo COMPLETO (não cortar!)
+                        }))
+                        : []
+                };
+            })
         };
     }
     
@@ -13470,3 +13490,4 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
+
