@@ -13015,6 +13015,9 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     
     // 🆕 v3.7.6.0: Detectar e renderizar imagens de tabelas/diagramas
     // Formato: 📊 [TABLE 1]: https://...url.../page_049_table_00.png
+    console.log('🔍 [DEBUG-CHAT] Mensagem recebida (primeiros 300 chars):', mensagem.substring(0, 300));
+    console.log('🔍 [DEBUG-CHAT] Procurando por URLs de imagens...');
+    
     const imageRegex = /([📊🖼️])\s*\[(TABLE|DIAGRAM)\s+\d+\]:\s*(https?:\/\/[^\s]+)/gi;
     const imagesFound = [];
     let mensagemSemImagens = mensagem;
@@ -13022,10 +13025,13 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     let match;
     while ((match = imageRegex.exec(mensagem)) !== null) {
         const [fullMatch, emoji, type, url] = match;
+        console.log('✅ [DEBUG-CHAT] Imagem encontrada:', { emoji, type, url });
         imagesFound.push({ emoji, type, url, fullMatch });
         // Remover referência de imagem do texto principal
         mensagemSemImagens = mensagemSemImagens.replace(fullMatch, '');
     }
+    
+    console.log('📊 [DEBUG-CHAT] Total de imagens encontradas:', imagesFound.length);
     
     // Suportar markdown básico (negrito, itálico, listas)
     let htmlContent = mensagemSemImagens
