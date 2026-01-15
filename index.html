@@ -6431,12 +6431,11 @@ async function verificarAlertasDiarios() {
             console.log(`🔎 [DEBUG] Verificando técnico: "${tecnico}"...`);
             
             // Filtrar pedidos do técnico, estado Resolvido e no período
-            // 🆕 v3.7.6.9.3: Usar APENAS "Fechado Por" (SEM FALLBACK!)
+            // 🆕 v3.7.6.9: Usar "Fechado Por" em vez de "Responsável"
             // Responsável = quem iniciou/foi alocado | Fechado Por = quem realmente fechou
             const pedidosFiltrados = todosPedidos.filter(p => {
                 const dataPedido = new Date(p['Data/hora']);
-                // ✅ APENAS "Fechado Por" - ignorar OTs antigas sem este campo
-                return p['Fechado Por'] === tecnico &&
+                return (p['Fechado Por'] === tecnico || (!p['Fechado Por'] && p['Responsável'] === tecnico)) &&
                        p.Estado === 'Resolvido' &&
                        dataPedido >= inicioDia &&
                        dataPedido <= fimDia;
@@ -6710,13 +6709,96 @@ async function extrairTextoDoPDF(pdfUrl) {
     return { textoCompleto, numPaginas };
 }
 
+// ============================================
+// 🆕 v3.7.6.10: CHUNKING INTELIGENTE POR CAPÍTULOS
+// ============================================
+
 /**
- * Dividir texto em secções baseado em keywords e estrutura
+ * 🆕 v3.7.6.10: Dividir texto em chunks por capítulos (mais inteligente)
+ * ROLLBACK: Use dividirEmSeccoesLegacy() se precisar voltar ao comportamento antigo
+ * 
+ * @param {string} texto - Texto completo do manual
+ * @param {number} numPaginas - Número total de páginas
+ * @returns {Array} Array de chunks por capítulo
+ */
+function dividirEmSeccoesInteligente(texto, numPaginas) {
+    console.log('🧠 [CHUNKING] Iniciando divisão inteligente por capítulos...');
+    
+    const chunks = [];
+    
+    // Regex para detectar capítulos (diversos formatos)
+    const regexCapitulos = [
+        /^Capítulo\s+(\d+[\.\:]?\s*[-–—]?\s*.+)$/gim,           // Capítulo 8 - Manutenção
+        /^CAPÍTULO\s+(\d+[\.\:]?\s*[-–—]?\s*.+)$/gim,           // CAPÍTULO 8 - MANUTENÇÃO
+        /^Cap\.\s*(\d+[\.\:]?\s*[-–—]?\s*.+)$/gim,              // Cap. 8 - Manutenção
+        /^(\d+)\.\s+([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][A-ZÁÀÂÃÉÊÍÓÔÕÚÇa-záàâãéêíóôõúç\s]{3,})$/gm, // 8. MANUTENÇÃO
+        /^(\d+\.\d+)\.\s+([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ].+)$/gm              // 8.1. Lubrificação
+    ];
+    
+    // Tentar encontrar capítulos com cada regex
+    let matches = [];
+    for (const regex of regexCapitulos) {
+        const found = [...texto.matchAll(regex)];
+        if (found.length > 0) {
+            matches = found;
+            console.log(`✅ [CHUNKING] Encontrados ${found.length} capítulos com padrão:`, regex.source.substring(0, 50));
+            break;
+        }
+    }
+    
+    // Se não encontrou capítulos, usar divisão por páginas
+    if (matches.length === 0) {
+        console.log('⚠️ [CHUNKING] Nenhum capítulo detectado, usando divisão por páginas...');
+        return dividirEmSeccoesLegacy(texto, numPaginas);
+    }
+    
+    // Dividir texto por capítulos
+    for (let i = 0; i < matches.length; i++) {
+        const match = matches[i];
+        const nextMatch = matches[i + 1];
+        
+        const tituloCapitulo = match[0].trim();
+        const posicaoInicio = match.index;
+        const posicaoFim = nextMatch ? nextMatch.index : texto.length;
+        
+        const conteudoCapitulo = texto.substring(posicaoInicio, posicaoFim).trim();
+        
+        // Estimar páginas baseado na posição no texto
+        const percentualInicio = posicaoInicio / texto.length;
+        const percentualFim = posicaoFim / texto.length;
+        const paginaInicio = Math.max(1, Math.floor(percentualInicio * numPaginas));
+        const paginaFim = Math.min(numPaginas, Math.ceil(percentualFim * numPaginas));
+        
+        // Extrair palavras-chave do título
+        const palavrasChave = tituloCapitulo
+            .toLowerCase()
+            .replace(/[^\wáàâãéêíóôõúç\s]/g, '')
+            .split(/\s+/)
+            .filter(p => p.length > 3);
+        
+        chunks.push({
+            titulo: tituloCapitulo,
+            texto: conteudoCapitulo,
+            paginaInicio: paginaInicio,
+            paginaFim: paginaFim,
+            palavrasChave: palavrasChave
+        });
+        
+        console.log(`  📄 [CHUNKING] Chunk ${i + 1}: "${tituloCapitulo}" (Págs ${paginaInicio}-${paginaFim}, ${conteudoCapitulo.length} chars)`);
+    }
+    
+    console.log(`✅ [CHUNKING] ${chunks.length} chunks criados com sucesso!`);
+    return chunks;
+}
+
+/**
+ * 🔄 LEGACY: Dividir texto em secções baseado em keywords e estrutura
+ * Mantida para rollback se chunking inteligente não funcionar
  * @param {string} texto - Texto completo do manual
  * @param {number} numPaginas - Número total de páginas
  * @returns {Array} Array de secções
  */
-function dividirEmSeccoes(texto, numPaginas) {
+function dividirEmSeccoesLegacy(texto, numPaginas) {
     const seccoes = [];
     const linhas = texto.split('\n');
     
@@ -6801,6 +6883,22 @@ function dividirEmSeccoes(texto, numPaginas) {
         ...s,
         texto: s.texto.substring(0, 5000)
     }));
+}
+
+/**
+ * 🆕 v3.7.6.10: Wrapper - Escolhe entre chunking inteligente ou legacy
+ * Para DESATIVAR chunking inteligente, mude USE_CHUNKING_INTELIGENTE para false
+ */
+const USE_CHUNKING_INTELIGENTE = true; // 🔄 ROLLBACK: Mude para false
+
+function dividirEmSeccoes(texto, numPaginas) {
+    if (USE_CHUNKING_INTELIGENTE) {
+        console.log('🧠 Usando chunking INTELIGENTE (v3.7.6.10)');
+        return dividirEmSeccoesInteligente(texto, numPaginas);
+    } else {
+        console.log('🔄 Usando chunking LEGACY (antigo)');
+        return dividirEmSeccoesLegacy(texto, numPaginas);
+    }
 }
 
 // ========================================
@@ -7622,10 +7720,34 @@ async function processarManual(equipamento, titulo, descricao, file) {
         
         // 5. Inserir secções de conteúdo
         setProgress('A processar conteúdo...', 70);
-        for (const secao of secoes) {
+        
+        // 🆕 v3.7.6.10: Gerar embeddings para cada secção
+        const totalSeccoes = secoes.length;
+        for (let i = 0; i < totalSeccoes; i++) {
+            const secao = secoes[i];
+            
+            // Atualizar progresso
+            const progressoSecao = 70 + (i / totalSeccoes) * 15; // 70% -> 85%
+            setProgress(`A processar secção ${i + 1}/${totalSeccoes}...`, Math.round(progressoSecao));
+            
+            // Gerar embedding se estiver ativado
+            let embedding = null;
+            if (USE_EMBEDDINGS && OPENAI_API_KEY && OPENAI_API_KEY !== 'sk-proj-...') {
+                try {
+                    console.log(`🧠 [EMBEDDING] Gerando embedding para: "${secao.titulo}"`);
+                    embedding = await gerarEmbedding(secao.texto);
+                    console.log(`✅ [EMBEDDING] Embedding gerado (${embedding.length} dimensões)`);
+                } catch (error) {
+                    console.error('⚠️ [EMBEDDING] Erro ao gerar embedding:', error);
+                    // Continuar sem embedding
+                }
+            }
+            
+            // Salvar secção (com ou sem embedding)
             await window.SupabaseAPI.addConteudoManual({
                 manual_id: manual.id,
-                ...secao
+                ...secao,
+                embedding: embedding  // 🆕 Pode ser null se embeddings desativados
             });
         }
         
@@ -7641,6 +7763,61 @@ async function processarManual(equipamento, titulo, descricao, file) {
         
     } catch (error) {
         console.error('❌ Erro ao processar manual:', error);
+        throw error;
+    }
+}
+
+// ============================================
+// 🆕 v3.7.6.10: FUNÇÃO GERAR EMBEDDINGS
+// ============================================
+
+/**
+ * Gerar embedding de um texto usando OpenAI API
+ * ROLLBACK: Comente esta função se USE_EMBEDDINGS = false
+ * 
+ * @param {string} texto - Texto para gerar embedding
+ * @returns {Promise<Array<number>>} - Array de 1536 números (embedding)
+ */
+async function gerarEmbedding(texto) {
+    // Validar API key
+    if (!OPENAI_API_KEY || OPENAI_API_KEY === 'sk-proj-...') {
+        throw new Error('OPENAI_API_KEY não configurada! Insira sua chave na linha ~12888');
+    }
+    
+    // Limitar tamanho do texto (OpenAI tem limite de ~8000 tokens)
+    // 1 token ≈ 4 caracteres, então ~30000 caracteres é seguro
+    const textoLimitado = texto.substring(0, 30000);
+    
+    console.log(`🧠 [EMBEDDING] Texto: ${textoLimitado.length} chars`);
+    
+    try {
+        const response = await fetch('https://api.openai.com/v1/embeddings', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                input: textoLimitado,
+                model: OPENAI_EMBEDDINGS_MODEL
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('❌ [EMBEDDING] Erro da OpenAI:', errorData);
+            throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        }
+        
+        const data = await response.json();
+        const embedding = data.data[0].embedding;
+        
+        console.log(`✅ [EMBEDDING] Sucesso! Embedding: [${embedding[0].toFixed(4)}, ${embedding[1].toFixed(4)}, ..., ${embedding[1535].toFixed(4)}]`);
+        
+        return embedding;
+        
+    } catch (error) {
+        console.error('❌ [EMBEDDING] Erro ao gerar embedding:', error);
         throw error;
     }
 }
@@ -12222,16 +12399,12 @@ function processarPedidosPorUtilizador(empresaFiltro = '', dias = 7) {
         return p.estado === 'Resolvido' && data >= dataLimite;
     });
     
-    // 🆕 v3.7.6.9.2: Contar APENAS por quem FECHOU (campo "Fechado Por")
+    // 🆕 v3.7.6.9: Contar por quem FECHOU (não por quem foi alocado)
     const porUtilizador = {};
     pedidosFechados.forEach(p => {
-        // APENAS campo "Fechado Por" - sem fallback
-        const quemFechou = p.fechadoPor;
-        
-        // Só contar se tiver o campo preenchido
-        if (quemFechou) {
-            porUtilizador[quemFechou] = (porUtilizador[quemFechou] || 0) + 1;
-        }
+        // Prioridade 1: Fechado Por | Fallback: Responsável (OTs antigas)
+        const quemFechou = p.fechadoPor || p.responsavel || 'Sem responsável';
+        porUtilizador[quemFechou] = (porUtilizador[quemFechou] || 0) + 1;
     });
     
     // Converter para array e ordenar
@@ -12782,6 +12955,21 @@ window.filtrarPorUtilizadorPeriodo = function(dias) {
 // URL do Cloudflare Worker (será configurado depois)
 const CHATBOT_WORKER_URL = 'https://chatbot-manutencao.goncalobarata.workers.dev/chat';
 
+// ============================================
+// 🆕 v3.7.6.10: CONFIGURAÇÃO OPENAI EMBEDDINGS
+// ============================================
+
+/**
+ * 🔐 API Key da OpenAI para gerar embeddings
+ * IMPORTANTE: Esta é uma chave de DESENVOLVIMENTO
+ * Para PRODUÇÃO, deve estar no Cloudflare Worker (server-side)
+ * 
+ * ROLLBACK: Comente estas linhas e mude USE_EMBEDDINGS para false
+ */
+const OPENAI_API_KEY = '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'; // ✅ API Key configurada!
+const OPENAI_EMBEDDINGS_MODEL = 'text-embedding-3-small'; // Modelo mais barato
+const USE_EMBEDDINGS = true; // 🔄 ROLLBACK: Mude para false para desativar embeddings
+
 /**
  * Adicionar mensagem ao histórico do chat
  */
@@ -13083,7 +13271,7 @@ function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
                     ? AppState.manuaisConteudo[m.id].map(s => ({
                         titulo: s.secao,  // SQL usa 'secao' não 'titulo'
                         paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
-                        texto: s.conteudo.substring(0, 1000)  // SQL usa 'conteudo' não 'texto'
+                        texto: s.conteudo  // 🆕 v3.7.6.9.3: Enviar conteúdo COMPLETO (não cortar!)
                     }))
                     : []
             }))
@@ -13264,4 +13452,3 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
-
