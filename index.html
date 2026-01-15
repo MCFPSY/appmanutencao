@@ -13364,6 +13364,12 @@ window.enviarPerguntaChatbot = async function() {
         
         const data = await response.json();
         
+        // 🆕 v3.7.6.10: Mostrar logs de debug do Worker
+        if (data.debug_logs) {
+            console.log('🔍 [WORKER DEBUG LOGS]:');
+            data.debug_logs.forEach(log => console.log('   ', log));
+        }
+        
         if (data.erro) {
             throw new Error(data.erro);
         }
@@ -13490,4 +13496,3 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
-
