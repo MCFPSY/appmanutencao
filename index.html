@@ -13043,7 +13043,7 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     contentDiv.innerHTML = htmlContent;
     
     // 🆕 Adicionar imagens encontradas
-    if (imagesFound.length > 0 && tipo === 'bot') {
+    if (imagesFound.length > 0 && tipo === 'assistant') {
         const imagesContainer = document.createElement('div');
         imagesContainer.style.cssText = 'margin-top: 10px; display: flex; flex-direction: column; gap: 10px;';
         
@@ -13510,4 +13510,3 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
-
