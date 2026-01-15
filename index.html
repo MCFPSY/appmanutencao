@@ -13247,6 +13247,80 @@ function prepararContextoDados(pergunta = '') {
 }
 
 /**
+ * 🆕 v3.7.6.11: Filtrar secções de manual por relevância
+ * Analisa a pergunta e retorna apenas secções que contenham keywords relevantes
+ */
+function filtrarSecoesRelevantes(secoes, pergunta) {
+    if (!secoes || secoes.length === 0) return [];
+    
+    const perguntaLower = pergunta.toLowerCase();
+    
+    // 🎯 Mapa de keywords por tópico
+    const topicosKeywords = {
+        'lubrificacao': ['lubrific', 'óleo', 'graxa', 'lubrificação', 'chumaceira', 'engrenagem', 'óleo hidráulico'],
+        'manutencao': ['manutenção', 'preventiva', 'corretiva', 'inspeção', 'verificação', 'limpeza'],
+        'operacao': ['operação', 'funcionamento', 'ligar', 'desligar', 'arranque', 'paragem'],
+        'seguranca': ['segurança', 'perigo', 'aviso', 'proteção', 'epi', 'risco'],
+        'especificacoes': ['especificações', 'técnica', 'dimensões', 'capacidade', 'potência', 'voltagem'],
+        'problemas': ['problema', 'avaria', 'defeito', 'resolução', 'troubleshooting', 'diagnóstico']
+    };
+    
+    // Detectar tópico da pergunta
+    let topicosDetectados = [];
+    for (const [topico, keywords] of Object.entries(topicosKeywords)) {
+        if (keywords.some(kw => perguntaLower.includes(kw))) {
+            topicosDetectados.push(topico);
+        }
+    }
+    
+    console.log(`🔍 [FILTRO] Tópicos detectados na pergunta:`, topicosDetectados);
+    
+    // Se não detectou nenhum tópico específico, retornar tudo (sem filtro)
+    if (topicosDetectados.length === 0) {
+        console.log(`ℹ️ [FILTRO] Nenhum tópico específico detectado, enviando todas as secções (${secoes.length})`);
+        return secoes.map(s => ({
+            titulo: s.secao,
+            paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
+            texto: s.conteudo
+        }));
+    }
+    
+    // Filtrar secções que contenham keywords dos tópicos detectados
+    const secoesRelevantes = secoes.filter(s => {
+        const secaoLower = (s.secao + ' ' + s.conteudo).toLowerCase();
+        
+        // Verificar se a secção contém keywords de algum tópico detectado
+        return topicosDetectados.some(topico => {
+            const keywords = topicosKeywords[topico];
+            return keywords.some(kw => secaoLower.includes(kw));
+        });
+    });
+    
+    console.log(`✅ [FILTRO] Secções filtradas: ${secoesRelevantes.length}/${secoes.length} (tópicos: ${topicosDetectados.join(', ')})`);
+    
+    // Se o filtro for muito restritivo (menos de 1 secção), retornar tudo
+    if (secoesRelevantes.length === 0) {
+        console.log(`⚠️ [FILTRO] Filtro muito restritivo, retornando todas as secções`);
+        return secoes.map(s => ({
+            titulo: s.secao,
+            paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
+            texto: s.conteudo
+        }));
+    }
+    
+    // Mostrar quais secções foram selecionadas
+    secoesRelevantes.forEach((s, idx) => {
+        console.log(`   ${idx + 1}. ${s.secao} (páginas ${s.pagina_inicio}-${s.pagina_fim})`);
+    });
+    
+    return secoesRelevantes.map(s => ({
+        titulo: s.secao,
+        paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
+        texto: s.conteudo
+    }));
+}
+
+/**
  * Buscar manuais relevantes baseados na pergunta
  */
 function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
@@ -13309,13 +13383,9 @@ function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
                     titulo: m.titulo,
                     descricao: m.descricao,
                     num_paginas: m.num_paginas,
-                    // Incluir conteúdo se estiver disponível
+                    // 🆕 v3.7.6.11: Filtrar secções por relevância baseado em keywords
                     conteudo: temConteudo
-                        ? AppState.manuaisConteudo[m.id].map(s => ({
-                            titulo: s.secao,  // SQL usa 'secao' não 'titulo'
-                            paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
-                            texto: s.conteudo  // 🆕 v3.7.6.9.3: Enviar conteúdo COMPLETO (não cortar!)
-                        }))
+                        ? filtrarSecoesRelevantes(AppState.manuaisConteudo[m.id], pergunta)
                         : []
                 };
             })
@@ -13510,3 +13580,4 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
+
