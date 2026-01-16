@@ -13458,7 +13458,36 @@ window.enviarPerguntaChatbot = async function() {
             throw new Error('Resposta inválida do servidor: campo "resposta" ausente');
         }
         
-        adicionarMensagemChat(data.resposta, 'assistant');
+        // 🆕 v3.7.6.12: CORREÇÃO FINAL - Extrair URLs do contexto e adicionar no INÍCIO
+        let respostaFinal = data.resposta;
+        
+        // Extrair URLs que foram enviadas no contexto
+        const contextoStr = JSON.stringify(contexto);
+        const urlsNoContexto = contextoStr.match(/📊 \[TABLE \d+\]: https?:\/\/[^\s\n]+/g) || [];
+        
+        if (urlsNoContexto.length > 0) {
+            console.log(`🔧 [CORREÇÃO-FRONTEND] ${urlsNoContexto.length} URLs encontradas no contexto`);
+            
+            // Verificar se Gemini já incluiu as URLs (formato correto)
+            const urlsNaResposta = respostaFinal.match(/📊 \[TABLE \d+\]: https?:\/\/[^\s\n]+/g) || [];
+            console.log(`🔍 [CORREÇÃO-FRONTEND] ${urlsNaResposta.length} URLs na resposta do Gemini`);
+            
+            if (urlsNaResposta.length === 0) {
+                console.log('⚠️ [CORREÇÃO-FRONTEND] Gemini NÃO incluiu URLs! Adicionando manualmente...');
+                
+                // ADICIONAR URLs NO INÍCIO (antes de qualquer texto)
+                const secaoImagens = '📊 **Tabelas/Diagramas do Manual:**\n\n' + 
+                                    urlsNoContexto.join('\n\n') + 
+                                    '\n\n---\n\n';
+                
+                respostaFinal = secaoImagens + respostaFinal;
+                console.log('✅ [CORREÇÃO-FRONTEND] URLs adicionadas no início da resposta');
+            } else {
+                console.log('✅ [CORREÇÃO-FRONTEND] Gemini já incluiu URLs corretamente');
+            }
+        }
+        
+        adicionarMensagemChat(respostaFinal, 'assistant');
         
     } catch (error) {
         console.error('❌ Erro no chatbot:', error);
@@ -13580,4 +13609,3 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
-
