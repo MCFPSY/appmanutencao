@@ -13091,7 +13091,7 @@ function mostrarChatbotStatus(mostrar = true) {
  * Preparar contexto dos dados para o chatbot
  * ✅ v3.7.1.9 - CONTEXTO ADAPTATIVO (envia apenas dados relevantes à pergunta)
  */
-function prepararContextoDados(pergunta = '') {
+async function prepararContextoDados(pergunta = '') {
     const agora = new Date();
     const umMesAtras = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
     const umaSemanaAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -13242,7 +13242,59 @@ function prepararContextoDados(pergunta = '') {
             fechados: pedidosRecentes.filter(p => p.estado === 'Resolvido').length
         },
         // 📚 MANUAIS: Adicionar se mencionados na pergunta
-        manuais: buscarManuaisRelevantes(pergunta, equipamentosMencionados)
+        manuais: await buscarManuaisRelevantes(pergunta, equipamentosMencionados)
+    };
+}
+
+/**
+ * 🆕 v3.7.6.13: Cache de keywords do Supabase
+ */
+let cachedKeywords = null;
+
+/**
+ * 🆕 v3.7.6.13: Carregar keywords do Supabase
+ */
+async function carregarKeywords() {
+    if (cachedKeywords) {
+        return cachedKeywords; // Usar cache se disponível
+    }
+    
+    try {
+        const { data, error } = await window.supabase.rpc('get_chatbot_keywords');
+        
+        if (error) {
+            console.error('⚠️ [KEYWORDS] Erro ao carregar do Supabase:', error);
+            // Fallback: usar keywords padrão hard-coded
+            return getKeywordsPadrao();
+        }
+        
+        if (!data) {
+            console.warn('⚠️ [KEYWORDS] Nenhuma keyword retornada, usando padrão');
+            return getKeywordsPadrao();
+        }
+        
+        cachedKeywords = data;
+        console.log('✅ [KEYWORDS] Carregadas do Supabase:', Object.keys(data));
+        return data;
+        
+    } catch (err) {
+        console.error('❌ [KEYWORDS] Erro ao buscar keywords:', err);
+        return getKeywordsPadrao();
+    }
+}
+
+/**
+ * 🆕 v3.7.6.13: Keywords padrão (fallback)
+ */
+function getKeywordsPadrao() {
+    console.log('ℹ️ [KEYWORDS] Usando keywords padrão (fallback)');
+    return {
+        'lubrificacao': ['lubrific', 'óleo', 'graxa', 'lubrificação', 'chumaceira', 'engrenagem', 'óleo hidráulico'],
+        'manutencao': ['manutenção', 'preventiva', 'corretiva', 'inspeção', 'verificação', 'limpeza', 'correia', 'correias', 'esticamento', 'tensão', 'ajuste', 'substituição', 'troca'],
+        'operacao': ['operação', 'funcionamento', 'ligar', 'desligar', 'arranque', 'paragem'],
+        'seguranca': ['segurança', 'perigo', 'aviso', 'proteção', 'epi', 'risco'],
+        'especificacoes': ['especificações', 'técnica', 'dimensões', 'capacidade', 'potência', 'voltagem'],
+        'problemas': ['problema', 'avaria', 'defeito', 'resolução', 'troubleshooting', 'diagnóstico']
     };
 }
 
@@ -13250,20 +13302,13 @@ function prepararContextoDados(pergunta = '') {
  * 🆕 v3.7.6.11: Filtrar secções de manual por relevância
  * Analisa a pergunta e retorna apenas secções que contenham keywords relevantes
  */
-function filtrarSecoesRelevantes(secoes, pergunta) {
+async function filtrarSecoesRelevantes(secoes, pergunta) {
     if (!secoes || secoes.length === 0) return [];
     
     const perguntaLower = pergunta.toLowerCase();
     
-    // 🎯 Mapa de keywords por tópico
-    const topicosKeywords = {
-        'lubrificacao': ['lubrific', 'óleo', 'graxa', 'lubrificação', 'chumaceira', 'engrenagem', 'óleo hidráulico'],
-        'manutencao': ['manutenção', 'preventiva', 'corretiva', 'inspeção', 'verificação', 'limpeza'],
-        'operacao': ['operação', 'funcionamento', 'ligar', 'desligar', 'arranque', 'paragem'],
-        'seguranca': ['segurança', 'perigo', 'aviso', 'proteção', 'epi', 'risco'],
-        'especificacoes': ['especificações', 'técnica', 'dimensões', 'capacidade', 'potência', 'voltagem'],
-        'problemas': ['problema', 'avaria', 'defeito', 'resolução', 'troubleshooting', 'diagnóstico']
-    };
+    // 🆕 v3.7.6.13: Buscar keywords do Supabase
+    const topicosKeywords = await carregarKeywords();
     
     // Detectar tópico da pergunta
     let topicosDetectados = [];
@@ -13323,7 +13368,7 @@ function filtrarSecoesRelevantes(secoes, pergunta) {
 /**
  * Buscar manuais relevantes baseados na pergunta
  */
-function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
+async function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
     // Verificar se a pergunta menciona manuais, instruções, procedimentos, etc.
     const perguntaLower = pergunta.toLowerCase();
     const palavrasChave = ['manual', 'instrução', 'instruções', 'procedimento', 'como', 'orientação', 
@@ -13383,9 +13428,9 @@ function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
                     titulo: m.titulo,
                     descricao: m.descricao,
                     num_paginas: m.num_paginas,
-                    // 🆕 v3.7.6.11: Filtrar secções por relevância baseado em keywords
+                    // 🆕 v3.7.6.13: Filtrar secções por relevância baseado em keywords (async)
                     conteudo: temConteudo
-                        ? filtrarSecoesRelevantes(AppState.manuaisConteudo[m.id], pergunta)
+                        ? await filtrarSecoesRelevantes(AppState.manuaisConteudo[m.id], pergunta)
                         : []
                 };
             })
@@ -13420,7 +13465,7 @@ window.enviarPerguntaChatbot = async function() {
     
     try {
         // ✅ v3.7.1.9 - Preparar contexto ADAPTATIVO baseado na pergunta
-        const contexto = prepararContextoDados(pergunta);
+        const contexto = await prepararContextoDados(pergunta);
         
         // 🚀 MODO PRODUÇÃO: IA Real com Gemini via Cloudflare Worker
         const response = await fetch(CHATBOT_WORKER_URL, {
