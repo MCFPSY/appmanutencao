@@ -13415,10 +13415,9 @@ async function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
         console.log(`🔍 [DEBUG-CHATBOT] Manuais relevantes encontrados:`, manuaisRelevantes.length);
         console.log(`🔍 [DEBUG-CHATBOT] AppState.manuaisConteudo keys:`, Object.keys(AppState.manuaisConteudo || {}));
         
-        return {
-            disponivel: true,
-            quantidade: manuaisRelevantes.length,
-            manuais: manuaisRelevantes.map(m => {
+        // 🆕 v3.7.6.13: Processar manuais com async (Promise.all)
+        const manuaisProcessados = await Promise.all(
+            manuaisRelevantes.map(async (m) => {
                 const temConteudo = AppState.manuaisConteudo && AppState.manuaisConteudo[m.id];
                 console.log(`🔍 [DEBUG-CHATBOT] Manual ${m.titulo} (${m.id}): tem conteúdo? ${!!temConteudo}, secções: ${temConteudo?.length || 0}`);
                 
@@ -13434,6 +13433,12 @@ async function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
                         : []
                 };
             })
+        );
+        
+        return {
+            disponivel: true,
+            quantidade: manuaisRelevantes.length,
+            manuais: manuaisProcessados
         };
     }
     
