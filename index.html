@@ -7689,12 +7689,18 @@ async function extractTextFromPDF(file, progressCallback = null) {
         
         // Converter chunks para o formato esperado pela API do Supabase
         console.log(`🔍 [DEBUG] Chunks retornados:`, chunks.length);
-        chunks.forEach((chunk, idx) => {
+        
+        // 🆕 v3.8.0: Processar chunks com auto-tagging
+        for (let idx = 0; idx < chunks.length; idx++) {
+            const chunk = chunks[idx];
             console.log(`🔍 [DEBUG] Chunk ${idx + 1}:`, {
                 titulo: chunk.titulo,
                 textoLength: chunk.texto?.length || 0,
                 temTexto: !!chunk.texto
             });
+            
+            // 🆕 v3.8.0: Detectar tags automaticamente
+            const tags = await detectarTagsAutomaticas(chunk.texto || '');
             
             secoes.push({
                 secao: chunk.titulo,                // Título do capítulo
@@ -7702,9 +7708,10 @@ async function extractTextFromPDF(file, progressCallback = null) {
                 pagina_inicio: chunk.paginaInicio,  // Página estimada
                 pagina_fim: chunk.paginaFim,        // Página estimada
                 palavras_chave: chunk.palavrasChave, // Keywords extraídas
+                tags: tags,                         // 🆕 v3.8.0: Tags auto-detectadas
                 ordem: idx + 1
             });
-        });
+        }
         
         console.log(`✅ [CHUNKING] ${secoes.length} chunks criados com sucesso!`);
         
@@ -13360,6 +13367,11 @@ async function prepararContextoDados(pergunta = '') {
 let cachedKeywords = null;
 
 /**
+ * 🆕 v3.8.0: Cache de padrões de auto-tagging
+ */
+let cachedAutoTagPatterns = null;
+
+/**
  * 🆕 v3.7.6.13: Carregar keywords do Supabase
  */
 async function carregarKeywords() {
@@ -13407,6 +13419,105 @@ function getKeywordsPadrao() {
 }
 
 /**
+ * 🆕 v3.8.0: Carregar padrões de auto-tagging do Supabase
+ */
+async function carregarAutoTagPatterns() {
+    if (cachedAutoTagPatterns) {
+        return cachedAutoTagPatterns;
+    }
+    
+    try {
+        const { data, error } = await window.supabase.rpc('get_auto_tag_patterns');
+        
+        if (error) {
+            console.error('⚠️ [AUTO-TAG] Erro ao carregar padrões:', error);
+            return getAutoTagPatternsDefault();
+        }
+        
+        if (!data || data.length === 0) {
+            console.warn('⚠️ [AUTO-TAG] Nenhum padrão retornado, usando padrão');
+            return getAutoTagPatternsDefault();
+        }
+        
+        // Converter strings para RegExp
+        const patterns = {};
+        for (const row of data) {
+            patterns[row.tag] = row.patterns.map(p => {
+                try {
+                    return new RegExp(p, 'gi');
+                } catch (err) {
+                    console.error(`❌ [AUTO-TAG] Regex inválido para tag "${row.tag}": ${p}`, err);
+                    return null;
+                }
+            }).filter(r => r !== null);
+        }
+        
+        console.log('✅ [AUTO-TAG] Padrões carregados:', Object.keys(patterns).length, 'tags');
+        cachedAutoTagPatterns = patterns;
+        return patterns;
+        
+    } catch (err) {
+        console.error('❌ [AUTO-TAG] Erro ao buscar padrões:', err);
+        return getAutoTagPatternsDefault();
+    }
+}
+
+/**
+ * 🆕 v3.8.0: Padrões de auto-tagging padrão (fallback)
+ */
+function getAutoTagPatternsDefault() {
+    console.warn('⚠️ [AUTO-TAG] Usando padrões hard-coded (fallback)');
+    return {
+        'manutencao_preventiva': [
+            /frequência|periodicidade/gi,
+            /mensal|semanal|diária|diario|quinzenal|trimestral|semestral|anual/gi,
+            /cada\s+\d+\s+(dia|dias|semana|semanas|mês|meses|ano|anos)/gi,
+            /a\s+cada/gi,
+            /verificar.{0,20}mente/gi,
+            /inspecionar.{0,20}mente/gi,
+            /manutenção\s+preventiva/gi,
+            /plano\s+de\s+manutenção/gi
+        ],
+        'lubrificacao': [/lubrific|óleo|graxa/gi],
+        'correias': [/correia|esticamento|tensão|tensao/gi],
+        'periodicidade_mensal': [/mensal|mensalmente/gi],
+        'periodicidade_semanal': [/semanal|semanalmente/gi],
+        'periodicidade_anual': [/anual|anualmente/gi]
+    };
+}
+
+/**
+ * 🆕 v3.8.0: Detectar tags automaticamente baseado em padrões
+ */
+async function detectarTagsAutomaticas(texto) {
+    if (!texto || texto.trim().length === 0) {
+        return [];
+    }
+    
+    // Carregar padrões (do Supabase ou fallback)
+    const autoTagPatterns = await carregarAutoTagPatterns();
+    
+    const tags = new Set();
+    let score = 0;
+    
+    // Verificar cada tag e seus padrões
+    for (const [tag, patterns] of Object.entries(autoTagPatterns)) {
+        for (const regex of patterns) {
+            if (regex.test(texto)) {
+                tags.add(tag);
+                score++;
+            }
+        }
+    }
+    
+    if (tags.size > 0) {
+        console.log(`🏷️ [AUTO-TAG] ${tags.size} tag(s) detectadas (score: ${score}):`, Array.from(tags).join(', '));
+    }
+    
+    return Array.from(tags);
+}
+
+/**
  * 🆕 v3.7.6.11: Filtrar secções de manual por relevância
  * Analisa a pergunta e retorna apenas secções que contenham keywords relevantes
  */
@@ -13438,15 +13549,25 @@ async function filtrarSecoesRelevantes(secoes, pergunta) {
         }));
     }
     
-    // Filtrar secções que contenham keywords dos tópicos detectados
+    // 🆕 v3.8.0: Detectar tags na pergunta
+    const tagsPergunta = await detectarTagsAutomaticas(pergunta);
+    console.log(`🏷️ [FILTRO] Tags detectadas na pergunta:`, tagsPergunta);
+    
+    // Filtrar secções que contenham keywords OU tags dos tópicos detectados
     const secoesRelevantes = secoes.filter(s => {
         const secaoLower = (s.secao + ' ' + s.conteudo).toLowerCase();
         
-        // Verificar se a secção contém keywords de algum tópico detectado
-        return topicosDetectados.some(topico => {
+        // 1. Verificar se a secção contém keywords de algum tópico detectado
+        const temKeyword = topicosDetectados.some(topico => {
             const keywords = topicosKeywords[topico];
             return keywords.some(kw => secaoLower.includes(kw));
         });
+        
+        // 2. 🆕 v3.8.0: Verificar se a secção tem tags que matcham com a pergunta
+        const temTag = s.tags && tagsPergunta.length > 0 && 
+                       s.tags.some(tag => tagsPergunta.includes(tag));
+        
+        return temKeyword || temTag;
     });
     
     console.log(`✅ [FILTRO] Secções filtradas: ${secoesRelevantes.length}/${secoes.length} (tópicos: ${topicosDetectados.join(', ')})`);
