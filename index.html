@@ -13142,6 +13142,170 @@ const OPENAI_EMBEDDINGS_MODEL = 'text-embedding-3-small'; // Modelo mais barato
 const USE_EMBEDDINGS = false; // 🔄 v3.7.6.10: DESATIVADO (API key com erro 401)
 
 /**
+ * 🆕 v3.8.3: Detectar menções de tabelas/figuras/diagramas no texto
+ * Retorna array de objetos: { match, type, number, page, startIndex, endIndex }
+ */
+function detectarMencoesTabelas(texto) {
+    const mencoes = [];
+    
+    // Padrões de detecção (ordem de prioridade)
+    const padroes = [
+        // "Tabela 6" ou "Tabela 6:" ou "Tabela 6 (pág. 3)"
+        /\b(Tabela|tabela)\s+(\d+)(?:\s*(?:\(|:|\s*-\s*)?(?:pág?\.?\s*|página\s*)?(\d+)?)?/gi,
+        // "Figura 31" ou "Figura 31:"
+        /\b(Figura|figura)\s+(\d+)(?:\s*(?:\(|:|\s*-\s*)?(?:pág?\.?\s*|página\s*)?(\d+)?)?/gi,
+        // "diagrama" ou "Diagrama"
+        /\b(diagrama|Diagrama)(?:\s+(\d+))?(?:\s*(?:\(|:|\s*-\s*)?(?:pág?\.?\s*|página\s*)?(\d+)?)?/gi,
+        // "página 3" ou "pág. 3" (genérico)
+        /(?:página|pág\.?)\s*(\d+)/gi
+    ];
+    
+    padroes.forEach((regex, patternIndex) => {
+        let match;
+        const regexCopy = new RegExp(regex.source, regex.flags);
+        while ((match = regexCopy.exec(texto)) !== null) {
+            const type = match[1]?.toLowerCase() || 'page';
+            const number = parseInt(match[2]) || null;
+            const page = parseInt(match[3]) || null;
+            
+            mencoes.push({
+                match: match[0],
+                type: type,
+                number: number,
+                page: page,
+                startIndex: match.index,
+                endIndex: match.index + match[0].length,
+                priority: patternIndex // Para ordenar por prioridade
+            });
+        }
+    });
+    
+    // Ordenar por posição no texto (e prioridade se mesma posição)
+    mencoes.sort((a, b) => {
+        if (a.startIndex !== b.startIndex) return a.startIndex - b.startIndex;
+        return a.priority - b.priority;
+    });
+    
+    console.log(`🔍 [MENCOES] Detectadas ${mencoes.length} menção(ões) de tabelas/figuras:`, mencoes);
+    return mencoes;
+}
+
+/**
+ * 🆕 v3.8.3: Fazer matching inteligente entre menções e imagens
+ * Retorna mapa: { startIndex: imageObject }
+ */
+function matchMencoesComImagens(mencoes, imagens) {
+    const matches = {};
+    const imagensUsadas = new Set();
+    
+    console.log(`🎯 [MATCHING] Tentando match de ${mencoes.length} menções com ${imagens.length} imagens`);
+    
+    mencoes.forEach((mencao, mencaoIdx) => {
+        // Tentar encontrar imagem correspondente
+        let melhorMatch = null;
+        let melhorScore = -1;
+        
+        imagens.forEach((img, imgIdx) => {
+            if (imagensUsadas.has(imgIdx)) return; // Já usada
+            
+            let score = 0;
+            
+            // Extrair número de página do URL da imagem
+            // Ex: page_003_table_00.png → página 3
+            const pageMatch = img.url.match(/page_(\d+)_/);
+            const imgPage = pageMatch ? parseInt(pageMatch[1]) : null;
+            
+            // Extrair tipo e índice do URL
+            // Ex: page_003_table_01.png → table, índice 1
+            const typeMatch = img.url.match(/_(table|diagram)_(\d+)/);
+            const imgType = typeMatch ? typeMatch[1] : null;
+            const imgIndex = typeMatch ? parseInt(typeMatch[2]) : 0;
+            
+            // SCORING: quanto maior, melhor o match
+            
+            // 1. Match de página (mais importante)
+            if (mencao.page && imgPage && mencao.page === imgPage) {
+                score += 100; // Match exato de página!
+            }
+            
+            // 2. Match de tipo (table vs diagram)
+            if (mencao.type && imgType) {
+                if (mencao.type === 'tabela' && imgType === 'table') score += 50;
+                if (mencao.type === 'figura' && imgType === 'table') score += 30;
+                if (mencao.type === 'diagrama' && imgType === 'diagram') score += 50;
+            }
+            
+            // 3. Match de número (Tabela 6 → índice 0 se for a 6ª tabela mencionada)
+            if (mencao.number && imgIndex === mencaoIdx) {
+                score += 20;
+            }
+            
+            // 4. Proximidade no array (preferir imagens próximas)
+            score += (10 - Math.abs(mencaoIdx - imgIdx));
+            
+            if (score > melhorScore) {
+                melhorScore = score;
+                melhorMatch = { img, imgIdx, score };
+            }
+        });
+        
+        if (melhorMatch && melhorMatch.score > 0) {
+            matches[mencao.startIndex] = melhorMatch.img;
+            imagensUsadas.add(melhorMatch.imgIdx);
+            console.log(`  ✅ Match: "${mencao.match}" → ${melhorMatch.img.url} (score: ${melhorMatch.score})`);
+        } else {
+            console.log(`  ⚠️ Sem match para: "${mencao.match}"`);
+        }
+    });
+    
+    console.log(`🎯 [MATCHING] ${Object.keys(matches).length} matches realizados`);
+    return matches;
+}
+
+/**
+ * 🆕 v3.8.3: Inserir imagens inline no texto baseado em menções
+ */
+function inserirImagensInline(texto, imagens) {
+    if (!imagens || imagens.length === 0) {
+        console.log('ℹ️ [INLINE] Sem imagens para inserir');
+        return { texto, imagensInseridas: [], imagensRestantes: [] };
+    }
+    
+    // 1. Detectar menções de tabelas/figuras
+    const mencoes = detectarMencoesTabelas(texto);
+    
+    if (mencoes.length === 0) {
+        console.log('ℹ️ [INLINE] Nenhuma menção detectada, imagens vão para o final');
+        return { texto, imagensInseridas: [], imagensRestantes: imagens };
+    }
+    
+    // 2. Fazer matching inteligente
+    const matches = matchMencoesComImagens(mencoes, imagens);
+    
+    // 3. Inserir imagens inline (de trás para frente para não alterar índices)
+    const mencoesOrdenadas = mencoes.sort((a, b) => b.startIndex - a.startIndex);
+    const imagensInseridas = [];
+    
+    mencoesOrdenadas.forEach(mencao => {
+        const img = matches[mencao.startIndex];
+        if (img) {
+            // Inserir logo após a menção
+            const insercao = `\n\n${img.emoji} [${img.type.toUpperCase()}]: ${img.url}\n`;
+            texto = texto.slice(0, mencao.endIndex) + insercao + texto.slice(mencao.endIndex);
+            imagensInseridas.push(img);
+        }
+    });
+    
+    // 4. Identificar imagens que sobraram (não foram inseridas)
+    const imagensRestantes = imagens.filter(img => !imagensInseridas.includes(img));
+    
+    console.log(`✅ [INLINE] ${imagensInseridas.length} imagens inseridas inline`);
+    console.log(`📋 [INLINE] ${imagensRestantes.length} imagens restantes (vão para o final)`);
+    
+    return { texto, imagensInseridas, imagensRestantes };
+}
+
+/**
  * Adicionar mensagem ao histórico do chat
  */
 function adicionarMensagemChat(mensagem, tipo = 'user') {
@@ -13177,6 +13341,10 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     }
     
     console.log('📊 [DEBUG-CHAT] Total de imagens encontradas:', imagesFound.length);
+    
+    // 🆕 v3.8.2.3: Remover � isolados (sem URL) que Gemini inseriu no meio do texto
+    mensagemSemImagens = mensagemSemImagens.replace(/�\s*/g, '');
+    mensagemSemImagens = mensagemSemImagens.replace(/\uFFFD\s*/g, ''); // Unicode replacement char
     
     // Suportar markdown básico (negrito, itálico, listas)
     let htmlContent = mensagemSemImagens
@@ -13937,4 +14105,3 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
-
