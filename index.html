@@ -5035,7 +5035,32 @@ async function getArtigos() {
 
 // Utilizadores
 async function getUtilizadores() {
-    return await supabaseFetch('utilizadores?select=*&order=Username.asc');
+    // 🔥 v3.7.7.3: FUCK RPC! LER DIRETO DA TABELA!
+    console.log('🔥 [getUtilizadores] LENDO DIRETO DA TABELA utilizadores...');
+    try {
+        const result = await supabaseFetch('utilizadores?select=Username,Nome Completo,Departamento,Role,Ativo&order=Nome Completo.asc');
+        console.log('✅ [getUtilizadores] SUCESSO! Total:', result?.length);
+        console.log('✅ [getUtilizadores] Primeiro:', result?.[0]);
+        console.log('✅ [getUtilizadores] Último:', result?.[result.length - 1]);
+        
+        // Mapear para formato esperado
+        const mapped = result.map(u => ({
+            username: u.Username,
+            nomeCompleto: u['Nome Completo'],
+            departamento: u.Departamento,
+            role: u.Role,
+            ativo: u.Ativo
+        }));
+        
+        console.log('✅ [getUtilizadores] Mapeado! Total:', mapped.length);
+        console.log('✅ [getUtilizadores] Nomes:', mapped.map(u => u.nomeCompleto).join(', '));
+        
+        return mapped;
+    } catch (error) {
+        console.error('❌ [getUtilizadores] ERRO ao ler tabela:', error);
+        console.error('❌ [getUtilizadores] Detalhes:', error.message);
+        throw error;
+    }
 }
 
 async function loginUtilizador(username, password) {
@@ -5838,6 +5863,32 @@ async function loadDataFromSupabase() {
             console.log('Primeiro pedido:', JSON.stringify(pedidos[0], null, 2));
         }
         
+        // 🆕 v3.7.7.0: Carregar utilizadores
+        const utilizadores = await window.SupabaseAPI.getUtilizadores();
+        AppState.utilizadores = utilizadores;
+        console.log(`✅ ${utilizadores.length} utilizadores carregados`);
+        
+        // 🔍 DEBUG COMPLETO: Ver estrutura REAL dos dados
+        if (utilizadores && utilizadores.length > 0) {
+            const primeiroUser = utilizadores[0];
+            console.log('════════════════════════════════════════');
+            console.log('🔍 [DEBUG] ESTRUTURA COMPLETA DO PRIMEIRO UTILIZADOR:');
+            console.log(JSON.stringify(primeiroUser, null, 2));
+            console.log('════════════════════════════════════════');
+            console.log('🔍 [DEBUG] CHAVES DISPONÍVEIS:', Object.keys(primeiroUser));
+            console.log('════════════════════════════════════════');
+            console.log('🔍 [DEBUG] TESTES DE CAMPO ATIVO:');
+            console.log('  user.Ativo =', primeiroUser.Ativo, '(tipo:', typeof primeiroUser.Ativo, ')');
+            console.log('  user.ativo =', primeiroUser.ativo, '(tipo:', typeof primeiroUser.ativo, ')');
+            console.log('  user["Ativo"] =', primeiroUser["Ativo"], '(tipo:', typeof primeiroUser["Ativo"], ')');
+            console.log('════════════════════════════════════════');
+            console.log('🔍 [DEBUG] TODOS OS VALORES:');
+            Object.keys(primeiroUser).forEach(key => {
+                console.log(`  ${key}:`, primeiroUser[key], `(tipo: ${typeof primeiroUser[key]})`);
+            });
+            console.log('════════════════════════════════════════');
+        }
+        
         // Converter formato Supabase → formato da app
         AppState.requests = pedidos.map(p => ({
             id: p.ID,
@@ -5858,9 +5909,12 @@ async function loadDataFromSupabase() {
             componente: p.Componente || '',     // ✅ Corrigido: era component
             urgente: p.Urgente === 'TRUE' || p.Urgente === true,
             paragemProducao: p['Paragem Produção'] === 'TRUE' || p['Paragem Produção'] === true,
-            responsavel: p.Responsável || '',   // ✅ ADICIONADO v3.6.21
+            responsavel: p.Responsável || '',   // ✅ ADICIONADO v3.6.21 (display)
+            responsavelUsername: p.responsavel_username || '',  // 🆕 v3.7.7.0: FK
+            criadoPorUsername: p.criado_por_username || '',     // 🆕 v3.7.7.0: FK
             horasEstimadas: parseFloat(p['Horas Estimadas']) || 0,  // ✅ ADICIONADO v3.6.21
-            fechadoPor: p['Fechado Por'] || ''  // 🆕 v3.7.6.9: Quem fechou a OT
+            fechadoPor: p['Fechado Por'] || '',  // 🆕 v3.7.6.9: Quem fechou (display)
+            fechadoPorUsername: p.fechado_por_username || ''  // 🆕 v3.7.7.0: FK
         }));
         
         // ✅ Ordenar por data (mais recentes primeiro) - ordem no JavaScript
@@ -6421,7 +6475,14 @@ async function verificarAlertasDiarios() {
     }
     
     // 👥 Técnicos a monitorizar
-    const tecnicos = ['Vítor', 'Alan', 'Paulo'];
+    // 🆕 v3.7.7.0: Buscar técnicos da tabela utilizadores (já vêm ATIVOS!)
+    const tecnicos = AppState.utilizadores && AppState.utilizadores.length > 0
+        ? AppState.utilizadores.map(u => {
+            // Detectar campo nome
+            const nomeKey = Object.keys(u).find(k => k.toLowerCase().replace(/[_\s]/g, '') === 'nomecompleto') || 'nomeCompleto';
+            return u[nomeKey];
+          })
+        : ['Vítor', 'Alan', 'Paulo'];  // Fallback se utilizadores não carregados
     console.log('👥 [DEBUG] Técnicos a verificar:', tecnicos);
     const tecnicosSemProducao = [];
     
@@ -8497,6 +8558,7 @@ async function handleFormSubmit(e) {
             descricao: document.getElementById('descricao').value,
             foto: fotoUrl,  // ✅ URL do Storage (ou vazio)
             nome: document.getElementById('nome').value,
+            criadoPorUsername: AppState.currentUser ? AppState.currentUser.username : '',  // 🆕 v3.7.7.0: FK para utilizadores
             dataHora: new Date().toISOString(),
             estado: 'Novo'
         };
@@ -8799,42 +8861,59 @@ function populateResponsavelFilter() {
     }
     
     console.log('🔄 Populando filtro de responsável...');
-    console.log('📊 Total de ordens de trabalho:', AppState.requests?.length || 0);
-    console.log('📊 Total de tasks no planeamento:', Object.keys(AppState.planning.tasks || {}).length);
     
-    // Limpar opções existentes (exceto a primeira "Todos")
+    // Limpar opções existentes
     select.innerHTML = '<option value="">Todos os responsáveis</option>';
     
-    // Obter lista única de responsáveis do PLANEAMENTO (não das ordens de trabalho)
-    const responsaveis = new Set();
-    AppState.requests.forEach(request => {
-        // Buscar responsável do planeamento
-        const task = AppState.planning.tasks[request.id];
-        const resp = (task?.responsavel || '').trim();
-        if (resp && resp !== '') {
-            console.log(`✅ Pedido ${request.id.substring(0, 8)}... tem responsável: ${resp}`);
-            responsaveis.add(resp);
-        }
-    });
-    
-    console.log('📋 Responsáveis únicos encontrados:', Array.from(responsaveis));
-    
-    // Converter para array, ordenar e adicionar ao select
-    const responsaveisArray = Array.from(responsaveis).sort();
-    
-    responsaveisArray.forEach(responsavel => {
-        // Contar pedidos deste responsável (do planeamento)
-        const count = AppState.requests.filter(r => {
-            const task = AppState.planning.tasks[r.id];
-            return task?.responsavel === responsavel;
-        }).length;
-        const option = document.createElement('option');
-        option.value = responsavel;
-        option.textContent = `${responsavel} (${count})`;
-        select.appendChild(option);
-    });
-    
-    console.log('✅ Filtro de Responsável populado com', responsaveisArray.length, 'utilizadores');
+    // 🆕 v3.7.7.0: Buscar responsáveis da tabela utilizadores (já vêm ATIVOS!)
+    if (AppState.utilizadores && AppState.utilizadores.length > 0) {
+        console.log('✅ Usando utilizadores da base de dados:', AppState.utilizadores.length);
+        
+        // Detectar nome correto do campo
+        const primeiroUser = AppState.utilizadores[0];
+        const nomeCompletoKey = Object.keys(primeiroUser).find(k => k.toLowerCase().replace(/[_\s]/g, '') === 'nomecompleto') || 'nomeCompleto';
+        
+        // 🔥 NÃO FILTRAR! A função SQL já retorna só os ativos!
+        AppState.utilizadores
+            .sort((a, b) => (a[nomeCompletoKey] || '').localeCompare(b[nomeCompletoKey] || ''))
+            .forEach(user => {
+                // Contar pedidos deste responsável
+                const nomeCompleto = user[nomeCompletoKey];
+                const count = AppState.requests.filter(r => {
+                    const task = AppState.planning.tasks[r.id];
+                    return task?.responsavel === nomeCompleto;
+                }).length;
+                
+                const option = document.createElement('option');
+                option.value = nomeCompleto;
+                option.textContent = count > 0 ? `${nomeCompleto} (${count})` : nomeCompleto;
+                select.appendChild(option);
+            });
+        
+        console.log('✅ Filtro de Responsável populado com', AppState.utilizadores.length, 'utilizadores da BD');
+    } else {
+        // Fallback: buscar do planeamento (como antes)
+        console.log('⚠️ Utilizadores não carregados, usando responsáveis do planeamento');
+        const responsaveis = new Set();
+        AppState.requests.forEach(request => {
+            const task = AppState.planning.tasks[request.id];
+            const resp = (task?.responsavel || '').trim();
+            if (resp && resp !== '') {
+                responsaveis.add(resp);
+            }
+        });
+        
+        Array.from(responsaveis).sort().forEach(responsavel => {
+            const count = AppState.requests.filter(r => {
+                const task = AppState.planning.tasks[r.id];
+                return task?.responsavel === responsavel;
+            }).length;
+            const option = document.createElement('option');
+            option.value = responsavel;
+            option.textContent = `${responsavel} (${count})`;
+            select.appendChild(option);
+        });
+    }
 }
 
 // ✅ v3.7.0.9: Popular filtros do planeamento
@@ -9273,13 +9352,15 @@ async function changeRequestState(id) {
             
             // 🆕 v3.7.6.9: Registar quem fechou a OT
             if (AppState.currentUser) {
-                request.fechadoPor = AppState.currentUser.nomeCompleto;
-                console.log('✅ [FECHAR] OT fechada por:', request.fechadoPor);
+                request.fechadoPor = AppState.currentUser.nomeCompleto;  // Display
+                request.fechadoPorUsername = AppState.currentUser.username;  // 🆕 v3.7.7.0: FK
+                console.log('✅ [FECHAR] OT fechada por:', request.fechadoPor, '(', request.fechadoPorUsername, ')');
                 console.log('📋 [FECHAR] Responsável atual:', request.responsavel);
                 console.log('📋 [FECHAR] Estado do request:', {
                     id: request.id,
                     responsavel: request.responsavel,
                     fechadoPor: request.fechadoPor,
+                    fechadoPorUsername: request.fechadoPorUsername,
                     estado: request.estado
                 });
             }
@@ -9395,8 +9476,9 @@ async function sendToGoogleSheets(data) {
             Componente: data.componente || '',
             Urgente: data.urgente ? 'TRUE' : 'FALSE',
             'Paragem Produção': data.paragemProducao ? 'TRUE' : 'FALSE',
-            'Responsável': data.responsavel || '',  // ✅ ADICIONADO
-            'Horas Estimadas': data.horasEstimadas || 0  // ✅ ADICIONADO
+            'Responsável': data.responsavel || '',  // ✅ ADICIONADO (display)
+            'Horas Estimadas': data.horasEstimadas || 0,  // ✅ ADICIONADO
+            criado_por_username: AppState.currentUser?.username || null  // 🆕 v3.7.7.0: FK
         };
         
         console.log('🔥 DEBUG: Dados enviados para Supabase:', JSON.stringify(supabaseData, null, 2));
@@ -9434,9 +9516,11 @@ async function updateInGoogleSheets(data) {
             Componente: data.componente || '',
             Urgente: data.urgente ? 'TRUE' : 'FALSE',
             'Paragem Produção': data.paragemProducao ? 'TRUE' : 'FALSE',
-            'Responsável': data.responsavel || '',  // ✅ ADICIONADO
+            'Responsável': data.responsavel || '',  // ✅ ADICIONADO (display)
+            responsavel_username: data.responsavelUsername || null,  // 🆕 v3.7.7.0: FK
             'Horas Estimadas': data.horasEstimadas || 0,  // ✅ ADICIONADO
-            'Fechado Por': data.fechadoPor || ''  // 🆕 v3.7.6.9: Quem fechou a OT
+            'Fechado Por': data.fechadoPor || '',  // 🆕 v3.7.6.9: Quem fechou (display)
+            fechado_por_username: data.fechadoPorUsername || null  // 🆕 v3.7.7.0: FK
         };
         
         console.log('📊 [SUPABASE] Dados a enviar:', {
@@ -9528,33 +9612,17 @@ async function syncWithSupabase() {
         
         console.log(`✅ ${AppState.movimentos.length} movimentos carregados`);
         
-        // Carregar UTILIZADORES
+        // 🔥 v3.7.7.3: Carregar UTILIZADORES (DIRETO sem filtrar!)
+        console.log('🔥 Carregando utilizadores...');
         const utilizadores = await window.SupabaseAPI.getUtilizadores();
-        AppState.utilizadores = utilizadores
-            .filter(u => u.Ativo === 'Sim' || u.Ativo === true)
-            .map(u => ({
-                username: u.Username,
-                nomeCompleto: u['Nome Completo'],
-                departamento: u.Departamento,
-                role: u.Role
-            }));
+        console.log('🔥 Recebido do getUtilizadores():', utilizadores?.length, 'utilizadores');
+        console.log('🔥 Primeiro:', utilizadores?.[0]);
         
-        // ✅ FALLBACK: Se não houver utilizadores, usar lista padrão
-        if (AppState.utilizadores.length === 0) {
-            console.warn('⚠️ Nenhum utilizador no Supabase. Usando lista padrão.');
-            AppState.utilizadores = [
-                { username: 'toni', nomeCompleto: 'Toni', departamento: 'Manutenção', role: 'operador' },
-                { username: 'jose', nomeCompleto: 'José', departamento: 'Manutenção', role: 'operador' },
-                { username: 'manuel', nomeCompleto: 'Manuel', departamento: 'Manutenção', role: 'operador' },
-                { username: 'carlos', nomeCompleto: 'Carlos', departamento: 'Manutenção', role: 'operador' },
-                { username: 'paulo', nomeCompleto: 'Paulo', departamento: 'Manutenção', role: 'operador' },
-                { username: 'pedro', nomeCompleto: 'Pedro', departamento: 'Manutenção', role: 'operador' },
-                { username: 'bruno', nomeCompleto: 'Bruno', departamento: 'Manutenção', role: 'operador' },
-                { username: 'miguel', nomeCompleto: 'Miguel', departamento: 'Manutenção', role: 'operador' }
-            ];
-        }
+        // 🔥 NÃO FILTRAR! Já vem correto de getUtilizadores()!
+        AppState.utilizadores = utilizadores || [];
         
-        console.log(`✅ ${AppState.utilizadores.length} utilizadores carregados`);
+        console.log(`✅ ${AppState.utilizadores.length} utilizadores carregados FINAL`);
+        console.log('✅ Nomes:', AppState.utilizadores.map(u => u.nomeCompleto).join(', '));
         
         // ✅ v3.7.0.9: Carregar EQUIPAMENTOS do Supabase
         console.log('🔄 A carregar equipamentos do Supabase...');
@@ -10368,10 +10436,50 @@ function renderPlanningGrid() {
         html += `<td class="responsible-cell">`;
         html += `<select class="responsible-select" data-task-id="${task.id}" onchange="updateTaskResponsible('${task.id}', this.value)">`;
         html += `<option value="">-</option>`;
-        AppState.utilizadores.forEach(user => {
-            const selected = taskResponsavel === user.nomeCompleto ? 'selected' : '';
-            html += `<option value="${user.nomeCompleto}" ${selected}>${user.nomeCompleto}</option>`;
-        });
+        
+        // 🆕 v3.7.7.1: Usar utilizadores da BD (já vêm ATIVOS da função SQL!)
+        console.log('🔍 [DROPDOWN DEBUG] AppState.utilizadores existe?', !!AppState.utilizadores);
+        console.log('🔍 [DROPDOWN DEBUG] AppState.utilizadores.length:', AppState.utilizadores?.length);
+        
+        if (AppState.utilizadores && AppState.utilizadores.length > 0) {
+            console.log('✅ [DROPDOWN] ENTRANDO NO IF - Utilizadores carregados:', AppState.utilizadores.length);
+            
+            // Detectar nome correto do campo (pode ser "nomeCompleto" ou "Nome Completo")
+            const primeiroUser = AppState.utilizadores[0];
+            console.log('🔍 [DROPDOWN] Primeiro utilizador:', JSON.stringify(primeiroUser));
+            console.log('🔍 [DROPDOWN] Chaves:', Object.keys(primeiroUser));
+            
+            const nomeCompletoKey = Object.keys(primeiroUser).find(k => k.toLowerCase().replace(/[_\s]/g, '') === 'nomecompleto') || 'nomeCompleto';
+            console.log('✅ [DROPDOWN] Campo nome:', nomeCompletoKey);
+            console.log('✅ [DROPDOWN] Total a adicionar:', AppState.utilizadores.length);
+            
+            // 🔥 NÃO FILTRAR! A função SQL já retorna só os ativos!
+            let contador = 0;
+            AppState.utilizadores
+                .sort((a, b) => (a[nomeCompletoKey] || '').localeCompare(b[nomeCompletoKey] || ''))
+                .forEach(user => {
+                    const nomeCompleto = user[nomeCompletoKey];
+                    const selected = taskResponsavel === nomeCompleto ? 'selected' : '';
+                    html += `<option value="${nomeCompleto}" ${selected}>${nomeCompleto}</option>`;
+                    contador++;
+                    console.log(`  ✅ [DROPDOWN] Adicionado ${contador}/${AppState.utilizadores.length}: ${nomeCompleto}`);
+                });
+            console.log('✅ [DROPDOWN] Total adicionado:', contador);
+        } else {
+            console.warn('⚠️ [DROPDOWN] ENTRANDO NO ELSE - Utilizadores não carregados, usando fallback');
+            // Fallback: buscar responsáveis únicos existentes
+            const responsaveisUnicos = [...new Set(AppState.requests.map(r => {
+                const task = AppState.planning.tasks[r.id];
+                return task?.responsavel;
+            }).filter(r => r))].sort();
+            
+            console.log('🔍 [DROPDOWN] Responsáveis únicos (fallback):', responsaveisUnicos);
+            
+            responsaveisUnicos.forEach(resp => {
+                const selected = taskResponsavel === resp ? 'selected' : '';
+                html += `<option value="${resp}" ${selected}>${resp}</option>`;
+            });
+        }
         html += `</select></td>`;
         html += `<td class="hours-cell"><input type="number" class="hours-input" value="${taskHours}" min="0" step="0.5" placeholder="0" data-task-id="${task.id}" onchange="updateTaskHours('${task.id}', this.value)"></td>`;
         dates.forEach(date => {
@@ -13287,14 +13395,14 @@ async function carregarKeywords() {
  * 🆕 v3.7.6.13: Keywords padrão (fallback)
  */
 function getKeywordsPadrao() {
-    console.log('ℹ️ [KEYWORDS] Usando keywords padrão (fallback)');
+    console.log('ℹ️ [KEYWORDS] Usando keywords padrão (fallback) - AVISAR ADMIN para configurar no Supabase!');
     return {
         'lubrificacao': ['lubrific', 'óleo', 'graxa', 'lubrificação', 'chumaceira', 'engrenagem', 'óleo hidráulico'],
-        'manutencao': ['manutenção', 'preventiva', 'corretiva', 'inspeção', 'verificação', 'limpeza', 'correia', 'correias', 'esticamento', 'tensão', 'ajuste', 'substituição', 'troca'],
-        'operacao': ['operação', 'funcionamento', 'ligar', 'desligar', 'arranque', 'paragem'],
+        'manutencao': ['manutenção', 'preventiva', 'corretiva', 'inspeção', 'verificação', 'limpeza', 'correia', 'correias', 'esticamento', 'tensão', 'tensao', 'ajuste', 'substituição', 'troca', 'tracção', 'traccao'],
+        'operacao': ['operação', 'funcionamento', 'ligar', 'desligar', 'arranque', 'paragem', 'instalação', 'instalacao'],
         'seguranca': ['segurança', 'perigo', 'aviso', 'proteção', 'epi', 'risco'],
-        'especificacoes': ['especificações', 'técnica', 'dimensões', 'capacidade', 'potência', 'voltagem'],
-        'problemas': ['problema', 'avaria', 'defeito', 'resolução', 'troubleshooting', 'diagnóstico']
+        'especificacoes': ['especificações', 'técnica', 'dimensões', 'capacidade', 'potência', 'voltagem', 'frequência', 'frequencia'],
+        'problemas': ['problema', 'avaria', 'defeito', 'resolução', 'troubleshooting', 'diagnóstico', 'dimensional']
     };
 }
 
@@ -13369,18 +13477,29 @@ async function filtrarSecoesRelevantes(secoes, pergunta) {
  * Buscar manuais relevantes baseados na pergunta
  */
 async function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
-    // Verificar se a pergunta menciona manuais, instruções, procedimentos, etc.
+    // 🆕 v3.7.7.4: Usar keywords do Supabase em vez de lista hardcoded!
     const perguntaLower = pergunta.toLowerCase();
-    const palavrasChave = ['manual', 'instrução', 'instruções', 'procedimento', 'como', 'orientação', 
-                           'problema', 'dimensional', 'defeito', 'ajustar', 'regular', 'calibrar',
-                           'lubrificação', 'lubrificacao', 'tabela', 'plano', 'manutenção preventiva', 
-                           'manutencao preventiva', 'especificação', 'especificacao'];
     
-    const mencionaManual = palavrasChave.some(palavra => perguntaLower.includes(palavra));
+    // Carregar keywords do Supabase (ou fallback)
+    const topicosKeywords = await carregarKeywords();
+    
+    // Juntar TODAS as keywords de TODOS os tópicos numa única lista
+    const todasKeywords = Object.values(topicosKeywords).flat();
+    
+    console.log('🔍 [MANUAIS] Keywords carregadas:', todasKeywords.length, 'palavras');
+    console.log('🔍 [MANUAIS] Pergunta:', pergunta);
+    
+    // Verificar se a pergunta contém QUALQUER keyword
+    const mencionaManual = todasKeywords.some(palavra => perguntaLower.includes(palavra.toLowerCase()));
+    
+    console.log('🔍 [MANUAIS] Menciona manual/keyword?', mencionaManual);
     
     if (!mencionaManual && equipamentosMencionados.length === 0) {
+        console.log('⚠️ [MANUAIS] Nenhuma keyword detectada, não buscando manuais');
         return null;  // Não incluir manuais se não forem relevantes
     }
+    
+    console.log('✅ [MANUAIS] Keywords detectadas! Buscando manuais...');
     
     // Se houver manuais carregados no AppState (carregados quando tab é aberta)
     if (!AppState.manuais || AppState.manuais.length === 0) {
@@ -13659,4 +13778,3 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
-
