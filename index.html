@@ -6420,30 +6420,21 @@ function calcularUltimoDiaUtil() {
  * Alertar Marco e Gonçalo se algum técnico não produziu
  */
 async function verificarAlertasDiarios() {
-    console.log('🚨 [DEBUG] Iniciando verificação de alertas diários...');
-    
     // 🔒 Apenas para Marco e Gonçalo (com ou sem cedilha)
-    // Usar 'username' em vez de 'name'
     const utilizadorAtual = AppState.currentUser?.username || '';
-    console.log('🚨 [DEBUG] Utilizador atual:', utilizadorAtual);
     
     // Normalizar nome (remover acentos para comparação)
     const utilizadorNormalizado = utilizadorAtual.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const isMarcoOuGoncalo = utilizadorNormalizado === 'marco' || utilizadorNormalizado === 'goncalo';
     
     if (!isMarcoOuGoncalo) {
-        console.log('🚨 [DEBUG] Utilizador não é Marco/Gonçalo - SEM ALERTAS');
         return; // Não mostrar alertas para outros utilizadores
     }
     
-    console.log('✅ [DEBUG] Utilizador é Marco ou Gonçalo - CONTINUAR VERIFICAÇÃO');
-    
     // 📅 Calcular último dia útil
     const ultimoDiaUtil = calcularUltimoDiaUtil();
-    console.log('🚨 [DEBUG] Último dia útil calculado:', ultimoDiaUtil);
     
     if (!ultimoDiaUtil) {
-        console.log('🚨 [DEBUG] Hoje é Domingo - SEM VERIFICAÇÃO');
         return; // Domingo - sem verificação
     }
     
@@ -6463,43 +6454,48 @@ async function verificarAlertasDiarios() {
     const fimDia = new Date(ultimoDiaUtil);
     fimDia.setHours(23, 59, 59, 999);
     
-    console.log(`📊 Verificar OTs fechadas entre ${inicioDia.toLocaleString('pt-PT')} e ${fimDia.toLocaleString('pt-PT')}`);
-    
-    // 🔍 PRIMEIRO: Buscar TODOS os pedidos do Supabase
-    console.log('🔍 [DEBUG] Buscando todos os pedidos do Supabase...');
+    // 🔍 Buscar TODOS os pedidos do Supabase
     const todosPedidos = await window.SupabaseAPI.getPedidos();
     
-    if (todosPedidos && todosPedidos.length > 0) {
-        const responsaveisUnicos = [...new Set(todosPedidos.map(p => p['Responsável']).filter(r => r))].sort();
-        console.log('🔍 [DEBUG] Responsáveis encontrados no Supabase:', responsaveisUnicos);
-    }
-    
-    // 👥 Técnicos a monitorizar
-    // 🆕 v3.7.7.0: Buscar técnicos da tabela utilizadores (já vêm ATIVOS!)
+    // 👥 Técnicos a monitorizar (buscar da tabela utilizadores)
     const tecnicos = AppState.utilizadores && AppState.utilizadores.length > 0
         ? AppState.utilizadores.map(u => {
-            // Detectar campo nome
             const nomeKey = Object.keys(u).find(k => k.toLowerCase().replace(/[_\s]/g, '') === 'nomecompleto') || 'nomeCompleto';
             return u[nomeKey];
           })
-        : ['Vítor', 'Alan', 'Paulo'];  // Fallback se utilizadores não carregados
-    console.log('👥 [DEBUG] Técnicos a verificar:', tecnicos);
+        : ['Vítor', 'Alan', 'Paulo'];  // Fallback
+    
     const tecnicosSemProducao = [];
     
     // 🔍 Verificar cada técnico
     for (const tecnico of tecnicos) {
         try {
-            console.log(`🔎 [DEBUG] Verificando técnico: "${tecnico}"...`);
             
             // Filtrar pedidos do técnico, estado Resolvido e no período
-            // 🆕 v3.7.6.9: Usar "Fechado Por" em vez de "Responsável"
-            // Responsável = quem iniciou/foi alocado | Fechado Por = quem realmente fechou
+            // 🆕 v3.8.2: Corrigido para usar fechado_por_username e verificar data correta
             const pedidosFiltrados = todosPedidos.filter(p => {
-                const dataPedido = new Date(p['Data/hora']);
-                return (p['Fechado Por'] === tecnico || (!p['Fechado Por'] && p['Responsável'] === tecnico)) &&
-                       p.Estado === 'Resolvido' &&
-                       dataPedido >= inicioDia &&
-                       dataPedido <= fimDia;
+                // Verificar estado
+                if (p.Estado !== 'Resolvido') return false;
+                
+                // 🆕 v3.8.2: Comparar por username (mais confiável que nome completo)
+                const tecnicoUsername = AppState.utilizadores?.find(u => {
+                    const nomeKey = Object.keys(u).find(k => k.toLowerCase().replace(/[_\s]/g, '') === 'nomecompleto') || 'nomeCompleto';
+                    return u[nomeKey] === tecnico;
+                })?.username;
+                
+                // Verificar se este técnico fechou a OT
+                const fechouEsteUser = p.fechado_por_username === tecnicoUsername;
+                
+                // ⚠️ Fallback antigo (caso fechado_por_username não exista)
+                const fechouPorNome = p['Fechado Por'] === tecnico || (!p['Fechado Por'] && p['Responsável'] === tecnico);
+                
+                if (!fechouEsteUser && !fechouPorNome) return false;
+                
+                // 🆕 v3.8.2: Usar updated_at (quando foi fechada) em vez de Data/hora (criação)
+                // Se OT foi resolvida, updated_at é a data de fecho
+                const dataFecho = p.updated_at ? new Date(p.updated_at) : new Date(p['Data/hora']);
+                
+                return dataFecho >= inicioDia && dataFecho <= fimDia;
             });
             
             const data = pedidosFiltrados;
@@ -6518,9 +6514,11 @@ async function verificarAlertasDiarios() {
                 console.log(`   ↳ OTs de ${tecnico}:`, data.map(ot => ({
                     id: ot.ID,
                     responsavel: ot['Responsável'],
-                    fechadoPor: ot['Fechado Por'], // 🆕 v3.7.6.9.3: mostrar quem fechou
+                    fechadoPor: ot['Fechado Por'],
+                    fechadoPorUsername: ot.fechado_por_username, // 🆕 v3.8.2
                     estado: ot.Estado,
-                    data: new Date(ot['Data/hora']).toLocaleString('pt-PT')
+                    dataCriacao: new Date(ot['Data/hora']).toLocaleString('pt-PT'),
+                    dataFecho: ot.updated_at ? new Date(ot.updated_at).toLocaleString('pt-PT') : 'N/A' // 🆕 v3.8.2
                 })));
             } else {
                 console.log(`   ↳ ${tecnico}: NENHUMA OT fechada no período!`);
