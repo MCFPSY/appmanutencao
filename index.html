@@ -7499,6 +7499,7 @@ async function extractTextFromPDF(file, progressCallback = null) {
         let textoCompleto = '';
         const secoes = [];
         let textosPorPagina = {}; // Guardar texto de cada página
+        let imagensPorPagina = {}; // 🆕 v3.8.2.1: Guardar imagens extraídas (OCR ou não)
         let usouOCR = false;
         
         // PASSO 1: Tentar extrair texto normal (rápido)
@@ -7536,7 +7537,7 @@ async function extractTextFromPDF(file, progressCallback = null) {
             usouOCR = true;
             textoCompleto = '';
             textosPorPagina = {};
-            const imagensPorPagina = {}; // 🆕 Guardar imagens extraídas
+            imagensPorPagina = {}; // 🆕 Reset para OCR (já declarado acima)
             
             // Criar worker do Tesseract (reutilizável) com configuração otimizada
             console.log('🔧 Configurando Tesseract.js com detecção de layout...');
@@ -13409,15 +13410,13 @@ async function carregarKeywords() {
     }
     
     try {
-        const { data, error } = await window.supabase.rpc('get_chatbot_keywords');
+        // 🆕 v3.8.2: Usar supabaseFetch em vez de window.supabase.rpc
+        const data = await supabaseFetch('rpc/get_chatbot_keywords', {
+            method: 'POST',
+            body: JSON.stringify({})
+        });
         
-        if (error) {
-            console.error('⚠️ [KEYWORDS] Erro ao carregar do Supabase:', error);
-            // Fallback: usar keywords padrão hard-coded
-            return getKeywordsPadrao();
-        }
-        
-        if (!data) {
+        if (!data || Object.keys(data).length === 0) {
             console.warn('⚠️ [KEYWORDS] Nenhuma keyword retornada, usando padrão');
             return getKeywordsPadrao();
         }
@@ -13428,6 +13427,7 @@ async function carregarKeywords() {
         
     } catch (err) {
         console.error('❌ [KEYWORDS] Erro ao buscar keywords:', err);
+        console.warn('ℹ️ [KEYWORDS] Usando keywords padrão (fallback)');
         return getKeywordsPadrao();
     }
 }
@@ -13456,12 +13456,11 @@ async function carregarAutoTagPatterns() {
     }
     
     try {
-        const { data, error } = await window.supabase.rpc('get_auto_tag_patterns');
-        
-        if (error) {
-            console.error('⚠️ [AUTO-TAG] Erro ao carregar padrões:', error);
-            return getAutoTagPatternsDefault();
-        }
+        // 🆕 v3.8.2: Usar supabaseFetch em vez de window.supabase.rpc
+        const data = await supabaseFetch('rpc/get_auto_tag_patterns', {
+            method: 'POST',
+            body: JSON.stringify({})
+        });
         
         if (!data || data.length === 0) {
             console.warn('⚠️ [AUTO-TAG] Nenhum padrão retornado, usando padrão');
@@ -13487,6 +13486,7 @@ async function carregarAutoTagPatterns() {
         
     } catch (err) {
         console.error('❌ [AUTO-TAG] Erro ao buscar padrões:', err);
+        console.warn('ℹ️ [AUTO-TAG] Usando padrões padrão (fallback)');
         return getAutoTagPatternsDefault();
     }
 }
@@ -13937,3 +13937,4 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
+
