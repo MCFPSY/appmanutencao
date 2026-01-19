@@ -7620,6 +7620,13 @@ async function extractTextFromPDF(file, progressCallback = null) {
                         const regionCanvas = extractImageRegion(canvas, region);
                         const regionBlob = await canvasToBlob(regionCanvas);
                         
+                        // 🆕 v3.8.1: Filtrar imagens muito pequenas (< 20KB)
+                        const MIN_IMAGE_SIZE = 20 * 1024; // 20KB
+                        if (regionBlob.size < MIN_IMAGE_SIZE) {
+                            console.log(`    ⏭️ ${region.type} ${idx + 1} ignorada (${(regionBlob.size / 1024).toFixed(1)}KB < 20KB)`);
+                            continue; // Pular esta imagem
+                        }
+                        
                         // Upload para Supabase Storage
                         try {
                             const imageUrl = await uploadExtractedImage(regionBlob, manualId, pageNum, region.type, idx);
@@ -7628,7 +7635,7 @@ async function extractTextFromPDF(file, progressCallback = null) {
                                 type: region.type,
                                 score: region.score
                             });
-                            console.log(`    ✅ ${region.type} ${idx + 1} uploaded`);
+                            console.log(`    ✅ ${region.type} ${idx + 1} uploaded (${(regionBlob.size / 1024).toFixed(1)}KB)`);
                         } catch (uploadError) {
                             console.error(`    ❌ Erro ao fazer upload da ${region.type} ${idx + 1}:`, uploadError);
                         }
@@ -7702,6 +7709,23 @@ async function extractTextFromPDF(file, progressCallback = null) {
             // 🆕 v3.8.0: Detectar tags automaticamente
             const tags = await detectarTagsAutomaticas(chunk.texto || '');
             
+            // 🆕 v3.8.1: Extrair URLs de imagens/tabelas desta secção (das páginas que cobre)
+            const imagensSecao = [];
+            if (imagensPorPagina && Object.keys(imagensPorPagina).length > 0) {
+                for (let p = chunk.paginaInicio; p <= chunk.paginaFim; p++) {
+                    if (imagensPorPagina[p]) {
+                        // Adicionar URLs das imagens desta página
+                        imagensPorPagina[p].forEach(img => {
+                            imagensSecao.push(img.url);
+                        });
+                    }
+                }
+            }
+            
+            if (imagensSecao.length > 0) {
+                console.log(`  📊 Secção "${chunk.titulo}": ${imagensSecao.length} imagem(ns) encontrada(s)`);
+            }
+            
             secoes.push({
                 secao: chunk.titulo,                // Título do capítulo
                 conteudo: chunk.texto,              // Texto completo do capítulo
@@ -7709,6 +7733,7 @@ async function extractTextFromPDF(file, progressCallback = null) {
                 pagina_fim: chunk.paginaFim,        // Página estimada
                 palavras_chave: chunk.palavrasChave, // Keywords extraídas
                 tags: tags,                         // 🆕 v3.8.0: Tags auto-detectadas
+                imagens_urls: imagensSecao,         // 🆕 v3.8.1: URLs de imagens/tabelas
                 ordem: idx + 1
             });
         }
@@ -9485,7 +9510,9 @@ async function sendToGoogleSheets(data) {
             'Paragem Produção': data.paragemProducao ? 'TRUE' : 'FALSE',
             'Responsável': data.responsavel || '',  // ✅ ADICIONADO (display)
             'Horas Estimadas': data.horasEstimadas || 0,  // ✅ ADICIONADO
-            criado_por_username: AppState.currentUser?.username || null  // 🆕 v3.7.7.0: FK
+            criado_por_username: AppState.currentUser?.username || null,  // 🆕 v3.7.7.0: FK
+            responsavel_username: data.responsavelUsername || null,  // 🆕 v3.8.1.2: FK
+            fechado_por_username: null  // 🆕 v3.8.1.2: Preenchido quando fechar
         };
         
         console.log('🔥 DEBUG: Dados enviados para Supabase:', JSON.stringify(supabaseData, null, 2));
@@ -13133,6 +13160,10 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     console.log('🔍 [DEBUG-CHAT] Mensagem recebida (primeiros 300 chars):', mensagem.substring(0, 300));
     console.log('🔍 [DEBUG-CHAT] Procurando por URLs de imagens...');
     
+    // 🆕 v3.8.1: Sanitizar emojis mal codificados (� → 📊)
+    mensagem = mensagem.replace(/�\s*\[TABLE/g, '📊 [TABLE');
+    mensagem = mensagem.replace(/�\s*\[DIAGRAM/g, '🖼️ [DIAGRAM');
+    
     const imageRegex = /([📊🖼️])\s*\[(TABLE|DIAGRAM)\s+\d+\]:\s*(https?:\/\/[^\s]+)/gi;
     const imagesFound = [];
     let mensagemSemImagens = mensagem;
@@ -13545,7 +13576,9 @@ async function filtrarSecoesRelevantes(secoes, pergunta) {
         return secoes.map(s => ({
             titulo: s.secao,
             paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
-            texto: s.conteudo
+            texto: s.conteudo,
+            imagens_urls: s.imagens_urls || [],  // 🆕 v3.8.1: URLs de tabelas/imagens
+            tags: s.tags || []                    // 🆕 v3.8.1: Tags da secção
         }));
     }
     
@@ -13578,19 +13611,26 @@ async function filtrarSecoesRelevantes(secoes, pergunta) {
         return secoes.map(s => ({
             titulo: s.secao,
             paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
-            texto: s.conteudo
+            texto: s.conteudo,
+            imagens_urls: s.imagens_urls || [],  // 🆕 v3.8.1: URLs de tabelas/imagens
+            tags: s.tags || []                    // 🆕 v3.8.1: Tags da secção
         }));
     }
     
     // Mostrar quais secções foram selecionadas
     secoesRelevantes.forEach((s, idx) => {
         console.log(`   ${idx + 1}. ${s.secao} (páginas ${s.pagina_inicio}-${s.pagina_fim})`);
+        if (s.imagens_urls && s.imagens_urls.length > 0) {
+            console.log(`      📊 ${s.imagens_urls.length} imagem(ns) incluída(s)`);
+        }
     });
     
     return secoesRelevantes.map(s => ({
         titulo: s.secao,
         paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
-        texto: s.conteudo
+        texto: s.conteudo,
+        imagens_urls: s.imagens_urls || [],  // 🆕 v3.8.1: URLs de tabelas/imagens
+        tags: s.tags || []                    // 🆕 v3.8.1: Tags da secção
     }));
 }
 
