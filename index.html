@@ -1,17 +1,22 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.2.5
+    📦 Versão: v3.8.2.7
     📅 Data: 2026-01-19
     
-    🎯 v3.8.2.5: FIX CRÍTICO - PARSER INLINE ATIVADO 🐛🖼️
+    🎯 v3.8.2.7: FIX VERDADEIRO - GEMINI INSERE URLS INLINE 🐛🖼️
     ───────────────────────────────────────────────────────────
-    ✅ ATIVADO parser de inserção inline (estava declarado mas nunca chamado!)
-    ✅ Imagens de tabelas/diagramas aparecem inline após menções no texto
-    ✅ Matching inteligente: página + tipo + número de menção
-    ✅ Fallback: imagens não mencionadas vão para o final
-    ✅ Remove caracteres � isolados (placeholders do Gemini)
-    ✅ Logs detalhados: [INLINE-ATIVADO], [MATCHING], [INLINE]
+    ✅ DESCOBERTA: Problema era PROMPT do Gemini (URLs todas no final!)
+    ✅ CORREÇÃO: Instruções novas - Gemini INSERE URLs inline após cada menção
+    ✅ Frontend simplificado: Gemini já organiza, frontend só renderiza
+    ✅ Exemplo: "Tabela 6:\n\n📊 [TABLE]: https://..." (inline!)
+    ✅ Não agrupa URLs no final da resposta
+    ✅ Remove caracteres � isolados
+    
+    🎯 v3.8.2.6: ANÁLISE PROFUNDA (mas estava errado!)
+    ───────────────────────────────────────────────────────────
+    ⚠️ Sistema de marcadores complexo, mas o problema era outro!
+    ⚠️ Gemini estava colocando URLs todas no final (não inline)
     
     🎯 v3.7.2.1: CORREÇÕES DE UX 🎨
     ───────────────────────────────────────────────────────────
@@ -13352,21 +13357,8 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     
     console.log('📊 [DEBUG-CHAT] Total de imagens encontradas:', imagesFound.length);
     
-    // 🆕 v3.8.2.5: CHAMAR PARSER INLINE (contexto inteligente)
+    // 🆕 v3.8.2.7: SIMPLIFICADO - Gemini agora insere URLs inline corretamente
     let mensagemSemImagens = mensagemProcessada;
-    if (imagesFound.length > 0 && tipo === 'assistant') {
-        const resultado = inserirImagensInline(mensagemProcessada, imagesFound);
-        mensagemSemImagens = resultado.texto;
-        console.log(`✅ [INLINE-ATIVADO] ${resultado.imagensInseridas.length} imagens inline, ${resultado.imagensRestantes.length} no final`);
-        // Atualizar lista para renderizar apenas as restantes no final
-        imagesFound.length = 0;
-        resultado.imagensRestantes.forEach(img => imagesFound.push(img));
-    } else {
-        // Remover referências inline se não for assistente
-        imagesFound.forEach(({ fullMatch }) => {
-            mensagemSemImagens = mensagemSemImagens.replace(fullMatch, '');
-        });
-    }
     
     // 🆕 v3.8.2.3: Remover � isolados (sem URL) que Gemini inseriu no meio do texto
     mensagemSemImagens = mensagemSemImagens.replace(/�\s*/g, '');
@@ -13381,7 +13373,7 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     
     contentDiv.innerHTML = htmlContent;
     
-    // 🆕 Adicionar imagens encontradas
+    // 🆕 v3.8.2.7: Renderizar TODAS as imagens detectadas (Gemini já as organizou inline)
     if (imagesFound.length > 0 && tipo === 'assistant') {
         const imagesContainer = document.createElement('div');
         imagesContainer.style.cssText = 'margin-top: 10px; display: flex; flex-direction: column; gap: 10px;';
@@ -13407,6 +13399,7 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
         });
         
         contentDiv.appendChild(imagesContainer);
+        console.log(`📋 [INLINE-v3.8.2.7] ${imagesFound.length} imagens renderizadas (organizadas pelo Gemini)`);
     }
     
     messageDiv.appendChild(contentDiv);
