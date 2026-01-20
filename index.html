@@ -1,8 +1,16 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.2.15 (Worker: v3.8.2.11)
+    📦 Versão: v3.8.2.16 (Worker: v3.8.2.11)
     📅 Data: 2026-01-20
+    
+    🔧 v3.8.2.16: FIX FILTRO - Filtro desativado temporariamente! 🐛
+    ───────────────────────────────────────────────────────────
+    ✅ PROBLEMA: Filtro inteligente estava MUITO AGRESSIVO
+    ✅ EXEMPLO: Manual L04 tinha 4 secções, filtro só enviava 3 ao Gemini
+    ✅ CAUSA: Secções sem palavra "manutenção" eram excluídas
+    ✅ SOLUÇÃO: Desativar filtro TEMPORARIAMENTE (enviar todas as secções)
+    ✅ RESULTADO: Gemini recebe TODO o conteúdo do manual (filtra ele mesmo)
     
     ✨ v3.8.2.15: SIMPLIFICAÇÃO - Remover TODOS os emojis! 🧹
     ───────────────────────────────────────────────────────────
@@ -10513,42 +10521,25 @@ function renderPlanningGrid() {
         html += `<option value="">-</option>`;
         
         // 🆕 v3.7.7.1: Usar utilizadores da BD (já vêm ATIVOS da função SQL!)
-        console.log('🔍 [DROPDOWN DEBUG] AppState.utilizadores existe?', !!AppState.utilizadores);
-        console.log('🔍 [DROPDOWN DEBUG] AppState.utilizadores.length:', AppState.utilizadores?.length);
-        
         if (AppState.utilizadores && AppState.utilizadores.length > 0) {
-            console.log('✅ [DROPDOWN] ENTRANDO NO IF - Utilizadores carregados:', AppState.utilizadores.length);
-            
             // Detectar nome correto do campo (pode ser "nomeCompleto" ou "Nome Completo")
             const primeiroUser = AppState.utilizadores[0];
-            console.log('🔍 [DROPDOWN] Primeiro utilizador:', JSON.stringify(primeiroUser));
-            console.log('🔍 [DROPDOWN] Chaves:', Object.keys(primeiroUser));
-            
             const nomeCompletoKey = Object.keys(primeiroUser).find(k => k.toLowerCase().replace(/[_\s]/g, '') === 'nomecompleto') || 'nomeCompleto';
-            console.log('✅ [DROPDOWN] Campo nome:', nomeCompletoKey);
-            console.log('✅ [DROPDOWN] Total a adicionar:', AppState.utilizadores.length);
             
             // 🔥 NÃO FILTRAR! A função SQL já retorna só os ativos!
-            let contador = 0;
             AppState.utilizadores
                 .sort((a, b) => (a[nomeCompletoKey] || '').localeCompare(b[nomeCompletoKey] || ''))
                 .forEach(user => {
                     const nomeCompleto = user[nomeCompletoKey];
                     const selected = taskResponsavel === nomeCompleto ? 'selected' : '';
                     html += `<option value="${nomeCompleto}" ${selected}>${nomeCompleto}</option>`;
-                    contador++;
-                    console.log(`  ✅ [DROPDOWN] Adicionado ${contador}/${AppState.utilizadores.length}: ${nomeCompleto}`);
                 });
-            console.log('✅ [DROPDOWN] Total adicionado:', contador);
         } else {
-            console.warn('⚠️ [DROPDOWN] ENTRANDO NO ELSE - Utilizadores não carregados, usando fallback');
             // Fallback: buscar responsáveis únicos existentes
             const responsaveisUnicos = [...new Set(AppState.requests.map(r => {
                 const task = AppState.planning.tasks[r.id];
                 return task?.responsavel;
             }).filter(r => r))].sort();
-            
-            console.log('🔍 [DROPDOWN] Responsáveis únicos (fallback):', responsaveisUnicos);
             
             responsaveisUnicos.forEach(resp => {
                 const selected = taskResponsavel === resp ? 'selected' : '';
@@ -13432,10 +13423,23 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
 /**
  * Mostrar/esconder status de loading
  */
-function mostrarChatbotStatus(mostrar = true) {
+function mostrarChatbotStatus(mostrar = true, mensagemCustom = null) {
     const status = document.getElementById('chatbotStatus');
     if (status) {
         status.style.display = mostrar ? 'flex' : 'none';
+        
+        // 🆕 v3.8.2.19: Mensagem customizada para retry
+        if (mensagemCustom) {
+            const statusText = status.querySelector('.status-text');
+            if (statusText) {
+                statusText.textContent = mensagemCustom;
+            }
+        } else {
+            const statusText = status.querySelector('.status-text');
+            if (statusText) {
+                statusText.textContent = 'A processar...';
+            }
+        }
     }
 }
 
@@ -13957,46 +13961,79 @@ window.enviarPerguntaChatbot = async function() {
         // ✅ v3.7.1.9 - Preparar contexto ADAPTATIVO baseado na pergunta
         const contexto = await prepararContextoDados(pergunta);
         
-        // 🚀 MODO PRODUÇÃO: IA Real com Gemini via Cloudflare Worker
-        const response = await fetch(CHATBOT_WORKER_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                pergunta,
-                contexto
-            })
-        });
+        // 🆕 v3.8.2.19: Retry com feedback ao utilizador
+        const maxTentativas = 3;
+        const delayEntreRetries = 2000; // 2 segundos
+        let ultimoErro = null;
         
-        if (!response.ok) {
-            throw new Error(`Erro na resposta do servidor: ${response.status}`);
+        for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+            try {
+                // Mostrar feedback de retry
+                if (tentativa > 1) {
+                    mostrarChatbotStatus(true, `Comunicação mais lenta que o habitual... Tentativa ${tentativa}/${maxTentativas}`);
+                }
+                
+                // 🚀 MODO PRODUÇÃO: IA Real com Gemini via Cloudflare Worker
+                const response = await fetch(CHATBOT_WORKER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        pergunta,
+                        contexto
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro na resposta do servidor: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // ✅ SUCESSO! Sair do loop de retry
+                ultimoErro = null;
+                
+                // 🆕 v3.7.6.10: Debug - ver o que veio do Worker
+                console.log('🔍 [DEBUG] Resposta do Worker:', data);
+                
+                // 🆕 v3.7.6.10: Mostrar logs de debug do Worker
+                if (data.debug_logs) {
+                    console.log('🔍 [WORKER DEBUG LOGS]:');
+                    data.debug_logs.forEach(log => console.log('   ', log));
+                }
+                
+                if (data.erro) {
+                    throw new Error(data.erro);
+                }
+                
+                if (!data.resposta) {
+                    console.error('❌ Resposta do Worker não contém "resposta":', data);
+                    throw new Error('Resposta inválida do servidor: campo "resposta" ausente');
+                }
+                
+                // Processar resposta normalmente
+                let respostaFinal = data.resposta;
+                adicionarMensagemChat(respostaFinal, 'assistant');
+                
+                // ✅ SUCESSO! Sair do try-catch principal
+                break;
+                
+            } catch (erro) {
+                ultimoErro = erro;
+                console.error(`❌ Tentativa ${tentativa}/${maxTentativas} falhou:`, erro);
+                
+                // Se não for a última tentativa, aguardar antes de retry
+                if (tentativa < maxTentativas) {
+                    await new Promise(resolve => setTimeout(resolve, delayEntreRetries));
+                }
+            }
         }
         
-        const data = await response.json();
-        
-        // 🆕 v3.7.6.10: Debug - ver o que veio do Worker
-        console.log('🔍 [DEBUG] Resposta do Worker:', data);
-        
-        // 🆕 v3.7.6.10: Mostrar logs de debug do Worker
-        if (data.debug_logs) {
-            console.log('🔍 [WORKER DEBUG LOGS]:');
-            data.debug_logs.forEach(log => console.log('   ', log));
+        // Se todas as tentativas falharam, lançar erro
+        if (ultimoErro) {
+            throw ultimoErro;
         }
-        
-        if (data.erro) {
-            throw new Error(data.erro);
-        }
-        
-        if (!data.resposta) {
-            console.error('❌ Resposta do Worker não contém "resposta":', data);
-            throw new Error('Resposta inválida do servidor: campo "resposta" ausente');
-        }
-        
-        // Processar resposta normalmente
-        let respostaFinal = data.resposta;
-        
-        adicionarMensagemChat(respostaFinal, 'assistant');
         
     } catch (error) {
         console.error('❌ Erro no chatbot:', error);
