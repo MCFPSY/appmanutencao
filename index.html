@@ -1,8 +1,16 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.2.7
-    📅 Data: 2026-01-19
+    📦 Versão: v3.8.2.10-MINIMAL
+    📅 Data: 2026-01-20
+    
+    🎯 v3.8.2.10: CÓDIGO MÍNIMO - SEM ALTERAÇÕES PÓS-WORKER! 🧹
+    ───────────────────────────────────────────────────────────
+    ✅ REMOVIDAS: TODAS as "correções" frontend que adicionei hoje
+    ✅ CÓDIGO: Processamento mínimo - Worker retorna, frontend renderiza
+    ✅ SEM: Verificações de URLs, sem failsafes, sem regex no contexto
+    🧪 TESTE: Verificar se Worker retorna 200 OK (sem erro 500)
+    📋 OBJETIVO: Isolar se problema é Worker OU frontend
     
     🎯 v3.8.2.7: FIX VERDADEIRO - GEMINI INSERE URLS INLINE 🐛🖼️
     ───────────────────────────────────────────────────────────
@@ -13973,34 +13981,8 @@ window.enviarPerguntaChatbot = async function() {
             throw new Error('Resposta inválida do servidor: campo "resposta" ausente');
         }
         
-        // 🆕 v3.7.6.12: CORREÇÃO FINAL - Extrair URLs do contexto e adicionar no INÍCIO
+        // Processar resposta normalmente
         let respostaFinal = data.resposta;
-        
-        // Extrair URLs que foram enviadas no contexto
-        const contextoStr = JSON.stringify(contexto);
-        const urlsNoContexto = contextoStr.match(/📊 \[TABLE \d+\]: https?:\/\/[^\s\n]+/g) || [];
-        
-        if (urlsNoContexto.length > 0) {
-            console.log(`🔧 [CORREÇÃO-FRONTEND] ${urlsNoContexto.length} URLs encontradas no contexto`);
-            
-            // Verificar se Gemini já incluiu as URLs (formato correto)
-            const urlsNaResposta = respostaFinal.match(/📊 \[TABLE \d+\]: https?:\/\/[^\s\n]+/g) || [];
-            console.log(`🔍 [CORREÇÃO-FRONTEND] ${urlsNaResposta.length} URLs na resposta do Gemini`);
-            
-            if (urlsNaResposta.length === 0) {
-                console.log('⚠️ [CORREÇÃO-FRONTEND] Gemini NÃO incluiu URLs! Adicionando manualmente...');
-                
-                // ADICIONAR URLs NO INÍCIO (antes de qualquer texto)
-                const secaoImagens = '📊 **Tabelas/Diagramas do Manual:**\n\n' + 
-                                    urlsNoContexto.join('\n\n') + 
-                                    '\n\n---\n\n';
-                
-                respostaFinal = secaoImagens + respostaFinal;
-                console.log('✅ [CORREÇÃO-FRONTEND] URLs adicionadas no início da resposta');
-            } else {
-                console.log('✅ [CORREÇÃO-FRONTEND] Gemini já incluiu URLs corretamente');
-            }
-        }
         
         adicionarMensagemChat(respostaFinal, 'assistant');
         
@@ -14124,3 +14106,4 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
+
