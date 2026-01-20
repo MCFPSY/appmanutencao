@@ -1,8 +1,17 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.7.2.1
-    📅 Data: 2026-01-12
+    📦 Versão: v3.8.2.5
+    📅 Data: 2026-01-19
+    
+    🎯 v3.8.2.5: FIX CRÍTICO - PARSER INLINE ATIVADO 🐛🖼️
+    ───────────────────────────────────────────────────────────
+    ✅ ATIVADO parser de inserção inline (estava declarado mas nunca chamado!)
+    ✅ Imagens de tabelas/diagramas aparecem inline após menções no texto
+    ✅ Matching inteligente: página + tipo + número de menção
+    ✅ Fallback: imagens não mencionadas vão para o final
+    ✅ Remove caracteres � isolados (placeholders do Gemini)
+    ✅ Logs detalhados: [INLINE-ATIVADO], [MATCHING], [INLINE]
     
     🎯 v3.7.2.1: CORREÇÕES DE UX 🎨
     ───────────────────────────────────────────────────────────
@@ -13327,20 +13336,37 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     mensagem = mensagem.replace(/�\s*\[TABLE/g, '📊 [TABLE');
     mensagem = mensagem.replace(/�\s*\[DIAGRAM/g, '🖼️ [DIAGRAM');
     
+    // 🆕 v3.8.2.5: ATIVAR PARSER INLINE (inserir imagens contextualizadas)
+    console.log('🖼️ [INLINE] Iniciando processamento de imagens inline...');
+    
     const imageRegex = /([📊🖼️])\s*\[(TABLE|DIAGRAM)\s+\d+\]:\s*(https?:\/\/[^\s]+)/gi;
     const imagesFound = [];
-    let mensagemSemImagens = mensagem;
+    let mensagemProcessada = mensagem;
     
     let match;
     while ((match = imageRegex.exec(mensagem)) !== null) {
         const [fullMatch, emoji, type, url] = match;
         console.log('✅ [DEBUG-CHAT] Imagem encontrada:', { emoji, type, url });
         imagesFound.push({ emoji, type, url, fullMatch });
-        // Remover referência de imagem do texto principal
-        mensagemSemImagens = mensagemSemImagens.replace(fullMatch, '');
     }
     
     console.log('📊 [DEBUG-CHAT] Total de imagens encontradas:', imagesFound.length);
+    
+    // 🆕 v3.8.2.5: CHAMAR PARSER INLINE (contexto inteligente)
+    let mensagemSemImagens = mensagemProcessada;
+    if (imagesFound.length > 0 && tipo === 'assistant') {
+        const resultado = inserirImagensInline(mensagemProcessada, imagesFound);
+        mensagemSemImagens = resultado.texto;
+        console.log(`✅ [INLINE-ATIVADO] ${resultado.imagensInseridas.length} imagens inline, ${resultado.imagensRestantes.length} no final`);
+        // Atualizar lista para renderizar apenas as restantes no final
+        imagesFound.length = 0;
+        resultado.imagensRestantes.forEach(img => imagesFound.push(img));
+    } else {
+        // Remover referências inline se não for assistente
+        imagesFound.forEach(({ fullMatch }) => {
+            mensagemSemImagens = mensagemSemImagens.replace(fullMatch, '');
+        });
+    }
     
     // 🆕 v3.8.2.3: Remover � isolados (sem URL) que Gemini inseriu no meio do texto
     mensagemSemImagens = mensagemSemImagens.replace(/�\s*/g, '');
