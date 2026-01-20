@@ -1,15 +1,20 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.2.13 (Worker: v3.8.2.11)
+    📦 Versão: v3.8.2.15 (Worker: v3.8.2.11)
     📅 Data: 2026-01-20
+    
+    ✨ v3.8.2.15: SIMPLIFICAÇÃO - Remover TODOS os emojis! 🧹
+    ───────────────────────────────────────────────────────────
+    ✅ MUDANÇA: Emojis são desnecessários e causam problemas
+    ✅ REMOVIDO: 📊/🖼️ do título das imagens
+    ✅ SIMPLIFICADO: Regex apenas detecta [TABLE/DIAGRAM] (sem emojis)
+    ✅ RESULTADO: Título limpo "Table" em vez de "📊 Table"
+    ✅ BENEFÍCIO: Código mais simples, sem problemas de encoding!
     
     🐛 v3.8.2.13: FIX CLEAN HTML - Remover quebras de linha! 🧹
     ───────────────────────────────────────────────────────────
-    ✅ PROBLEMA: Código HTML aparecia como texto após imagem
-    ✅ CAUSA RAIZ: Template HTML com \n → replace(/\n/g, '<br>') quebrava <img>
-    ✅ SOLUÇÃO: HTML numa única linha (sem \n) → <img> não é quebrada!
-    ✅ RESULTADO: Apenas imagem renderizada, sem código HTML visível!
+    ✅ SOLUÇÃO: HTML numa única linha (sem \n) → <img> não é quebrada
     
     🎯 v3.8.2.12: FIX FINAL - IMAGENS INLINE! 🖼️✨
     ───────────────────────────────────────────────────────────
@@ -13360,22 +13365,21 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     console.log('🔍 [DEBUG-CHAT] Mensagem recebida (primeiros 300 chars):', mensagem.substring(0, 300));
     console.log('🔍 [DEBUG-CHAT] Procurando por URLs de imagens...');
     
-    // 🆕 v3.8.1: Sanitizar emojis mal codificados (� → 📊)
-    mensagem = mensagem.replace(/�\s*\[TABLE/g, '📊 [TABLE');
-    mensagem = mensagem.replace(/�\s*\[DIAGRAM/g, '🖼️ [DIAGRAM');
+    // 🆕 v3.8.2.15: Remover emojis desnecessários (simplificação)
     
     // 🆕 v3.8.2.5: ATIVAR PARSER INLINE (inserir imagens contextualizadas)
     console.log('🖼️ [INLINE] Iniciando processamento de imagens inline...');
     
-    const imageRegex = /([📊🖼️])\s*\[(TABLE|DIAGRAM)\s+\d+\]:\s*(https?:\/\/[^\s]+)/gi;
+    // 🆕 v3.8.2.15: Regex SEM emojis (mais simples e robusto!)
+    const imageRegex = /[📊🖼️�\uFFFD]*\s*\[(TABLE|DIAGRAM)\s+\d+\]:\s*(https?:\/\/[^\s]+)/gi;
     const imagesFound = [];
     let mensagemProcessada = mensagem;
     
     let match;
     while ((match = imageRegex.exec(mensagem)) !== null) {
-        const [fullMatch, emoji, type, url] = match;
-        console.log('✅ [DEBUG-CHAT] Imagem encontrada:', { emoji, type, url });
-        imagesFound.push({ emoji, type, url, fullMatch });
+        const [fullMatch, type, url] = match;
+        console.log('✅ [DEBUG-CHAT] Imagem encontrada:', { type, url });
+        imagesFound.push({ type, url, fullMatch });
     }
     
     console.log('📊 [DEBUG-CHAT] Total de imagens encontradas:', imagesFound.length);
@@ -13391,12 +13395,18 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     if (imagesFound.length > 0 && tipo === 'assistant') {
         console.log(`🖼️ [INLINE-v3.8.2.12] Substituindo ${imagesFound.length} URLs por <img> inline...`);
         
-        imagesFound.forEach(({ emoji, type, url, fullMatch }) => {
-            // Criar HTML da imagem inline (SEM quebras de linha para evitar <br> indesejados!)
-            const imageHtml = `<div style="margin: 15px 0; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; background: #f9f9f9;"><div style="font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500;">${emoji} ${type.charAt(0) + type.slice(1).toLowerCase()}</div><img src="${url}" alt="${type}" style="max-width: 100%; height: auto; border-radius: 4px; cursor: pointer;" onclick="window.open('${url}', '_blank')" title="Clique para ampliar"></div>`;
+        imagesFound.forEach(({ type, url, fullMatch }) => {
+            // 🆕 v3.8.2.15: HTML SIMPLES sem emojis (título limpo!)
+            const imageHtml = `<div style="margin: 15px 0; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; background: #f9f9f9;"><div style="font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500;">${type.charAt(0) + type.slice(1).toLowerCase()}</div><img src="${url}" alt="${type}" style="max-width: 100%; height: auto; border-radius: 4px; cursor: pointer;" onclick="window.open('${url}', '_blank')" title="Clique para ampliar"></div>`;
             
-            // Substituir o URL pelo HTML da imagem
-            mensagemComImagensInline = mensagemComImagensInline.replace(fullMatch, imageHtml);
+            // 🆕 v3.8.2.15: Regex SIMPLES - remove QUALQUER emoji/� antes de [TABLE/DIAGRAM]
+            const safeRegex = new RegExp(
+                `[📊🖼️�\\uFFFD]*\\s*\\[${type}\\s+\\d+\\]:\\s*` + url.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&'),
+                'gi'
+            );
+            
+            // Substituir (remove emoji + URL, insere <img> limpa)
+            mensagemComImagensInline = mensagemComImagensInline.replace(safeRegex, imageHtml);
             console.log(`   ✅ Substituído: ${fullMatch.substring(0, 50)}... → <img>`);
         });
         
