@@ -1,16 +1,27 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.2.10-MINIMAL
+    📦 Versão: v3.8.2.12 (Worker: v3.8.2.11)
     📅 Data: 2026-01-20
+    
+    🎯 v3.8.2.12: FIX FINAL - IMAGENS INLINE! 🖼️✨
+    ───────────────────────────────────────────────────────────
+    ✅ PROBLEMA: URLs apareciam como texto, imagens só no final
+    ✅ CAUSA RAIZ: Código renderizava imagens DEPOIS, não NO LUGAR dos URLs
+    ✅ SOLUÇÃO: Substituir URLs por <img> INLINE antes de converter markdown!
+    ✅ RESULTADO: Imagens aparecem EXATAMENTE onde Gemini as menciona!
+    🎉 FUNCIONAMENTO: URLs são substituídos por imagens inline renderizadas
+    
+    🐛 v3.8.2.11-WORKER: FIX CRÍTICO - Try-catch em JSON.stringify! 🔧
+    ───────────────────────────────────────────────────────────
+    ✅ PROBLEMA: Worker retornava 500 sem detalhes
+    ✅ SOLUÇÃO: Try-catch em 2 locais críticos do Worker
     
     🎯 v3.8.2.10: CÓDIGO MÍNIMO - SEM ALTERAÇÕES PÓS-WORKER! 🧹
     ───────────────────────────────────────────────────────────
     ✅ REMOVIDAS: TODAS as "correções" frontend que adicionei hoje
     ✅ CÓDIGO: Processamento mínimo - Worker retorna, frontend renderiza
     ✅ SEM: Verificações de URLs, sem failsafes, sem regex no contexto
-    🧪 TESTE: Verificar se Worker retorna 200 OK (sem erro 500)
-    📋 OBJETIVO: Isolar se problema é Worker OU frontend
     
     🎯 v3.8.2.7: FIX VERDADEIRO - GEMINI INSERE URLS INLINE 🐛🖼️
     ───────────────────────────────────────────────────────────
@@ -13365,50 +13376,48 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     
     console.log('📊 [DEBUG-CHAT] Total de imagens encontradas:', imagesFound.length);
     
-    // 🆕 v3.8.2.7: SIMPLIFICADO - Gemini agora insere URLs inline corretamente
-    let mensagemSemImagens = mensagemProcessada;
+    // 🆕 v3.8.2.12: SUBSTITUIR URLs por <img> INLINE (no lugar dos URLs!)
+    let mensagemComImagensInline = mensagemProcessada;
     
-    // 🆕 v3.8.2.3: Remover � isolados (sem URL) que Gemini inseriu no meio do texto
-    mensagemSemImagens = mensagemSemImagens.replace(/�\s*/g, '');
-    mensagemSemImagens = mensagemSemImagens.replace(/\uFFFD\s*/g, ''); // Unicode replacement char
+    // Remover � isolados (sem URL) que Gemini inseriu no meio do texto
+    mensagemComImagensInline = mensagemComImagensInline.replace(/�\s*/g, '');
+    mensagemComImagensInline = mensagemComImagensInline.replace(/\uFFFD\s*/g, ''); // Unicode replacement char
+    
+    // SUBSTITUIR URLs de imagens por <img> tags INLINE!
+    if (imagesFound.length > 0 && tipo === 'assistant') {
+        console.log(`🖼️ [INLINE-v3.8.2.12] Substituindo ${imagesFound.length} URLs por <img> inline...`);
+        
+        imagesFound.forEach(({ emoji, type, url, fullMatch }) => {
+            // Criar HTML da imagem inline
+            const imageHtml = `
+                <div style="margin: 15px 0; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; background: #f9f9f9;">
+                    <div style="font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500;">
+                        ${emoji} ${type.charAt(0) + type.slice(1).toLowerCase()}
+                    </div>
+                    <img src="${url}" 
+                         alt="${type}" 
+                         style="max-width: 100%; height: auto; border-radius: 4px; cursor: pointer;" 
+                         onclick="window.open('${url}', '_blank')" 
+                         title="Clique para ampliar">
+                </div>
+            `;
+            
+            // Substituir o URL pelo HTML da imagem
+            mensagemComImagensInline = mensagemComImagensInline.replace(fullMatch, imageHtml);
+            console.log(`   ✅ Substituído: ${fullMatch.substring(0, 50)}... → <img>`);
+        });
+        
+        console.log(`✅ [INLINE-v3.8.2.12] ${imagesFound.length} imagens inseridas inline (no lugar dos URLs)!`);
+    }
     
     // Suportar markdown básico (negrito, itálico, listas)
-    let htmlContent = mensagemSemImagens
+    let htmlContent = mensagemComImagensInline
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/\n- /g, '\n• ')
         .replace(/\n/g, '<br>');
     
     contentDiv.innerHTML = htmlContent;
-    
-    // 🆕 v3.8.2.7: Renderizar TODAS as imagens detectadas (Gemini já as organizou inline)
-    if (imagesFound.length > 0 && tipo === 'assistant') {
-        const imagesContainer = document.createElement('div');
-        imagesContainer.style.cssText = 'margin-top: 10px; display: flex; flex-direction: column; gap: 10px;';
-        
-        imagesFound.forEach(({ emoji, type, url }) => {
-            const imageWrapper = document.createElement('div');
-            imageWrapper.style.cssText = 'border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; background: #f9f9f9;';
-            
-            const imageTitle = document.createElement('div');
-            imageTitle.style.cssText = 'font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500;';
-            imageTitle.textContent = `${emoji} ${type.charAt(0) + type.slice(1).toLowerCase()}`;
-            
-            const img = document.createElement('img');
-            img.src = url;
-            img.alt = type;
-            img.style.cssText = 'max-width: 100%; height: auto; border-radius: 4px; cursor: pointer;';
-            img.onclick = () => window.open(url, '_blank');
-            img.title = 'Clique para ampliar';
-            
-            imageWrapper.appendChild(imageTitle);
-            imageWrapper.appendChild(img);
-            imagesContainer.appendChild(imageWrapper);
-        });
-        
-        contentDiv.appendChild(imagesContainer);
-        console.log(`📋 [INLINE-v3.8.2.7] ${imagesFound.length} imagens renderizadas (organizadas pelo Gemini)`);
-    }
     
     messageDiv.appendChild(contentDiv);
     history.appendChild(messageDiv);
@@ -14106,4 +14115,3 @@ document.addEventListener('DOMContentLoaded', () => {
     </script>
 </body>
 </html>
-
