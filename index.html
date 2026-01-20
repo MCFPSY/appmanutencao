@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.2.12 (Worker: v3.8.2.11)
+    📦 Versão: v3.8.2.13 (Worker: v3.8.2.11)
     📅 Data: 2026-01-20
+    
+    🐛 v3.8.2.13: FIX CLEAN HTML - Remover quebras de linha! 🧹
+    ───────────────────────────────────────────────────────────
+    ✅ PROBLEMA: Código HTML aparecia como texto após imagem
+    ✅ CAUSA RAIZ: Template HTML com \n → replace(/\n/g, '<br>') quebrava <img>
+    ✅ SOLUÇÃO: HTML numa única linha (sem \n) → <img> não é quebrada!
+    ✅ RESULTADO: Apenas imagem renderizada, sem código HTML visível!
     
     🎯 v3.8.2.12: FIX FINAL - IMAGENS INLINE! 🖼️✨
     ───────────────────────────────────────────────────────────
-    ✅ PROBLEMA: URLs apareciam como texto, imagens só no final
-    ✅ CAUSA RAIZ: Código renderizava imagens DEPOIS, não NO LUGAR dos URLs
-    ✅ SOLUÇÃO: Substituir URLs por <img> INLINE antes de converter markdown!
-    ✅ RESULTADO: Imagens aparecem EXATAMENTE onde Gemini as menciona!
-    🎉 FUNCIONAMENTO: URLs são substituídos por imagens inline renderizadas
+    ✅ SOLUÇÃO: Substituir URLs por <img> INLINE antes de converter markdown
+    ✅ RESULTADO: Imagens aparecem EXATAMENTE onde Gemini as menciona
     
     🐛 v3.8.2.11-WORKER: FIX CRÍTICO - Try-catch em JSON.stringify! 🔧
     ───────────────────────────────────────────────────────────
@@ -13388,19 +13392,8 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
         console.log(`🖼️ [INLINE-v3.8.2.12] Substituindo ${imagesFound.length} URLs por <img> inline...`);
         
         imagesFound.forEach(({ emoji, type, url, fullMatch }) => {
-            // Criar HTML da imagem inline
-            const imageHtml = `
-                <div style="margin: 15px 0; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; background: #f9f9f9;">
-                    <div style="font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500;">
-                        ${emoji} ${type.charAt(0) + type.slice(1).toLowerCase()}
-                    </div>
-                    <img src="${url}" 
-                         alt="${type}" 
-                         style="max-width: 100%; height: auto; border-radius: 4px; cursor: pointer;" 
-                         onclick="window.open('${url}', '_blank')" 
-                         title="Clique para ampliar">
-                </div>
-            `;
+            // Criar HTML da imagem inline (SEM quebras de linha para evitar <br> indesejados!)
+            const imageHtml = `<div style="margin: 15px 0; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; background: #f9f9f9;"><div style="font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500;">${emoji} ${type.charAt(0) + type.slice(1).toLowerCase()}</div><img src="${url}" alt="${type}" style="max-width: 100%; height: auto; border-radius: 4px; cursor: pointer;" onclick="window.open('${url}', '_blank')" title="Clique para ampliar"></div>`;
             
             // Substituir o URL pelo HTML da imagem
             mensagemComImagensInline = mensagemComImagensInline.replace(fullMatch, imageHtml);
