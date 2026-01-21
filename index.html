@@ -5885,7 +5885,9 @@ async function loadDataFromSupabase() {
             criadoPorUsername: p.criado_por_username || '',     // 🆕 v3.7.7.0: FK
             horasEstimadas: parseFloat(p['Horas Estimadas']) || 0,  // ✅ ADICIONADO v3.6.21
             fechadoPor: p['Fechado Por'] || '',  // 🆕 v3.7.6.9: Quem fechou (display)
-            fechadoPorUsername: p.fechado_por_username || ''  // 🆕 v3.7.7.0: FK
+            fechadoPorUsername: p.fechado_por_username || '',  // 🆕 v3.7.7.0: FK
+            observacoesFecho: p.observacoes_fecho || '',  // 🆕 v3.8.3.5: Observações de fecho
+            fotoFecho: p.foto_fecho || ''  // 🆕 v3.8.3.5: Foto de fecho
         }));
         
         // ✅ Ordenar por data (mais recentes primeiro) - ordem no JavaScript
@@ -14193,6 +14195,9 @@ async function guardarObservacoesFecho(id) {
     try {
         await window.SupabaseAPI.updatePedido(id, { observacoes_fecho: observacoes });
         showToast('✅ Observações guardadas com sucesso!', 'success');
+        
+        // 🔥 v3.8.3.5: Recarregar modal para manter texto visível
+        showRequestDetails(id);
     } catch (error) {
         console.error('❌ Erro ao guardar observações:', error);
         showToast('❌ Erro ao guardar observações', 'error');
@@ -14212,7 +14217,8 @@ async function uploadFotoFecho(id, file) {
         showToast('📤 A enviar foto...', 'info');
         
         const ext = file.type.split('/')[1] || 'jpg';
-        const fileName = `${id}-fecho.${ext}`;  // 🔥 v3.8.3.4: Padrão simples (igual foto inicial)
+        // 🧪 v3.8.3.5: TESTE - Usar nome EXATO da foto inicial para testar RLS
+        const fileName = `${id}.${ext}`;  // IGUAL foto inicial (vai substituir!)
         const uploadUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/pedidos-fotos/${fileName}`;
         
         const uploadResponse = await fetch(uploadUrl, {
@@ -14291,4 +14297,3 @@ document.head.appendChild(styleAnimations);
     </script>
 </body>
 </html>
-
