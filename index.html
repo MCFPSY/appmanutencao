@@ -5178,7 +5178,7 @@ async function deletePlaneamento(id) {
 // 📸 v3.6.18: Storage para Fotos
 async function uploadFoto(pedidoId, file) {
     try {
-        console.log('📸 Iniciando upload...', file.name, (file.size / 1024 / 1024).toFixed(2) + ' MB');
+        console.log('📸 [FOTO-INICIAL] Iniciando upload...', file.name, (file.size / 1024 / 1024).toFixed(2) + ' MB');
         
         // Nome do ficheiro = ID da ordem + extensão
         const ext = file.type.split('/')[1] || 'jpg';
@@ -5186,6 +5186,15 @@ async function uploadFoto(pedidoId, file) {
         
         // Upload via REST API do Supabase Storage
         const url = `${SUPABASE_CONFIG.URL}/storage/v1/object/pedidos-fotos/${fileName}`;
+        
+        // 🔍 DEBUG: Config upload foto inicial
+        console.log('🔍 [DEBUG FOTO-INICIAL] Config:', {
+            fileName: fileName,
+            url: url,
+            method: 'POST',
+            contentType: file.type,
+            fileSize: file.size
+        });
         
         const response = await fetch(url, {
             method: 'POST',
@@ -5198,15 +5207,21 @@ async function uploadFoto(pedidoId, file) {
             body: file  // Enviar File diretamente
         });
         
+        // 🔍 DEBUG: Resposta foto inicial
+        console.log('🔍 [DEBUG FOTO-INICIAL] Resposta:', {
+            status: response.status,
+            ok: response.ok
+        });
+        
         if (!response.ok) {
             const error = await response.text();
-            console.error('❌ Erro upload Storage:', error);
+            console.error('❌ [FOTO-INICIAL] Erro upload Storage:', error);
             throw new Error('Erro ao fazer upload da foto');
         }
         
         // Retornar URL pública
         const publicUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/pedidos-fotos/${fileName}`;
-        console.log('✅ Foto enviada:', publicUrl);
+        console.log('✅ [FOTO-INICIAL] Foto enviada:', publicUrl);
         return publicUrl;
         
     } catch (error) {
@@ -14196,8 +14211,8 @@ async function guardarObservacoesFecho(id) {
         await window.SupabaseAPI.updatePedido(id, { observacoes_fecho: observacoes });
         showToast('✅ Observações guardadas com sucesso!', 'success');
         
-        // 🔥 v3.8.3.5: Recarregar modal para manter texto visível
-        showRequestDetails(id);
+        // 🔥 v3.8.3.5-FIX: Recarregar modal para manter texto visível
+        openRequestDetails(id);
     } catch (error) {
         console.error('❌ Erro ao guardar observações:', error);
         showToast('❌ Erro ao guardar observações', 'error');
@@ -14216,10 +14231,28 @@ async function uploadFotoFecho(id, file) {
     try {
         showToast('📤 A enviar foto...', 'info');
         
+        // 🔍 DEBUG: Informações do ficheiro
+        console.log('🔍 [DEBUG FOTO-FECHO] Início upload:', {
+            orderId: id,
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type
+        });
+        
         const ext = file.type.split('/')[1] || 'jpg';
-        // 🧪 v3.8.3.5: TESTE - Usar nome EXATO da foto inicial para testar RLS
+        // 🧪 v3.8.3.6: TESTE - Usar nome EXATO da foto inicial para testar RLS
         const fileName = `${id}.${ext}`;  // IGUAL foto inicial (vai substituir!)
         const uploadUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/pedidos-fotos/${fileName}`;
+        
+        // 🔍 DEBUG: URL e headers
+        console.log('🔍 [DEBUG FOTO-FECHO] Upload config:', {
+            fileName: fileName,
+            uploadUrl: uploadUrl,
+            method: 'POST',
+            contentType: file.type,
+            hasApiKey: !!SUPABASE_CONFIG.ANON_KEY,
+            apiKeyPrefix: SUPABASE_CONFIG.ANON_KEY?.substring(0, 20) + '...'
+        });
         
         const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
@@ -14232,20 +14265,46 @@ async function uploadFotoFecho(id, file) {
             body: file  // 🔥 Enviar File diretamente (não FormData!)
         });
         
+        // 🔍 DEBUG: Resposta do servidor
+        console.log('🔍 [DEBUG FOTO-FECHO] Resposta servidor:', {
+            status: uploadResponse.status,
+            statusText: uploadResponse.statusText,
+            ok: uploadResponse.ok,
+            headers: {
+                contentType: uploadResponse.headers.get('content-type')
+            }
+        });
+        
         if (!uploadResponse.ok) {
             const errorText = await uploadResponse.text();
             console.error('❌ [FOTO-FECHO] Erro upload:', uploadResponse.status, errorText);
+            
+            // 🔍 DEBUG: Detalhes do erro
+            console.log('🔍 [DEBUG FOTO-FECHO] Erro detalhado:', {
+                status: uploadResponse.status,
+                errorBody: errorText,
+                possibleCauses: uploadResponse.status === 403 
+                    ? ['RLS policy', 'Auth token', 'Bucket permissions']
+                    : ['Network', 'File too large', 'Invalid format']
+            });
+            
             throw new Error(`Upload falhou: ${uploadResponse.status} ${errorText}`);
         }
         
         const fotoUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/pedidos-fotos/${fileName}`;
+        
+        // 🔍 DEBUG: URL pública gerada
+        console.log('✅ [DEBUG FOTO-FECHO] Upload OK! URL:', fotoUrl);
+        
         request.fotoFecho = fotoUrl;
         await window.SupabaseAPI.updatePedido(id, { foto_fecho: fotoUrl });
+        
+        console.log('✅ [DEBUG FOTO-FECHO] BD atualizada com sucesso!');
         
         showToast('✅ Foto adicionada com sucesso!', 'success');
         
         // Recarregar modal
-        showRequestDetails(id);
+        openRequestDetails(id);
         
     } catch (error) {
         console.error('❌ [FOTO-FECHO] Erro completo:', error);
@@ -14272,7 +14331,7 @@ async function removerFotoFecho(id) {
         showToast('✅ Foto removida com sucesso!', 'success');
         
         // Recarregar modal
-        showRequestDetails(id);
+        openRequestDetails(id);
         
     } catch (error) {
         console.error('❌ Erro ao remover foto:', error);
