@@ -9253,6 +9253,58 @@ function openRequestDetails(id) {
             <div class="detail-value">${request.nome}</div>
         </div>`;
     
+    // 🆕 v3.8.3.0: OBSERVAÇÕES DE FECHO (editável)
+    html += `
+        <div class="detail-group" style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-top: 12px;">
+            <div class="detail-label" style="margin-bottom: 8px;">📝 Observações de Fecho</div>
+            <textarea 
+                id="observacoesFecho" 
+                class="form-input" 
+                style="min-height: 80px; font-family: inherit; width: 100%; padding: 12px; border: 1px solid #dee2e6; border-radius: 6px; resize: vertical;"
+                placeholder="Adicione observações sobre o fecho desta OT...">${request.observacoesFecho || ''}</textarea>
+            <button 
+                class="btn btn-sm btn-secondary" 
+                onclick="guardarObservacoesFecho('${request.id}')"
+                style="margin-top: 8px; background: #3498db; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                💾 Guardar Observações
+            </button>
+        </div>`;
+    
+    // 🆕 v3.8.3.0: FOTO DE FECHO (upload)
+    html += `
+        <div class="detail-group" style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-top: 12px;">
+            <div class="detail-label" style="margin-bottom: 8px;">📸 Foto de Fecho</div>`;
+    
+    if (request.fotoFecho) {
+        html += `
+            <img src="${request.fotoFecho}" 
+                 alt="Foto de fecho" 
+                 class="detail-image"
+                 style="max-width: 100%; max-height: 300px; border-radius: 8px; margin-bottom: 8px; display: block;">
+            <button 
+                class="btn btn-sm btn-secondary" 
+                onclick="removerFotoFecho('${request.id}')"
+                style="background: #e74c3c; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                🗑️ Remover Foto
+            </button>`;
+    } else {
+        html += `
+            <input 
+                type="file" 
+                id="fotoFechoInput" 
+                accept="image/*" 
+                style="display: none;"
+                onchange="uploadFotoFecho('${request.id}', this.files[0])">
+            <button 
+                class="btn btn-secondary" 
+                onclick="document.getElementById('fotoFechoInput').click()"
+                style="background: #27ae60; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                📸 + Adicionar Foto de Fecho
+            </button>`;
+    }
+    
+    html += `</div>`;
+    
     // 📸 v3.6.18: Suportar fotos do Storage E base64 (legacy)
     if (request.foto) {
         // Se for URL do Storage ou base64, mostrar normalmente
@@ -9420,38 +9472,35 @@ async function changeRequestState(id) {
         }
     }
     
-    // ✅ CORREÇÃO 4: Se está a fechar (Resolvido), pedir observações
+    // 🆕 v3.8.3.0: Se está a fechar (Resolvido), mostrar aviso de consumos
     if (newState === 'Resolvido' && request.estado !== 'Resolvido') {
-        const observacoes = prompt('Observações ao fechar o pedido (opcional):');
-        
-        if (observacoes !== null) {  // null significa que cancelou
-            // ✅ Adicionar observações com timestamp no formato original
-            if (observacoes.trim()) {
-                const timestamp = new Date().toLocaleString('pt-PT');
-                request.descricao = (request.descricao || '').trim() + ' [' + timestamp + '] Fechado: ' + observacoes.trim();
-            }
-            
-            // 🆕 v3.7.6.9: Registar quem fechou a OT
-            if (AppState.currentUser) {
-                request.fechadoPor = AppState.currentUser.nomeCompleto;  // Display
-                request.fechadoPorUsername = AppState.currentUser.username;  // 🆕 v3.7.7.0: FK
-                console.log('✅ [FECHAR] OT fechada por:', request.fechadoPor, '(', request.fechadoPorUsername, ')');
-                console.log('📋 [FECHAR] Responsável atual:', request.responsavel);
-                console.log('📋 [FECHAR] Estado do request:', {
-                    id: request.id,
-                    responsavel: request.responsavel,
-                    fechadoPor: request.fechadoPor,
-                    fechadoPorUsername: request.fechadoPorUsername,
-                    estado: request.estado
-                });
-            }
-            
-            request.estado = newState;
-            saveToLocalStorage();
-            if (AppState.isOnline) await updateInGoogleSheets(request);  // 🔥 Nome legacy, usa Supabase
-            renderRequestsList();
-            showToast(`Estado alterado para: ${newState}`, 'success');
+        // 🆕 v3.7.6.9: Registar quem fechou a OT
+        if (AppState.currentUser) {
+            request.fechadoPor = AppState.currentUser.nomeCompleto;  // Display
+            request.fechadoPorUsername = AppState.currentUser.username;  // 🆕 v3.7.7.0: FK
+            console.log('✅ [FECHAR] OT fechada por:', request.fechadoPor, '(', request.fechadoPorUsername, ')');
+            console.log('📋 [FECHAR] Responsável atual:', request.responsavel);
+            console.log('📋 [FECHAR] Estado do request:', {
+                id: request.id,
+                responsavel: request.responsavel,
+                fechadoPor: request.fechadoPor,
+                fechadoPorUsername: request.fechadoPorUsername,
+                estado: request.estado
+            });
         }
+        
+        request.estado = newState;
+        saveToLocalStorage();
+        if (AppState.isOnline) await updateInGoogleSheets(request);  // 🔥 Nome legacy, usa Supabase
+        renderRequestsList();
+        
+        // 🆕 v3.8.3.0: Aviso estético para lembrar de registar consumos
+        showCustomAlert({
+            title: '✅ Ordem de Trabalho Fechada',
+            message: '💡 Não esquecer de registar os consumos de materiais utilizados!',
+            icon: '📦',
+            buttonText: 'OK, Entendido'
+        });
     } else {
         // Estados normais (Novo → Em curso)
         request.estado = newState;
@@ -14152,6 +14201,172 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// ============================================
+// 🆕 v3.8.3.0: MELHORIAS OT
+// ============================================
+
+/**
+ * Mostra alerta customizado estético
+ */
+function showCustomAlert(options) {
+    const { title, message, icon, buttonText } = options;
+    
+    // Criar overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5); z-index: 10000;
+        display: flex; align-items: center; justify-content: center;
+        animation: fadeIn 0.2s ease;
+    `;
+    
+    // Criar modal
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: white; border-radius: 16px; padding: 32px;
+        max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        text-align: center; animation: slideUp 0.3s ease;
+    `;
+    
+    modal.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 16px;">${icon}</div>
+        <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #2c3e50;">${title}</h3>
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #7f8c8d; line-height: 1.5;">${message}</p>
+        <button 
+            onclick="this.closest('.custom-alert-overlay').remove()"
+            style="
+                background: #3498db; color: white; border: none;
+                padding: 12px 32px; border-radius: 8px; font-size: 16px;
+                font-weight: 600; cursor: pointer; transition: all 0.2s;
+            "
+            onmouseover="this.style.background='#2980b9'"
+            onmouseout="this.style.background='#3498db'">
+            ${buttonText}
+        </button>
+    `;
+    
+    overlay.className = 'custom-alert-overlay';
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Fechar ao clicar fora
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+}
+
+/**
+ * Guardar observações de fecho
+ */
+async function guardarObservacoesFecho(id) {
+    const request = AppState.requests.find(r => r.id === id);
+    if (!request) return;
+    
+    const textarea = document.getElementById('observacoesFecho');
+    const observacoes = textarea.value.trim();
+    
+    // Atualizar localmente
+    request.observacoesFecho = observacoes;
+    
+    // Atualizar no Supabase
+    try {
+        await window.SupabaseAPI.updatePedido(id, { observacoes_fecho: observacoes });
+        showToast('✅ Observações guardadas com sucesso!', 'success');
+        console.log('✅ [OBS-FECHO] Guardado:', observacoes);
+    } catch (error) {
+        console.error('❌ Erro ao guardar observações:', error);
+        showToast('❌ Erro ao guardar observações', 'error');
+    }
+}
+
+/**
+ * Upload foto de fecho
+ */
+async function uploadFotoFecho(id, file) {
+    if (!file) return;
+    
+    const request = AppState.requests.find(r => r.id === id);
+    if (!request) return;
+    
+    try {
+        showToast('📤 A enviar foto...', 'info');
+        
+        // Upload para Supabase Storage
+        const fileName = `${id}-fecho.${file.name.split('.').pop()}`;
+        const { data, error } = await window.supabaseClient.storage
+            .from('pedidos-fotos')
+            .upload(`ot-fecho/${fileName}`, file, { upsert: true });
+        
+        if (error) throw error;
+        
+        // Obter URL pública
+        const { data: urlData } = window.supabaseClient.storage
+            .from('pedidos-fotos')
+            .getPublicUrl(`ot-fecho/${fileName}`);
+        
+        const fotoUrl = urlData.publicUrl;
+        
+        // Atualizar localmente
+        request.fotoFecho = fotoUrl;
+        
+        // Atualizar no Supabase
+        await window.SupabaseAPI.updatePedido(id, { foto_fecho: fotoUrl });
+        
+        showToast('✅ Foto adicionada com sucesso!', 'success');
+        console.log('✅ [FOTO-FECHO] Upload:', fotoUrl);
+        
+        // Recarregar modal
+        showRequestDetails(id);
+        
+    } catch (error) {
+        console.error('❌ Erro ao fazer upload:', error);
+        showToast('❌ Erro ao enviar foto', 'error');
+    }
+}
+
+/**
+ * Remover foto de fecho
+ */
+async function removerFotoFecho(id) {
+    if (!confirm('Tem certeza que deseja remover a foto de fecho?')) return;
+    
+    const request = AppState.requests.find(r => r.id === id);
+    if (!request) return;
+    
+    try {
+        // Atualizar localmente
+        request.fotoFecho = null;
+        
+        // Atualizar no Supabase
+        await window.SupabaseAPI.updatePedido(id, { foto_fecho: null });
+        
+        showToast('✅ Foto removida com sucesso!', 'success');
+        console.log('✅ [FOTO-FECHO] Removida');
+        
+        // Recarregar modal
+        showRequestDetails(id);
+        
+    } catch (error) {
+        console.error('❌ Erro ao remover foto:', error);
+        showToast('❌ Erro ao remover foto', 'error');
+    }
+}
+
+// Adicionar animações CSS
+const styleAnimations = document.createElement('style');
+styleAnimations.textContent = `
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+`;
+document.head.appendChild(styleAnimations);
+
     </script>
 </body>
 </html>
+
