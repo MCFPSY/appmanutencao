@@ -14212,7 +14212,7 @@ async function uploadFotoFecho(id, file) {
         showToast('📤 A enviar foto...', 'info');
         
         const ext = file.type.split('/')[1] || 'jpg';
-        const fileName = `${id}-fecho-${Date.now()}.${ext}`;
+        const fileName = `${id}-fecho.${ext}`;  // 🔥 v3.8.3.4: Padrão simples (igual foto inicial)
         const uploadUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/pedidos-fotos/${fileName}`;
         
         const uploadResponse = await fetch(uploadUrl, {
@@ -14291,3 +14291,4 @@ document.head.appendChild(styleAnimations);
     </script>
 </body>
 </html>
+
