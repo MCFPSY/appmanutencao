@@ -3584,7 +3584,7 @@
         // Configurar worker do PDF.js
         if (typeof pdfjsLib !== 'undefined') {
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-            console.log('✅ PDF.js carregado e configurado');
+            // PDF.js carregado
         }
     </script>
     
@@ -3593,7 +3593,7 @@
     <script>
         // Verificar se Tesseract.js carregou
         if (typeof Tesseract !== 'undefined') {
-            console.log('✅ Tesseract.js carregado (OCR habilitado)');
+            // Tesseract.js carregado
         } else {
             console.warn('⚠️ Tesseract.js não carregou (OCR desabilitado)');
         }
@@ -5055,14 +5055,10 @@ async function supabaseFetch(endpoint, options = {}) {
         ...options.headers
     };
 
-    console.log('🔥 Supabase Fetch:', { url, method: options.method || 'GET' });
-
     const response = await fetch(url, {
         ...options,
         headers
     });
-
-    console.log('📡 Supabase Response:', { status: response.status, ok: response.ok });
 
     if (!response.ok) {
         const error = await response.json();
@@ -5085,13 +5081,8 @@ async function getArtigos() {
 
 // Utilizadores
 async function getUtilizadores() {
-    // 🔥 v3.7.7.3: FUCK RPC! LER DIRETO DA TABELA!
-    console.log('🔥 [getUtilizadores] LENDO DIRETO DA TABELA utilizadores...');
     try {
         const result = await supabaseFetch('utilizadores?select=Username,Nome Completo,Departamento,Role,Ativo&order=Nome Completo.asc');
-        console.log('✅ [getUtilizadores] SUCESSO! Total:', result?.length);
-        console.log('✅ [getUtilizadores] Primeiro:', result?.[0]);
-        console.log('✅ [getUtilizadores] Último:', result?.[result.length - 1]);
         
         // Mapear para formato esperado
         const mapped = result.map(u => ({
@@ -5101,9 +5092,6 @@ async function getUtilizadores() {
             role: u.Role,
             ativo: u.Ativo
         }));
-        
-        console.log('✅ [getUtilizadores] Mapeado! Total:', mapped.length);
-        console.log('✅ [getUtilizadores] Nomes:', mapped.map(u => u.nomeCompleto).join(', '));
         
         return mapped;
     } catch (error) {
@@ -5130,29 +5118,17 @@ async function getPedidos() {
 }
 
 async function addPedido(pedido) {
-    console.log('🔥 DEBUG addPedido: ID recebido =', pedido.ID);
-    console.log('🔥 DEBUG addPedido: Body completo =', JSON.stringify(pedido, null, 2));
-    
-    const result = await supabaseFetch('pedidos', {
+    return await supabaseFetch('pedidos', {
         method: 'POST',
         body: JSON.stringify(pedido)
     });
-    
-    console.log('🔥 DEBUG addPedido: Resultado do Supabase =', result);
-    return result;
 }
 
 async function updatePedido(id, pedido) {
-    console.log(`🔄 SupabaseAPI.updatePedido chamado para ID: ${id}`);
-    console.log('📦 Dados da ordem de trabalho:', pedido);
-    
-    const result = await supabaseFetch(`pedidos?ID=eq.${id}`, {
+    return await supabaseFetch(`pedidos?ID=eq.${id}`, {
         method: 'PATCH',
         body: JSON.stringify(pedido)
     });
-    
-    console.log('✅ SupabaseAPI.updatePedido: Resposta recebida:', result);
-    return result;
 }
 
 async function deletePedido(id) {
@@ -5273,14 +5249,9 @@ function getFotoUrl(pedidoId, extensao = 'jpg') {
 // ✅ v3.7.0.9: Buscar equipamentos do Supabase
 async function getEquipamentos() {
     try {
-        // Buscar TODOS os equipamentos (sem filtro ativo, para debug)
         const result = await supabaseFetch('lista_equipamentos?select=*&order=area.asc,ordem.asc');
-        console.log('🔍 getEquipamentos - Total recebido:', result?.length || 0);
-        if (result && result.length > 0) {
-            console.log('🔍 Primeiro equipamento:', result[0]);
-        } else {
-            console.error('⚠️ Nenhum equipamento retornado do Supabase!');
-            console.error('   Verifique se executou os INSERTs do SQL');
+        if (!result || result.length === 0) {
+            console.warn('⚠️ Nenhum equipamento encontrado');
         }
         return result || [];
     } catch (error) {
@@ -5420,7 +5391,7 @@ window.SupabaseAPI = {
     uploadManualPDF
 };
 
-console.log('✅ Supabase API inicializada (INLINE)');
+// Supabase API inicializada
     </script>
     
     <!-- JavaScript Principal (INLINE para garantir funcionamento) -->
@@ -5688,25 +5659,7 @@ function handleLogoError(imgElement) {
 }
 
 // Testar caminhos dos logos ao carregar
-function testLogoPaths() {
-    console.log('🔍 Testando paths dos logos...');
-    console.log('📁 Base URL:', window.location.href);
-    console.log('📁 Paths configurados:', CONFIG.LOGO_PATHS);
-    
-    CONFIG.LOGO_PATHS.forEach((path, index) => {
-        const testImg = new Image();
-        testImg.onload = () => {
-            console.log(`✅ Path ${index + 1} FUNCIONA:`, path, `(${testImg.naturalWidth}x${testImg.naturalHeight}px)`);
-        };
-        testImg.onerror = () => {
-            console.error(`❌ Path ${index + 1} FALHOU:`, path);
-        };
-        testImg.src = path;
-    });
-}
-
-// Executar teste ao carregar
-window.addEventListener('DOMContentLoaded', testLogoPaths);
+// Logo paths test removed (v3.8.3.3 - cleanup)
 
 // ESTADO DA APLICAÇÃO
 const AppState = {
@@ -5772,10 +5725,7 @@ async function checkAuthentication() {
     if (savedSession && savedToken) {
         try {
             const userData = JSON.parse(savedSession);
-            console.log('✅ Sessão restaurada:', userData.username);
-            console.log('🚨 [DEBUG] userData completo:', userData);
             AppState.currentUser = userData;
-            console.log('🚨 [DEBUG] AppState.currentUser definido:', AppState.currentUser);
             showUserInterface();
             return true;
         } catch (e) {
@@ -5843,10 +5793,6 @@ async function handleLogin(event) {
         // 🔥 LOGIN COM SUPABASE v3.6.8
         const user = await window.SupabaseAPI.loginUtilizador(username, password);
         
-        console.log('🔥 DEBUG LOGIN - Dados do utilizador:', user);
-        console.log('🔥 DEBUG LOGIN - Pode editar valor:', user['Pode editar'], 'Tipo:', typeof user['Pode editar']);
-        console.log('🔥 DEBUG LOGIN - Role valor:', user.Role, 'Tipo:', typeof user.Role);
-        
         // Criar sessão local
         const sessionData = {
             username: user.Username,
@@ -5865,9 +5811,6 @@ async function handleLogin(event) {
                    user.Ativo === 'TRUE',
             token: 'supabase_' + Date.now()
         };
-        
-        console.log('🔥 DEBUG LOGIN - Sessão criada:', sessionData);
-        console.log('🔥 DEBUG LOGIN - podeEditarPlaneamento final:', sessionData.podeEditarPlaneamento);
         
         AppState.currentUser = sessionData;
         localStorage.setItem(CONFIG.STORAGE_KEYS.USER_SESSION, JSON.stringify(sessionData));
@@ -5916,28 +5859,6 @@ async function loadDataFromSupabase() {
         // 🆕 v3.7.7.0: Carregar utilizadores
         const utilizadores = await window.SupabaseAPI.getUtilizadores();
         AppState.utilizadores = utilizadores;
-        console.log(`✅ ${utilizadores.length} utilizadores carregados`);
-        
-        // 🔍 DEBUG COMPLETO: Ver estrutura REAL dos dados
-        if (utilizadores && utilizadores.length > 0) {
-            const primeiroUser = utilizadores[0];
-            console.log('════════════════════════════════════════');
-            console.log('🔍 [DEBUG] ESTRUTURA COMPLETA DO PRIMEIRO UTILIZADOR:');
-            console.log(JSON.stringify(primeiroUser, null, 2));
-            console.log('════════════════════════════════════════');
-            console.log('🔍 [DEBUG] CHAVES DISPONÍVEIS:', Object.keys(primeiroUser));
-            console.log('════════════════════════════════════════');
-            console.log('🔍 [DEBUG] TESTES DE CAMPO ATIVO:');
-            console.log('  user.Ativo =', primeiroUser.Ativo, '(tipo:', typeof primeiroUser.Ativo, ')');
-            console.log('  user.ativo =', primeiroUser.ativo, '(tipo:', typeof primeiroUser.ativo, ')');
-            console.log('  user["Ativo"] =', primeiroUser["Ativo"], '(tipo:', typeof primeiroUser["Ativo"], ')');
-            console.log('════════════════════════════════════════');
-            console.log('🔍 [DEBUG] TODOS OS VALORES:');
-            Object.keys(primeiroUser).forEach(key => {
-                console.log(`  ${key}:`, primeiroUser[key], `(tipo: ${typeof primeiroUser[key]})`);
-            });
-            console.log('════════════════════════════════════════');
-        }
         
         // Converter formato Supabase → formato da app
         AppState.requests = pedidos.map(p => ({
@@ -5977,8 +5898,6 @@ async function loadDataFromSupabase() {
         // Guardar localmente
         localStorage.setItem(CONFIG.STORAGE_KEYS.REQUESTS, JSON.stringify(AppState.requests));
         
-        console.log(`✅ ${AppState.requests.length} ordens de trabalho carregadas do Supabase`);
-        
     } catch (error) {
         console.error('❌ Erro ao carregar dados do Supabase:', error);
         showToast('Erro ao carregar dados', 'error');
@@ -5995,8 +5914,7 @@ async function loadDataFromSupabase() {
 async function validateSession(username, token) {
     // 🔥 v3.6.8: Simplificado - validação local apenas
     try {
-        console.log('🔐 validateSession() - Validando sessão para:', username);
-        console.log('🔐 validateSession() - Token existe?', token ? 'SIM' : 'NÃO');
+        // Validando sessão
         
         // Verificar se existe sessão local válida
         const sessionData = localStorage.getItem(CONFIG.STORAGE_KEYS.USER_SESSION);
@@ -6398,7 +6316,7 @@ async function initializeApp() {
     
     APP_INITIALIZED = true;
     
-    console.log('📥 Carregando dados do localStorage...');
+    // Carregando localStorage
     loadFromLocalStorage();
     console.log('📊 Pedidos do localStorage:', AppState.requests?.length || 0);
     
@@ -8948,7 +8866,7 @@ function populateResponsavelFilter() {
     
     // 🆕 v3.7.7.0: Buscar responsáveis da tabela utilizadores (já vêm ATIVOS!)
     if (AppState.utilizadores && AppState.utilizadores.length > 0) {
-        console.log('✅ Usando utilizadores da base de dados:', AppState.utilizadores.length);
+        // Utilizadores carregados
         
         // Detectar nome correto do campo
         const primeiroUser = AppState.utilizadores[0];
@@ -8971,7 +8889,7 @@ function populateResponsavelFilter() {
                 select.appendChild(option);
             });
         
-        console.log('✅ Filtro de Responsável populado com', AppState.utilizadores.length, 'utilizadores da BD');
+        // Filtro populado
     } else {
         // Fallback: buscar do planeamento (como antes)
         console.log('⚠️ Utilizadores não carregados, usando responsáveis do planeamento');
@@ -9315,11 +9233,13 @@ function openRequestDetails(id) {
         html += `
         <div class="detail-group">
             <div class="detail-label">Fotografia</div>
-            <img src="${fotoSrc}" 
-                 alt="Foto da ordem de trabalho" 
-                 class="detail-image"
-                 style="max-width: 100%; max-height: 400px; border-radius: 8px; margin-top: 8px; display: block;"
-                 onerror="this.style.display='none'; this.parentElement.innerHTML='<p style=color:red>⚠️ Foto não disponível</p>'">
+            <div class="detail-value">
+                <img src="${fotoSrc}" 
+                     alt="Foto da ordem de trabalho" 
+                     class="detail-image"
+                     style="max-width: 100%; max-height: 500px; border-radius: 8px; margin-top: 8px; display: block; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+                     onerror="this.style.display='none'; this.parentElement.innerHTML='<p style=color:red>⚠️ Foto não disponível</p>'">
+            </div>
         </div>`;
     }
     
@@ -9699,7 +9619,7 @@ async function syncWithSupabase() {
     }
     
     try {
-        console.log('🔄 A sincronizar com Supabase...');
+        // Sincronizando Supabase
         
         // Carregar PEDIDOS
         await loadDataFromSupabase();
@@ -9755,7 +9675,7 @@ async function syncWithSupabase() {
         AppState.utilizadores = utilizadores || [];
         
         console.log(`✅ ${AppState.utilizadores.length} utilizadores carregados FINAL`);
-        console.log('✅ Nomes:', AppState.utilizadores.map(u => u.nomeCompleto).join(', '));
+        // Utilizadores mapeados
         
         // ✅ v3.7.0.9: Carregar EQUIPAMENTOS do Supabase
         console.log('🔄 A carregar equipamentos do Supabase...');
@@ -9783,7 +9703,7 @@ async function syncWithSupabase() {
         }
         
         populateEquipamentoFilter();
-        console.log('✅ Dropdowns de equipamentos configurados (aguardando seleção de empresa)');
+        // Dropdowns configurados
         
         // Guardar localmente
         saveToLocalStorage();
@@ -9972,7 +9892,7 @@ function saveToLocalStorage() {
             const minimalRequests = requestsWithoutPhotos.slice(0, 10);
             try {
                 localStorage.setItem(CONFIG.STORAGE_KEYS.REQUESTS, JSON.stringify(minimalRequests));
-                console.log('✅ Limpeza de emergência concluída. Guardados 10 pedidos.');
+                // Limpeza concluída
             } catch (finalError) {
                 // Se ainda assim falhar, limpar TUDO
                 console.error('❌ Limpeza de emergência falhou. Limpando TUDO...');
@@ -10715,7 +10635,7 @@ async function loadPlanningFromSupabase() {
     }
     
     try {
-        console.log('📥 Carregando planeamento do Supabase...');
+        // Carregando planeamento
         
         const planningData = await window.SupabaseAPI.getPlaneamento();
         
@@ -11139,7 +11059,7 @@ async function loadArtigosFromGoogleSheets(retryCount = 0, forceReload = false) 
             }));
             
             setCachedArtigos(AppState.artigos);
-            console.log('✅ Artigos carregados do Supabase:', AppState.artigos.length);
+            // Artigos carregados
             
             hideLoadingSpinner();
             showToast(`✅ ${AppState.artigos.length} artigos carregados com sucesso!`, 'success');
@@ -11208,7 +11128,7 @@ async function loadMovimentosFromGoogleSheets() {
             // Ordenar por data (mais recentes primeiro)
             AppState.movimentos.sort((a, b) => b.dataHora - a.dataHora);
             
-            console.log('✅ Movimentos carregados:', AppState.movimentos.length);
+            // Movimentos carregados
         } else {
             console.warn('⚠️ Nenhum movimento no Supabase');
             AppState.movimentos = [];
@@ -13741,7 +13661,7 @@ async function carregarAutoTagPatterns() {
             }).filter(r => r !== null);
         }
         
-        console.log('✅ [AUTO-TAG] Padrões carregados:', Object.keys(patterns).length, 'tags');
+        // Auto-tag patterns carregados
         cachedAutoTagPatterns = patterns;
         return patterns;
         
@@ -14273,7 +14193,6 @@ async function guardarObservacoesFecho(id) {
     try {
         await window.SupabaseAPI.updatePedido(id, { observacoes_fecho: observacoes });
         showToast('✅ Observações guardadas com sucesso!', 'success');
-        console.log('✅ [OBS-FECHO] Guardado:', observacoes);
     } catch (error) {
         console.error('❌ Erro ao guardar observações:', error);
         showToast('❌ Erro ao guardar observações', 'error');
@@ -14291,27 +14210,20 @@ async function uploadFotoFecho(id, file) {
     
     try {
         showToast('📤 A enviar foto...', 'info');
-        console.log('🔵 [FOTO-FECHO] Iniciando upload:', file.name, file.size, 'bytes');
         
-        // 🆕 v3.8.3.1: Usar window.SupabaseAPI.uploadManualPDF como referência
-        // Usar o mesmo método que funciona para manuais
-        const fileName = `${id}-fecho-${Date.now()}.${file.name.split('.').pop()}`;
-        
-        // Criar FormData para upload
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        // Upload via fetch direto para o Storage
-        const uploadUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/pedidos-fotos/ot-fecho/${fileName}`;
-        console.log('🔵 [FOTO-FECHO] URL upload:', uploadUrl);
+        const ext = file.type.split('/')[1] || 'jpg';
+        const fileName = `${id}-fecho-${Date.now()}.${ext}`;
+        const uploadUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/pedidos-fotos/${fileName}`;
         
         const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
             headers: {
                 'apikey': SUPABASE_CONFIG.ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`
+                'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+                'Content-Type': file.type,
+                'x-upsert': 'true'  // Substituir se já existir
             },
-            body: formData
+            body: file  // 🔥 Enviar File diretamente (não FormData!)
         });
         
         if (!uploadResponse.ok) {
@@ -14320,19 +14232,9 @@ async function uploadFotoFecho(id, file) {
             throw new Error(`Upload falhou: ${uploadResponse.status} ${errorText}`);
         }
         
-        console.log('✅ [FOTO-FECHO] Upload OK');
-        
-        // Obter URL pública
-        const fotoUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/pedidos-fotos/ot-fecho/${fileName}`;
-        console.log('🔵 [FOTO-FECHO] URL pública:', fotoUrl);
-        
-        // Atualizar localmente
+        const fotoUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/pedidos-fotos/${fileName}`;
         request.fotoFecho = fotoUrl;
-        
-        // Atualizar no Supabase (tabela pedidos)
-        console.log('🔵 [FOTO-FECHO] Atualizando BD:', id, fotoUrl);
-        const result = await window.SupabaseAPI.updatePedido(id, { foto_fecho: fotoUrl });
-        console.log('✅ [FOTO-FECHO] BD atualizada:', result);
+        await window.SupabaseAPI.updatePedido(id, { foto_fecho: fotoUrl });
         
         showToast('✅ Foto adicionada com sucesso!', 'success');
         
@@ -14362,7 +14264,6 @@ async function removerFotoFecho(id) {
         await window.SupabaseAPI.updatePedido(id, { foto_fecho: null });
         
         showToast('✅ Foto removida com sucesso!', 'success');
-        console.log('✅ [FOTO-FECHO] Removida');
         
         // Recarregar modal
         showRequestDetails(id);
