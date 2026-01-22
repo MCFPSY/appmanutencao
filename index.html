@@ -4914,14 +4914,6 @@
                         <option value="PSY">PSY</option>
                     </select>
                     
-                    <select id="analisePeriodoFilter" class="form-input">
-                        <option value="4">Últimas 4 semanas</option>
-                        <option value="8">Últimas 8 semanas</option>
-                        <option value="12" selected>Últimas 12 semanas</option>
-                        <option value="26">Últimas 26 semanas</option>
-                        <option value="52">Último ano</option>
-                    </select>
-                    
                     <button class="btn btn-primary" onclick="atualizarAnalises()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
                             <polyline points="23 4 23 10 17 10"/>
@@ -4941,6 +4933,7 @@
                             </p>
                         </div>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="filter-btn" data-period="1" onclick="filtrarPorUtilizadorPeriodo(1)">Último Dia</button>
                             <button class="filter-btn active" data-period="7" onclick="filtrarPorUtilizadorPeriodo(7)">Última Semana</button>
                             <button class="filter-btn" data-period="30" onclick="filtrarPorUtilizadorPeriodo(30)">Último Mês</button>
                             <button class="filter-btn" data-period="180" onclick="filtrarPorUtilizadorPeriodo(180)">6 Meses</button>
@@ -9427,17 +9420,22 @@ async function changeRequestState(id) {
             });
         }
         
-        request.estado = newState;
-        saveToLocalStorage();
-        if (AppState.isOnline) await updateInGoogleSheets(request);  // 🔥 Nome legacy, usa Supabase
-        renderRequestsList();
-        
-        // 🆕 v3.8.3.0: Aviso estético para lembrar de registar consumos
+        // 🆕 v3.8.3.8.2: Confirmar fecho de OT (permite voltar atrás)
         showCustomAlert({
-            title: '✅ Ordem de Trabalho Fechada',
-            message: '💡 Não esquecer de registar os consumos de materiais utilizados!',
+            title: '⚠️ Fechar Ordem de Trabalho?',
+            message: '💡 Não esquecer de registar os consumos de materiais na aba Stocks!',
             icon: '📦',
-            buttonText: 'OK, Entendido'
+            buttonText: 'Continuar',
+            secondaryButtonText: 'Voltar',
+            onConfirm: () => {
+                // Só fecha se confirmar
+                request.estado = newState;
+                saveToLocalStorage();
+                if (AppState.isOnline) updateInGoogleSheets(request);  // 🔥 Nome legacy, usa Supabase
+                renderRequestsList();
+                showToast('✅ Ordem de Trabalho Fechada', 'success');
+            }
+            // Se clicar "Voltar", não faz nada (OT permanece aberta)
         });
     } else {
         // Estados normais (Novo → Em curso)
@@ -13082,7 +13080,7 @@ window.atualizarAnalises = function() {
         
         // Obter filtros
         const empresaFiltro = document.getElementById('analiseEmpresaFilter')?.value || '';
-        const numSemanas = parseInt(document.getElementById('analisePeriodoFilter')?.value || '12');
+        const numSemanas = 12; // 🆕 v3.8.3.8: Fixo (select removido - usam-se os botões de filtro)
         
         // Processar dados
         const dadosPorSemana = processarDadosPorSemana(numSemanas, empresaFiltro);
@@ -13131,6 +13129,7 @@ window.filtrarPorUtilizadorPeriodo = function(dias) {
     
     // Atualizar título do gráfico com período
     const titulos = {
+        1: 'Último Dia',
         7: 'Última Semana',
         30: 'Último Mês',
         180: 'Últimos 6 Meses',
@@ -14128,14 +14127,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Listeners para filtros de análise
     const empresaFilter = document.getElementById('analiseEmpresaFilter');
-    const periodoFilter = document.getElementById('analisePeriodoFilter');
     
     if (empresaFilter) {
         empresaFilter.addEventListener('change', () => window.atualizarAnalises());
-    }
-    
-    if (periodoFilter) {
-        periodoFilter.addEventListener('change', () => window.atualizarAnalises());
     }
 });
 
@@ -14147,7 +14141,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * Mostra alerta customizado estético
  */
 function showCustomAlert(options) {
-    const { title, message, icon, buttonText } = options;
+    const { title, message, icon, buttonText, secondaryButtonText, onConfirm } = options;
     
     // Criar overlay
     const overlay = document.createElement('div');
@@ -14166,12 +14160,35 @@ function showCustomAlert(options) {
         text-align: center; animation: slideUp 0.3s ease;
     `;
     
-    modal.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 16px;">${icon}</div>
-        <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #2c3e50;">${title}</h3>
-        <p style="margin: 0 0 24px 0; font-size: 16px; color: #7f8c8d; line-height: 1.5;">${message}</p>
+    // 🆕 v3.8.3.8: Suporte para dois botões (primário + secundário)
+    const buttonsHTML = secondaryButtonText ? `
+        <div style="display: flex; gap: 12px; justify-content: center;">
+            <button 
+                class="secondary-btn"
+                style="
+                    background: #ecf0f1; color: #7f8c8d; border: none;
+                    padding: 12px 24px; border-radius: 8px; font-size: 16px;
+                    font-weight: 600; cursor: pointer; transition: all 0.2s;
+                "
+                onmouseover="this.style.background='#d5dbdb'"
+                onmouseout="this.style.background='#ecf0f1'">
+                ${secondaryButtonText}
+            </button>
+            <button 
+                class="primary-btn"
+                style="
+                    background: #3498db; color: white; border: none;
+                    padding: 12px 24px; border-radius: 8px; font-size: 16px;
+                    font-weight: 600; cursor: pointer; transition: all 0.2s;
+                "
+                onmouseover="this.style.background='#2980b9'"
+                onmouseout="this.style.background='#3498db'">
+                ${buttonText}
+            </button>
+        </div>
+    ` : `
         <button 
-            onclick="this.closest('.custom-alert-overlay').remove()"
+            class="primary-btn"
             style="
                 background: #3498db; color: white; border: none;
                 padding: 12px 32px; border-radius: 8px; font-size: 16px;
@@ -14183,9 +14200,33 @@ function showCustomAlert(options) {
         </button>
     `;
     
+    modal.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 16px;">${icon}</div>
+        <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #2c3e50;">${title}</h3>
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #7f8c8d; line-height: 1.5;">${message}</p>
+        ${buttonsHTML}
+    `;
+    
     overlay.className = 'custom-alert-overlay';
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    
+    // Event listeners para botões
+    const primaryBtn = modal.querySelector('.primary-btn');
+    const secondaryBtn = modal.querySelector('.secondary-btn');
+    
+    if (primaryBtn) {
+        primaryBtn.addEventListener('click', () => {
+            overlay.remove();
+            if (onConfirm) onConfirm();
+        });
+    }
+    
+    if (secondaryBtn) {
+        secondaryBtn.addEventListener('click', () => {
+            overlay.remove();
+        });
+    }
     
     // Fechar ao clicar fora
     overlay.addEventListener('click', (e) => {
@@ -14356,3 +14397,4 @@ document.head.appendChild(styleAnimations);
     </script>
 </body>
 </html>
+
