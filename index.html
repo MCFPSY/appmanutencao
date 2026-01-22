@@ -13830,6 +13830,49 @@ async function filtrarSecoesRelevantes(secoes, pergunta) {
 }
 
 /**
+ * 🆕 v3.8.3.9: Buscar no conteúdo dos manuais usando full-text search
+ * Esta função complementa as keywords existentes
+ */
+async function buscarManuaisFullText(pergunta, maxResultados = 5) {
+    console.log('🔍 [FULLTEXT] Iniciando busca full-text...', pergunta);
+    
+    try {
+        // Chamar função SQL do Supabase
+        const resultados = await supabaseFetch('rpc/buscar_manual_fulltext', {
+            method: 'POST',
+            body: JSON.stringify({
+                query_text: pergunta,
+                match_count: maxResultados
+            })
+        });
+        
+        console.log(`✅ [FULLTEXT] ${resultados?.length || 0} seções encontradas via full-text`);
+        
+        if (!resultados || resultados.length === 0) {
+            return [];
+        }
+        
+        // Transformar resultados no formato esperado
+        return resultados.map(r => ({
+            manual_id: r.manual_id,
+            manual_titulo: r.manual_titulo,
+            equipamento_area: r.equipamento_area,
+            equipamento_nome: r.equipamento_nome,
+            secao: r.secao,
+            conteudo: r.conteudo,
+            pagina_inicio: r.pagina_inicio,
+            pagina_fim: r.pagina_fim,
+            relevancia: r.relevancia,
+            fonte: 'fulltext'  // Identificar que veio do full-text
+        }));
+        
+    } catch (error) {
+        console.error('❌ [FULLTEXT] Erro na busca full-text:', error);
+        return [];  // Retornar vazio em caso de erro (não quebra o sistema)
+    }
+}
+
+/**
  * Buscar manuais relevantes baseados na pergunta
  */
 async function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
@@ -13850,9 +13893,42 @@ async function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
     
     console.log('🔍 [MANUAIS] Menciona manual/keyword?', mencionaManual);
     
+    // 🆕 v3.8.3.9: BUSCA HÍBRIDA - Tentar full-text MESMO SEM keywords
+    let resultadosFullText = [];
     if (!mencionaManual && equipamentosMencionados.length === 0) {
-        console.log('⚠️ [MANUAIS] Nenhuma keyword detectada, não buscando manuais');
-        return null;  // Não incluir manuais se não forem relevantes
+        console.log('⚠️ [MANUAIS] Nenhuma keyword detectada, tentando busca full-text...');
+        
+        // Tentar busca full-text como fallback
+        resultadosFullText = await buscarManuaisFullText(pergunta, 3);
+        
+        if (resultadosFullText.length === 0) {
+            console.log('❌ [MANUAIS] Full-text também não encontrou resultados');
+            return null;  // Não incluir manuais se não forem relevantes
+        }
+        
+        console.log(`✅ [MANUAIS] Full-text encontrou ${resultadosFullText.length} resultados!`);
+        
+        // Retornar resultados do full-text diretamente
+        return {
+            disponivel: true,
+            fonte: 'fulltext',
+            manuais: resultadosFullText.map(r => ({
+                manual: {
+                    id: r.manual_id,
+                    titulo: r.manual_titulo,
+                    equipamento_area: r.equipamento_area,
+                    equipamento_nome: r.equipamento_nome
+                },
+                secoes: [{
+                    titulo: r.secao,
+                    paginas: `${r.pagina_inicio}-${r.pagina_fim}`,
+                    texto: r.conteudo,
+                    relevancia: r.relevancia,
+                    imagens_urls: [],
+                    tags: []
+                }]
+            }))
+        };
     }
     
     console.log('✅ [MANUAIS] Keywords detectadas! Buscando manuais...');
@@ -14397,4 +14473,3 @@ document.head.appendChild(styleAnimations);
     </script>
 </body>
 </html>
-
