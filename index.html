@@ -13584,8 +13584,42 @@ async function prepararContextoDados(pergunta = '') {
             fechados: pedidosRecentes.filter(p => p.estado === 'Resolvido').length
         },
         // 📚 MANUAIS: Adicionar se mencionados na pergunta
-        manuais: await buscarManuaisRelevantes(pergunta, equipamentosMencionados)
+        // 🆕 v3.8.3.9: Detectar equipamentos mencionados dos MANUAIS (não só de pedidos)
+        manuais: await buscarManuaisRelevantes(pergunta, await detectarEquipamentosManuais(pergunta, equipamentosMencionados))
     };
+}
+
+/**
+ * 🆕 v3.8.3.9: Detectar equipamentos mencionados na pergunta (de manuais E pedidos)
+ */
+async function detectarEquipamentosManuais(pergunta, equipamentosDePedidos = []) {
+    const perguntaLower = pergunta.toLowerCase();
+    const equipamentosDosManuais = [];
+    
+    // Verificar se há manuais carregados
+    if (AppState.manuais && AppState.manuais.length > 0) {
+        AppState.manuais
+            .filter(m => m.ativo)
+            .forEach(m => {
+                // Verificar equipamento_nome (ex: "Alinhadeira")
+                if (m.equipamento_nome && perguntaLower.includes(m.equipamento_nome.toLowerCase())) {
+                    equipamentosDosManuais.push(m.equipamento_nome);
+                }
+                // Verificar equipamento_area (ex: "L04")
+                if (m.equipamento_area && perguntaLower.includes(m.equipamento_area.toLowerCase())) {
+                    equipamentosDosManuais.push(m.equipamento_area);
+                }
+            });
+    }
+    
+    console.log('🔍 [CONTEXTO] Equipamentos de pedidos:', equipamentosDePedidos);
+    console.log('🔍 [CONTEXTO] Equipamentos de manuais:', equipamentosDosManuais);
+    
+    // Combinar e remover duplicados
+    const todosEquipamentos = [...new Set([...equipamentosDePedidos, ...equipamentosDosManuais])];
+    console.log('🔍 [CONTEXTO] Todos equipamentos detectados:', todosEquipamentos);
+    
+    return todosEquipamentos;
 }
 
 /**
