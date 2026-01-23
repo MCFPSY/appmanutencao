@@ -7604,17 +7604,34 @@ async function extractTextFromPDF(file, progressCallback = null) {
                             continue; // Pular esta imagem
                         }
                         
-                        // Upload para Supabase Storage
+                        // Upload para Supabase Storage (nome temporário primeiro)
                         try {
-                            const imageUrl = await uploadExtractedImage(regionBlob, manualId, pageNum, region.type, idx);
-                            imagensExtraidas.push({
-                                url: imageUrl,
-                                type: region.type,
-                                score: region.score
-                            });
+                            // 🆕 v3.8.3.10: Upload com nome temporário
+                            const tempImageUrl = await uploadExtractedImage(regionBlob, manualId, pageNum, region.type, idx);
                             console.log(`    ✅ ${region.type} ${idx + 1} uploaded (${(regionBlob.size / 1024).toFixed(1)}KB)`);
+                            
+                            // 🆕 v3.8.3.10: Analisar imagem com GPT-4 Vision
+                            let metadata = null;
+                            const textoPage = textosPorPagina[pageNum] || '';
+                            
+                            // Converter canvas para data URL para enviar ao GPT-4
+                            const dataUrl = regionCanvas.toDataURL('image/png');
+                            metadata = await analisarImagemComGPT4Vision(dataUrl, textoPage, pageNum);
+                            
+                            if (metadata && metadata.numero) {
+                                console.log(`    🔍 GPT-4 identificou: ${metadata.tipo || 'imagem'} ${metadata.numero} - "${metadata.titulo || metadata.descricao}"`);
+                            }
+                            
+                            // Guardar imagem com metadata
+                            imagensExtraidas.push({
+                                url: tempImageUrl,
+                                type: region.type,
+                                score: region.score,
+                                // 🆕 v3.8.3.10: Metadata do GPT-4 Vision
+                                gpt_metadata: metadata
+                            });
                         } catch (uploadError) {
-                            console.error(`    ❌ Erro ao fazer upload da ${region.type} ${idx + 1}:`, uploadError);
+                            console.error(`    ❌ Erro ao fazer upload/análise da ${region.type} ${idx + 1}:`, uploadError);
                         }
                     }
                     
@@ -7639,15 +7656,33 @@ async function extractTextFromPDF(file, progressCallback = null) {
             console.log(`   - Texto extraído: ${textoCompleto.length} caracteres`);
             console.log(`   - Páginas com imagens/tabelas: ${Object.keys(imagensPorPagina).length}`);
             
-            // 🆕 v3.7.6.0: Adicionar referências a imagens no texto (para contexto do chatbot)
+            // 🆕 v3.8.3.10: Adicionar referências a imagens no texto COM METADATA GPT-4
             for (const [pageNum, images] of Object.entries(imagensPorPagina)) {
                 if (images && images.length > 0) {
                     const pageText = textosPorPagina[pageNum] || '';
                     let imageRefs = '\n\n';
                     
                     images.forEach((img, idx) => {
-                        const emoji = img.type === 'table' ? '📊' : '🖼️';
-                        imageRefs += `${emoji} [${img.type.toUpperCase()} ${idx + 1}]: ${img.url}\n`;
+                        const metadata = img.gpt_metadata;
+                        
+                        if (metadata && metadata.numero) {
+                            // 🆕 GPT-4 identificou o número da figura/tabela!
+                            const tipoLabel = metadata.tipo || img.type;
+                            const numero = metadata.numero;
+                            const descricao = metadata.descricao || '';
+                            
+                            imageRefs += `📊 [${tipoLabel.toUpperCase()} ${numero}]: ${img.url}\n`;
+                            if (descricao) {
+                                imageRefs += `   Descrição: ${descricao}\n`;
+                            }
+                            if (metadata.componentes && metadata.componentes.length > 0) {
+                                imageRefs += `   Componentes: ${metadata.componentes.join(', ')}\n`;
+                            }
+                        } else {
+                            // Fallback: formato antigo
+                            const emoji = img.type === 'table' ? '📊' : '🖼️';
+                            imageRefs += `${emoji} [${img.type.toUpperCase()} ${idx + 1}]: ${img.url}\n`;
+                        }
                     });
                     
                     textosPorPagina[pageNum] = pageText + imageRefs;
@@ -7686,14 +7721,24 @@ async function extractTextFromPDF(file, progressCallback = null) {
             // 🆕 v3.8.0: Detectar tags automaticamente
             const tags = await detectarTagsAutomaticas(chunk.texto || '');
             
-            // 🆕 v3.8.1: Extrair URLs de imagens/tabelas desta secção (das páginas que cobre)
+            // 🆕 v3.8.3.10: Extrair URLs e METADATA de imagens desta secção
             const imagensSecao = [];
+            const imagensMetadata = []; // 🆕 Array separado para metadata GPT-4
+            
             if (imagensPorPagina && Object.keys(imagensPorPagina).length > 0) {
                 for (let p = chunk.paginaInicio; p <= chunk.paginaFim; p++) {
                     if (imagensPorPagina[p]) {
-                        // Adicionar URLs das imagens desta página
+                        // Adicionar URLs e metadata das imagens desta página
                         imagensPorPagina[p].forEach(img => {
                             imagensSecao.push(img.url);
+                            
+                            // 🆕 v3.8.3.10: Guardar metadata GPT-4 se existir
+                            if (img.gpt_metadata) {
+                                imagensMetadata.push({
+                                    url: img.url,
+                                    ...img.gpt_metadata
+                                });
+                            }
                         });
                     }
                 }
@@ -7701,6 +7746,9 @@ async function extractTextFromPDF(file, progressCallback = null) {
             
             if (imagensSecao.length > 0) {
                 console.log(`  📊 Secção "${chunk.titulo}": ${imagensSecao.length} imagem(ns) encontrada(s)`);
+                if (imagensMetadata.length > 0) {
+                    console.log(`     🔍 ${imagensMetadata.length} com metadata GPT-4 Vision`);
+                }
             }
             
             secoes.push({
@@ -7711,6 +7759,7 @@ async function extractTextFromPDF(file, progressCallback = null) {
                 palavras_chave: chunk.palavrasChave, // Keywords extraídas
                 tags: tags,                         // 🆕 v3.8.0: Tags auto-detectadas
                 imagens_urls: imagensSecao,         // 🆕 v3.8.1: URLs de imagens/tabelas
+                imagens_metadata: imagensMetadata,  // 🆕 v3.8.3.10: Metadata GPT-4 Vision
                 ordem: idx + 1
             });
         }
@@ -7911,6 +7960,121 @@ async function gerarEmbedding(texto) {
     } catch (error) {
         console.error('❌ [EMBEDDING] Erro ao gerar embedding:', error);
         throw error;
+    }
+}
+
+// ============================================
+// 🆕 v3.8.3.10: ANÁLISE DE IMAGENS COM GPT-4 VISION
+// ============================================
+
+/**
+ * Analisar imagem com GPT-4 Vision para identificar figuras/tabelas
+ * 
+ * @param {string} imageUrl - URL da imagem (pode ser data: URL ou http(s)://)
+ * @param {string} textoContexto - Texto da página (para contexto)
+ * @param {number} pageNum - Número da página
+ * @returns {Promise<Object>} - Metadata da imagem
+ */
+async function analisarImagemComGPT4Vision(imageUrl, textoContexto = '', pageNum = 0) {
+    // Validar API key
+    if (!OPENAI_API_KEY || OPENAI_API_KEY === 'sk-proj-...') {
+        console.warn('⚠️ [GPT-4 VISION] API Key não configurada. Pulando análise.');
+        return null;
+    }
+    
+    console.log(`🔍 [GPT-4 VISION] Analisando imagem da página ${pageNum}...`);
+    
+    try {
+        // Preparar prompt contextualizado
+        const prompt = `Analisa esta imagem de um manual técnico industrial (página ${pageNum}).
+
+**CONTEXTO DA PÁGINA:**
+${textoContexto.substring(0, 1000)}
+
+**TAREFA:**
+Identifica:
+1. **Tipo**: É uma Figura, Tabela, Diagrama, Esquema, Gráfico ou Foto?
+2. **Número**: Qual o número da figura/tabela? (ex: "Figura 25", "Tabela 5")
+3. **Título**: Qual o título completo? (se visível)
+4. **Descrição**: Descreve o conteúdo em 1-2 frases (componentes técnicos, dados, etc.)
+5. **Componentes**: Lista os componentes principais visíveis (ex: válvulas, parafusos, números de referência)
+
+**IMPORTANTE:**
+- Se vires texto "Figura X" ou "Tabela X" na imagem, ESSE é o número correto!
+- Se não houver número visível, responde null no campo "numero"
+- Sê preciso nos componentes técnicos (números de peças, designações)
+
+Responde APENAS em JSON (sem markdown):
+{
+  "tipo": "figura|tabela|diagrama|esquema|grafico|foto",
+  "numero": "25" ou null,
+  "titulo": "Figura 25 - Órgãos de comando" ou null,
+  "descricao": "Descrição breve e técnica",
+  "componentes": ["componente 1", "componente 2", ...],
+  "tipo_visual": "diagrama esquemático|tabela de dados|foto real|esquema elétrico|..."
+}`;
+
+        // Chamar GPT-4 Vision
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o', // gpt-4o tem visão nativa
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'text',
+                                text: prompt
+                            },
+                            {
+                                type: 'image_url',
+                                image_url: {
+                                    url: imageUrl,
+                                    detail: 'high' // Alta resolução para textos pequenos
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens: 500,
+                temperature: 0.0 // Determinístico
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('❌ [GPT-4 VISION] Erro da OpenAI:', errorData);
+            throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        }
+        
+        const data = await response.json();
+        const textoResposta = data.choices[0].message.content.trim();
+        
+        console.log('📝 [GPT-4 VISION] Resposta bruta:', textoResposta);
+        
+        // Parse JSON (remover markdown se houver)
+        let jsonStr = textoResposta;
+        if (jsonStr.includes('```json')) {
+            jsonStr = jsonStr.split('```json')[1].split('```')[0].trim();
+        } else if (jsonStr.includes('```')) {
+            jsonStr = jsonStr.split('```')[1].split('```')[0].trim();
+        }
+        
+        const metadata = JSON.parse(jsonStr);
+        
+        console.log('✅ [GPT-4 VISION] Metadata extraída:', metadata);
+        
+        return metadata;
+        
+    } catch (error) {
+        console.error('❌ [GPT-4 VISION] Erro ao analisar imagem:', error);
+        // Não falhar o upload por causa disto
+        return null;
     }
 }
 
