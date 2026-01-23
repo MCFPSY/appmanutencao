@@ -6409,6 +6409,25 @@ async function verificarAlertasDiarios() {
         return; // Não mostrar alertas para outros utilizadores
     }
     
+    // 🆕 v3.8.3.10.3: Limpar alertas antigos (antes da versão com filtro)
+    // Se houver alertas guardados, verificar se têm mais de 3 técnicos (lista antiga)
+    const alertasAntigos = localStorage.getItem('alertas_pendentes');
+    if (alertasAntigos) {
+        try {
+            const alertasData = JSON.parse(alertasAntigos);
+            // Se a lista tem mais de 3 técnicos, é alerta antigo - limpar
+            if (alertasData.tecnicos && alertasData.tecnicos.length > 3) {
+                console.log('🗑️ Limpando alertas antigos (lista completa)...');
+                localStorage.removeItem('alertas_pendentes');
+                localStorage.removeItem('ultima_verificacao_alertas');
+            }
+        } catch (e) {
+            // Se erro ao ler, limpar também
+            localStorage.removeItem('alertas_pendentes');
+            localStorage.removeItem('ultima_verificacao_alertas');
+        }
+    }
+    
     // 📅 Calcular último dia útil
     const ultimoDiaUtil = calcularUltimoDiaUtil();
     
@@ -6435,13 +6454,31 @@ async function verificarAlertasDiarios() {
     // 🔍 Buscar TODOS os pedidos do Supabase
     const todosPedidos = await window.SupabaseAPI.getPedidos();
     
-    // 👥 Técnicos a monitorizar (buscar da tabela utilizadores)
+    // 👥 Técnicos a monitorizar - APENAS Paulo Abrunhosa, Alan e Vitor Hugo
+    // 🆕 v3.8.3.10.3: Filtro específico de técnicos para alerta de produtividade
+    const tecnicosMonitorizados = ['Paulo Abrunhosa', 'Alan', 'Vitor Hugo'];
+    
+    console.log('🔍 [ALERTA] Técnicos a monitorizar:', tecnicosMonitorizados);
+    console.log('🔍 [ALERTA] Total utilizadores na BD:', AppState.utilizadores?.length || 0);
+    
     const tecnicos = AppState.utilizadores && AppState.utilizadores.length > 0
-        ? AppState.utilizadores.map(u => {
-            const nomeKey = Object.keys(u).find(k => k.toLowerCase().replace(/[_\s]/g, '') === 'nomecompleto') || 'nomeCompleto';
-            return u[nomeKey];
-          })
-        : ['Vítor', 'Alan', 'Paulo'];  // Fallback
+        ? AppState.utilizadores
+            .filter(u => {
+                const nomeKey = Object.keys(u).find(k => k.toLowerCase().replace(/[_\s]/g, '') === 'nomecompleto') || 'nomeCompleto';
+                const nomeCompleto = u[nomeKey];
+                const incluir = tecnicosMonitorizados.includes(nomeCompleto);
+                if (incluir) {
+                    console.log('✅ [ALERTA] Incluir técnico:', nomeCompleto);
+                }
+                return incluir;
+            })
+            .map(u => {
+                const nomeKey = Object.keys(u).find(k => k.toLowerCase().replace(/[_\s]/g, '') === 'nomecompleto') || 'nomeCompleto';
+                return u[nomeKey];
+            })
+        : tecnicosMonitorizados;  // Fallback
+    
+    console.log('🔍 [ALERTA] Técnicos filtrados FINAL:', tecnicos);
     
     const tecnicosSemProducao = [];
     
@@ -7976,96 +8013,38 @@ async function gerarEmbedding(texto) {
  * @returns {Promise<Object>} - Metadata da imagem
  */
 async function analisarImagemComGPT4Vision(imageUrl, textoContexto = '', pageNum = 0) {
-    // Validar API key
-    if (!OPENAI_API_KEY || OPENAI_API_KEY === 'sk-proj-...') {
-        console.warn('⚠️ [GPT-4 VISION] API Key não configurada. Pulando análise.');
-        return null;
-    }
-    
     console.log(`🔍 [GPT-4 VISION] Analisando imagem da página ${pageNum}...`);
     
     try {
-        // Preparar prompt contextualizado
-        const prompt = `Analisa esta imagem de um manual técnico industrial (página ${pageNum}).
-
-**CONTEXTO DA PÁGINA:**
-${textoContexto.substring(0, 1000)}
-
-**TAREFA:**
-Identifica:
-1. **Tipo**: É uma Figura, Tabela, Diagrama, Esquema, Gráfico ou Foto?
-2. **Número**: Qual o número da figura/tabela? (ex: "Figura 25", "Tabela 5")
-3. **Título**: Qual o título completo? (se visível)
-4. **Descrição**: Descreve o conteúdo em 1-2 frases (componentes técnicos, dados, etc.)
-5. **Componentes**: Lista os componentes principais visíveis (ex: válvulas, parafusos, números de referência)
-
-**IMPORTANTE:**
-- Se vires texto "Figura X" ou "Tabela X" na imagem, ESSE é o número correto!
-- Se não houver número visível, responde null no campo "numero"
-- Sê preciso nos componentes técnicos (números de peças, designações)
-
-Responde APENAS em JSON (sem markdown):
-{
-  "tipo": "figura|tabela|diagrama|esquema|grafico|foto",
-  "numero": "25" ou null,
-  "titulo": "Figura 25 - Órgãos de comando" ou null,
-  "descricao": "Descrição breve e técnica",
-  "componentes": ["componente 1", "componente 2", ...],
-  "tipo_visual": "diagrama esquemático|tabela de dados|foto real|esquema elétrico|..."
-}`;
-
-        // Chamar GPT-4 Vision
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        // 🆕 v3.8.3.10.3: Usar proxy Cloudflare Worker (resolve CORS + segurança)
+        const WORKER_URL = 'https://chatbot-manutencao.goncalobarata.workers.dev/gpt4-vision';
+        
+        const response = await fetch(WORKER_URL, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${OPENAI_API_KEY}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'gpt-4o', // gpt-4o tem visão nativa
-                messages: [
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                type: 'text',
-                                text: prompt
-                            },
-                            {
-                                type: 'image_url',
-                                image_url: {
-                                    url: imageUrl,
-                                    detail: 'high' // Alta resolução para textos pequenos
-                                }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens: 500,
-                temperature: 0.0 // Determinístico
+                imageUrl: imageUrl,
+                textoContexto: textoContexto,
+                pageNum: pageNum
             })
         });
         
         if (!response.ok) {
             const errorData = await response.json();
-            console.error('❌ [GPT-4 VISION] Erro da OpenAI:', errorData);
-            throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+            console.error('❌ [GPT-4 VISION] Erro do Worker:', errorData);
+            throw new Error(`Worker error: ${response.status} - ${errorData.erro || 'Unknown error'}`);
         }
         
         const data = await response.json();
-        const textoResposta = data.choices[0].message.content.trim();
         
-        console.log('📝 [GPT-4 VISION] Resposta bruta:', textoResposta);
-        
-        // Parse JSON (remover markdown se houver)
-        let jsonStr = textoResposta;
-        if (jsonStr.includes('```json')) {
-            jsonStr = jsonStr.split('```json')[1].split('```')[0].trim();
-        } else if (jsonStr.includes('```')) {
-            jsonStr = jsonStr.split('```')[1].split('```')[0].trim();
+        if (!data.sucesso) {
+            console.error('❌ [GPT-4 VISION] Worker retornou erro:', data);
+            return null;
         }
         
-        const metadata = JSON.parse(jsonStr);
+        const metadata = data.metadata;
         
         console.log('✅ [GPT-4 VISION] Metadata extraída:', metadata);
         
@@ -9107,29 +9086,55 @@ function populatePlanningFilters() {
     // Popular dropdown de Responsável
     const planningFilterResponsavel = document.getElementById('planningFilterResponsavel');
     if (planningFilterResponsavel) {
-        const responsaveis = new Set();
-        AppState.requests.forEach(request => {
-            const task = AppState.planning.tasks[request.id];
-            const resp = (task?.responsavel || '').trim();
-            if (resp && resp !== '') {
-                responsaveis.add(resp);
-            }
-        });
-        
-        const responsaveisArray = Array.from(responsaveis).sort();
         planningFilterResponsavel.innerHTML = '<option value="">Todos os responsáveis</option>';
-        responsaveisArray.forEach(responsavel => {
-            const count = AppState.requests.filter(r => {
-                const task = AppState.planning.tasks[r.id];
-                return task?.responsavel === responsavel;
-            }).length;
-            const option = document.createElement('option');
-            option.value = responsavel;
-            option.textContent = `${responsavel} (${count})`;
-            planningFilterResponsavel.appendChild(option);
-        });
         
-        console.log('✅ Filtros de Planeamento populados');
+        // 🆕 v3.8.3.10: Usar tabela utilizadores (igual ao filtro principal)
+        if (AppState.utilizadores && AppState.utilizadores.length > 0) {
+            // Detectar nome correto do campo
+            const primeiroUser = AppState.utilizadores[0];
+            const nomeCompletoKey = Object.keys(primeiroUser).find(k => k.toLowerCase().replace(/[_\s]/g, '') === 'nomecompleto') || 'nomeCompleto';
+            
+            // Utilizadores ativos da BD
+            AppState.utilizadores
+                .sort((a, b) => (a[nomeCompletoKey] || '').localeCompare(b[nomeCompletoKey] || ''))
+                .forEach(user => {
+                    // Contar pedidos planeados deste responsável
+                    const nomeCompleto = user[nomeCompletoKey];
+                    const count = AppState.requests.filter(r => {
+                        const task = AppState.planning.tasks[r.id];
+                        return task?.responsavel === nomeCompleto;
+                    }).length;
+                    
+                    const option = document.createElement('option');
+                    option.value = nomeCompleto;
+                    option.textContent = count > 0 ? `${nomeCompleto} (${count})` : nomeCompleto;
+                    planningFilterResponsavel.appendChild(option);
+                });
+        } else {
+            // Fallback: buscar do planeamento (responsáveis que já têm tarefas)
+            console.warn('⚠️ Utilizadores não carregados no filtro de planeamento');
+            const responsaveis = new Set();
+            AppState.requests.forEach(request => {
+                const task = AppState.planning.tasks[request.id];
+                const resp = (task?.responsavel || '').trim();
+                if (resp && resp !== '') {
+                    responsaveis.add(resp);
+                }
+            });
+            
+            Array.from(responsaveis).sort().forEach(responsavel => {
+                const count = AppState.requests.filter(r => {
+                    const task = AppState.planning.tasks[r.id];
+                    return task?.responsavel === responsavel;
+                }).length;
+                const option = document.createElement('option');
+                option.value = responsavel;
+                option.textContent = `${responsavel} (${count})`;
+                planningFilterResponsavel.appendChild(option);
+            });
+        }
+        
+        console.log('✅ Filtros de Planeamento populados (responsáveis da BD)');
     }
 }
 
@@ -9819,7 +9824,6 @@ async function syncWithSupabase() {
             unidade: a.Unidade
         }));
         console.log(`✅ ${AppState.artigos.length} artigos carregados`);
-        renderStockMinimo();
         
         // Carregar MOVIMENTOS
         const movimentos = await window.SupabaseAPI.getMovimentos();
@@ -9843,6 +9847,9 @@ async function syncWithSupabase() {
         });
         
         console.log(`✅ ${AppState.movimentos.length} movimentos carregados`);
+        
+        // 🔥 v3.8.3.10.2: Atualizar badge de stock DEPOIS de carregar artigos E movimentos
+        renderStockMinimo();
         
         // 🔥 v3.7.7.3: Carregar UTILIZADORES (DIRETO sem filtrar!)
         console.log('🔥 Carregando utilizadores...');
@@ -12236,21 +12243,35 @@ function renderStockMinimo() {
     const container = document.getElementById('stockMinimoContent');
     if (!container) return;
     
+    // 🆕 v3.8.3.10.1: Debug logs
+    console.log('🔍 [STOCK ALERTS] Calculando alertas de stock...');
+    console.log('📦 Total de artigos:', AppState.artigos.length);
+    
     // Filtrar artigos abaixo do mínimo (calcular stock em tempo real)
     const alertas = AppState.artigos.filter(a => {
         const stockAtual = calcularStockAtual(a.id);
-        return a.stockMinimo > 0 && stockAtual < a.stockMinimo;
+        const temAlerta = a.stockMinimo > 0 && stockAtual < a.stockMinimo;
+        if (temAlerta) {
+            console.log(`⚠️ Alerta: ${a.designacao} - Atual: ${stockAtual}, Mínimo: ${a.stockMinimo}`);
+        }
+        return temAlerta;
     });
+    
+    console.log(`📊 Total de alertas: ${alertas.length}`);
     
     // Atualizar badge no botão da tab Stock
     const badge = document.getElementById('stockAlertBadge');
     if (badge) {
         if (alertas.length > 0) {
+            console.log(`✅ Badge atualizado: ${alertas.length}`);
             badge.textContent = alertas.length;
             badge.style.display = 'inline-block';
         } else {
+            console.log('✅ Badge escondido (sem alertas)');
             badge.style.display = 'none';
         }
+    } else {
+        console.error('❌ Elemento #stockAlertBadge não encontrado!');
     }
     
     // Se não há alertas, mostrar mensagem positiva
