@@ -7467,6 +7467,78 @@ async function uploadExtractedImage(imageBlob, manualId, pageNum, type, index = 
 }
 
 /**
+ * Renomear ficheiro no Supabase Storage
+ * 🆕 v3.8.3.10.5: Renomear imagens com metadata GPT-4 Vision
+ * @param {string} oldPath - Caminho antigo (ex: manualId/page_003_table_00.png)
+ * @param {string} newPath - Caminho novo (ex: manualId/page_003_figura_25_lubrificacao.png)
+ * @returns {Promise<string>} - Nova URL pública
+ */
+async function renameStorageFile(oldPath, newPath) {
+    try {
+        console.log(`🔄 Renomeando: ${oldPath} → ${newPath}`);
+        
+        // Supabase Storage não tem endpoint direto para rename
+        // Precisamos: 1) Copy, 2) Delete old
+        
+        // 1. Copiar ficheiro
+        const copyUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/manuais/${newPath}`;
+        const copyResponse = await fetch(copyUrl, {
+            method: 'POST',
+            headers: {
+                'apikey': SUPABASE_CONFIG.ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                sourceKey: oldPath,
+                bucketId: 'manuais'
+            })
+        });
+        
+        if (!copyResponse.ok) {
+            // Tentar método alternativo: Move via RPC
+            const moveResponse = await fetch(`${SUPABASE_CONFIG.URL}/storage/v1/object/move`, {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_CONFIG.ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    bucketId: 'manuais',
+                    sourceKey: oldPath,
+                    destinationKey: newPath
+                })
+            });
+            
+            if (!moveResponse.ok) {
+                console.warn(`⚠️ Não foi possível renomear: ${oldPath}`);
+                return `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${oldPath}`;
+            }
+        } else {
+            // 2. Apagar ficheiro antigo
+            const deleteUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/manuais/${oldPath}`;
+            await fetch(deleteUrl, {
+                method: 'DELETE',
+                headers: {
+                    'apikey': SUPABASE_CONFIG.ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`
+                }
+            });
+        }
+        
+        const newPublicUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${newPath}`;
+        console.log(`✅ Ficheiro renomeado: ${newPublicUrl}`);
+        return newPublicUrl;
+        
+    } catch (error) {
+        console.error('❌ Erro ao renomear ficheiro:', error);
+        // Retornar URL antiga em caso de erro
+        return `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${oldPath}`;
+    }
+}
+
+/**
  * Extrair texto de uma imagem usando Tesseract.js OCR
  * @param {ImageData|Canvas|string} image - Imagem para OCR
  * @param {string} lang - Idioma (padrão: 'por' = Português)
@@ -7655,13 +7727,31 @@ async function extractTextFromPDF(file, progressCallback = null) {
                             const dataUrl = regionCanvas.toDataURL('image/png');
                             metadata = await analisarImagemComGPT4Vision(dataUrl, textoPage, pageNum);
                             
+                            let finalImageUrl = tempImageUrl;
+                            
                             if (metadata && metadata.numero) {
                                 console.log(`    🔍 GPT-4 identificou: ${metadata.tipo || 'imagem'} ${metadata.numero} - "${metadata.titulo || metadata.descricao}"`);
+                                
+                                // 🆕 v3.8.3.10.5: Renomear ficheiro com metadata
+                                const tipoLabel = (metadata.tipo || 'imagem').toLowerCase().replace(/[^a-z0-9]/g, '');
+                                const numero = String(metadata.numero).padStart(2, '0');
+                                const tituloSlug = (metadata.titulo || metadata.descricao || '')
+                                    .toLowerCase()
+                                    .normalize('NFD')
+                                    .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+                                    .replace(/[^a-z0-9]/g, '_')
+                                    .substring(0, 30); // Limitar tamanho
+                                
+                                const oldPath = tempImageUrl.split('/manuais/')[1]; // Ex: manualId/page_003_table_00.png
+                                const newFileName = `page_${String(pageNum).padStart(3, '0')}_${tipoLabel}_${numero}_${tituloSlug}.png`;
+                                const newPath = `${manualId}/${newFileName}`;
+                                
+                                finalImageUrl = await renameStorageFile(oldPath, newPath);
                             }
                             
                             // Guardar imagem com metadata
                             imagensExtraidas.push({
-                                url: tempImageUrl,
+                                url: finalImageUrl,
                                 type: region.type,
                                 score: region.score,
                                 // 🆕 v3.8.3.10: Metadata do GPT-4 Vision
@@ -14039,13 +14129,32 @@ async function filtrarSecoesRelevantes(secoes, pergunta) {
         }
     });
     
-    return secoesRelevantes.map(s => ({
-        titulo: s.secao,
-        paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
-        texto: s.conteudo,
-        imagens_urls: s.imagens_urls || [],  // 🆕 v3.8.1: URLs de tabelas/imagens
-        tags: s.tags || []                    // 🆕 v3.8.1: Tags da secção
-    }));
+    return secoesRelevantes.map(s => {
+        // 🆕 v3.8.3.10.4: Enriquecer texto com metadata GPT-4 Vision
+        let textoEnriquecido = s.conteudo;
+        
+        // Se tem metadata GPT-4, adicionar descrições das figuras ao texto
+        if (s.imagens_metadata && s.imagens_metadata.length > 0) {
+            console.log(`   🔍 Enriquecendo com ${s.imagens_metadata.length} metadata(s) GPT-4`);
+            
+            s.imagens_metadata.forEach(meta => {
+                if (meta.numero) {
+                    // Adicionar referência à figura/tabela no texto
+                    const tipoCapitalizado = (meta.tipo || 'imagem').charAt(0).toUpperCase() + (meta.tipo || 'imagem').slice(1);
+                    const descricao = `\n\n${tipoCapitalizado} ${meta.numero}${meta.titulo ? ': ' + meta.titulo : ''}\n${meta.descricao || ''}\n📊 [${tipoCapitalizado.toUpperCase()} ${meta.numero}]: ${meta.url}`;
+                    textoEnriquecido += descricao;
+                }
+            });
+        }
+        
+        return {
+            titulo: s.secao,
+            paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
+            texto: textoEnriquecido,  // 🆕 v3.8.3.10.4: Texto enriquecido com metadata
+            imagens_urls: s.imagens_urls || [],
+            tags: s.tags || []
+        };
+    });
 }
 
 /**
