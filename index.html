@@ -7489,12 +7489,10 @@ async function renameStorageFile(oldPath, newPath) {
     try {
         console.log(`🔄 Renomeando: ${oldPath} → ${newPath}`);
         
-        // Supabase Storage não tem endpoint direto para rename
-        // Precisamos: 1) Copy, 2) Delete old
-        
-        // 1. Copiar ficheiro
-        const copyUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/manuais/${newPath}`;
-        const copyResponse = await fetch(copyUrl, {
+        // ⚡ FIX v3.8.3.10.7: Usar endpoint correto de MOVE
+        // API: POST /storage/v1/object/move
+        const moveUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/move`;
+        const moveResponse = await fetch(moveUrl, {
             method: 'POST',
             headers: {
                 'apikey': SUPABASE_CONFIG.ANON_KEY,
@@ -7502,45 +7500,24 @@ async function renameStorageFile(oldPath, newPath) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
+                bucketId: 'manuais',
                 sourceKey: oldPath,
-                bucketId: 'manuais'
+                destinationKey: newPath
             })
         });
         
-        if (!copyResponse.ok) {
-            // Tentar método alternativo: Move via RPC
-            const moveResponse = await fetch(`${SUPABASE_CONFIG.URL}/storage/v1/object/move`, {
-                method: 'POST',
-                headers: {
-                    'apikey': SUPABASE_CONFIG.ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    bucketId: 'manuais',
-                    sourceKey: oldPath,
-                    destinationKey: newPath
-                })
-            });
-            
-            if (!moveResponse.ok) {
-                console.warn(`⚠️ Não foi possível renomear: ${oldPath}`);
-                return `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${oldPath}`;
-            }
-        } else {
-            // 2. Apagar ficheiro antigo
-            const deleteUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/manuais/${oldPath}`;
-            await fetch(deleteUrl, {
-                method: 'DELETE',
-                headers: {
-                    'apikey': SUPABASE_CONFIG.ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`
-                }
-            });
+        if (!moveResponse.ok) {
+            const errorData = await moveResponse.text();
+            console.warn(`⚠️ Não foi possível renomear: ${oldPath}`);
+            console.warn(`Erro: ${errorData}`);
+            // Retornar URL antiga se falhar
+            return `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${oldPath}`;
         }
         
         const newPublicUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${newPath}`;
-        console.log(`✅ Ficheiro renomeado: ${newPublicUrl}`);
+        console.log(`✅ Ficheiro renomeado com sucesso!`);
+        console.log(`   OLD: ${oldPath}`);
+        console.log(`   NEW: ${newPath}`);
         return newPublicUrl;
         
     } catch (error) {
@@ -7725,26 +7702,23 @@ async function extractTextFromPDF(file, progressCallback = null) {
                             continue; // Pular esta imagem
                         }
                         
-                        // Upload para Supabase Storage (nome temporário primeiro)
                         try {
-                            // 🆕 v3.8.3.10: Upload com nome temporário
-                            const tempImageUrl = await uploadExtractedImage(regionBlob, manualId, pageNum, region.type, idx);
-                            console.log(`    ✅ ${region.type} ${idx + 1} uploaded (${(regionBlob.size / 1024).toFixed(1)}KB)`);
+                            // ⚡ v3.8.3.10.8: OTIMIZAÇÃO - Analisar ANTES do upload
+                            // Assim fazemos upload DIRETO com nome correto (evita criar 2 ficheiros)
                             
-                            // 🆕 v3.8.3.10: Analisar imagem com GPT-4 Vision
+                            // 1. Analisar imagem com GPT-4 Vision (antes do upload!)
                             let metadata = null;
                             const textoPage = textosPorPagina[pageNum] || '';
-                            
-                            // Converter canvas para data URL para enviar ao GPT-4
                             const dataUrl = regionCanvas.toDataURL('image/png');
+                            
+                            console.log(`    🔍 Analisando ${region.type} ${idx + 1} com GPT-4 Vision...`);
                             metadata = await analisarImagemComGPT4Vision(dataUrl, textoPage, pageNum);
                             
-                            let finalImageUrl = tempImageUrl;
-                            
+                            // 2. Determinar nome do ficheiro (com ou sem metadata)
+                            let fileName;
                             if (metadata && metadata.numero) {
-                                console.log(`    🔍 GPT-4 identificou: ${metadata.tipo || 'imagem'} ${metadata.numero} - "${metadata.titulo || metadata.descricao}"`);
+                                console.log(`    ✅ GPT-4 identificou: ${metadata.tipo || 'imagem'} ${metadata.numero} - "${metadata.titulo || metadata.descricao}"`);
                                 
-                                // 🆕 v3.8.3.10.5: Renomear ficheiro com metadata
                                 const tipoLabel = (metadata.tipo || 'imagem').toLowerCase().replace(/[^a-z0-9]/g, '');
                                 const numero = String(metadata.numero).padStart(2, '0');
                                 const tituloSlug = (metadata.titulo || metadata.descricao || '')
@@ -7754,19 +7728,41 @@ async function extractTextFromPDF(file, progressCallback = null) {
                                     .replace(/[^a-z0-9]/g, '_')
                                     .substring(0, 30); // Limitar tamanho
                                 
-                                const oldPath = tempImageUrl.split('/manuais/')[1]; // Ex: manualId/page_003_table_00.png
-                                const newFileName = `page_${String(pageNum).padStart(3, '0')}_${tipoLabel}_${numero}_${tituloSlug}.png`;
-                                const newPath = `${manualId}/${newFileName}`;
-                                
-                                finalImageUrl = await renameStorageFile(oldPath, newPath);
+                                fileName = `${manualId}/page_${String(pageNum).padStart(3, '0')}_${tipoLabel}_${numero}_${tituloSlug}.png`;
+                            } else {
+                                // Fallback: nome genérico se GPT-4 não identificar
+                                const typeLabel = region.type.toLowerCase();
+                                const indexStr = String(idx).padStart(2, '0');
+                                fileName = `${manualId}/page_${String(pageNum).padStart(3, '0')}_${typeLabel}_${indexStr}.png`;
                             }
                             
-                            // Guardar imagem com metadata
+                            // 3. Upload DIRETO com nome final (não cria ficheiro temporário!)
+                            const formData = new FormData();
+                            formData.append('file', regionBlob, fileName.split('/').pop());
+                            
+                            const uploadUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/manuais/${fileName}`;
+                            const uploadResponse = await fetch(uploadUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'apikey': SUPABASE_CONFIG.ANON_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`
+                                },
+                                body: formData
+                            });
+                            
+                            if (!uploadResponse.ok) {
+                                console.error(`    ❌ Erro ao fazer upload: ${uploadResponse.status}`);
+                                throw new Error(`Erro no upload: ${uploadResponse.status}`);
+                            }
+                            
+                            const finalImageUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${fileName}`;
+                            console.log(`    ✅ Upload completo: ${fileName.split('/').pop()} (${(regionBlob.size / 1024).toFixed(1)}KB)`);
+                            
+                            // 4. Guardar imagem com metadata
                             imagensExtraidas.push({
                                 url: finalImageUrl,
                                 type: region.type,
                                 score: region.score,
-                                // 🆕 v3.8.3.10: Metadata do GPT-4 Vision
                                 gpt_metadata: metadata
                             });
                         } catch (uploadError) {
