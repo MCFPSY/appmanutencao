@@ -13641,8 +13641,8 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     // 🆕 v3.8.2.5: ATIVAR PARSER INLINE (inserir imagens contextualizadas)
     console.log('🖼️ [INLINE] Iniciando processamento de imagens inline...');
     
-    // 🆕 v3.8.2.15: Regex SEM emojis (mais simples e robusto!)
-    const imageRegex = /[📊🖼️�\uFFFD]*\s*\[(TABLE|DIAGRAM)\s+\d+\]:\s*(https?:\/\/[^\s]+)/gi;
+    // 🆕 v3.8.3.10.9: Regex aceita PT e EN (TABLE|TABELA|DIAGRAM|FIGURA)
+    const imageRegex = /[📊🖼️�\uFFFD]*\s*\[(TABLE|TABELA|DIAGRAM|FIGURA)\s+\d+\]:\s*(https?:\/\/[^\s]+)/gi;
     const imagesFound = [];
     let mensagemProcessada = mensagem;
     
