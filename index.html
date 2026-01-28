@@ -13641,10 +13641,10 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     // 🆕 v3.8.2.5: ATIVAR PARSER INLINE (inserir imagens contextualizadas)
     console.log('🖼️ [INLINE] Iniciando processamento de imagens inline...');
     
-    // 🆕 v3.8.3.10.17: FIX CRÍTICO - Regex agora aceita pontos na URL (não para prematuramente)
-    const imageRegex = /[📊🖼️⚡📎�\uFFFD]*\s*\[(TABLE|TABELA|DIAGRAM|FIGURA|ESQUEMA|ANEXO)(?:\s+\d+)?\]:\s*(https?:\/\/[^\s\)]+?\.(?:png|jpg|jpeg|gif|webp))/gi;
-    //                                                                                  ^^^^^^^^^^^                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    //                                                                                  Número OPCIONAL                       Captura URL COMPLETA até extensão
+    // 🆕 v3.8.3.10.19: FIX - Aceita texto adicional dentro de [] (ex: [ANEXO 3 - Esquema Elétrico 1])
+    const imageRegex = /[📊🖼️⚡📎�\uFFFD]*\s*\[(TABLE|TABELA|DIAGRAM|FIGURA|ESQUEMA|ANEXO)[^\]]*\]:\s*(https?:\/\/[^\s\)]+?\.(?:png|jpg|jpeg|gif|webp))/gi;
+    //                                                                                  ^^^^^^^^^                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    //                                                                                  Aceita QUALQUER texto após o tipo   Captura URL COMPLETA até extensão
     const imagesFound = [];
     let mensagemProcessada = mensagem;
     
@@ -13680,10 +13680,9 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
             // 🆕 v3.8.2.15: HTML SIMPLES sem emojis (título limpo!)
             const imageHtml = `<div style="margin: 15px 0; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; background: #f9f9f9;"><div style="font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500;">${type.charAt(0) + type.slice(1).toLowerCase()}</div><img src="${cleanUrl}" alt="${type}" style="max-width: 100%; height: auto; border-radius: 4px; cursor: pointer;" onclick="window.open('${cleanUrl}', '_blank')" title="Clique para ampliar"></div>`;
             
-            // 🆕 v3.8.2.15: Regex SIMPLES - remove QUALQUER emoji/� antes de [TABLE/DIAGRAM]
-            // 🆕 v3.8.3.10.13: Usar cleanUrl (sem pontuação extra)
+            // 🆕 v3.8.3.10.19: Regex aceita texto adicional dentro de [] (ex: [ANEXO 3 - Esquema Elétrico 1])
             const safeRegex = new RegExp(
-                `[📊🖼️⚡📎�\\uFFFD]*\\s*\\[${type}(?:\\s+\\d+)?\\]:\\s*` + cleanUrl.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&') + '[\\)\\.,;]*',
+                `[📊🖼️⚡📎�\\uFFFD]*\\s*\\[${type}[^\\]]*\\]:\\s*` + cleanUrl.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&') + '[\\)\\.,;]*',
                 'gi'
             );
             
