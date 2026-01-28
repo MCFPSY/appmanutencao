@@ -7695,10 +7695,10 @@ async function extractTextFromPDF(file, progressCallback = null) {
                         const regionCanvas = extractImageRegion(canvas, region);
                         const regionBlob = await canvasToBlob(regionCanvas);
                         
-                        // 🆕 v3.8.1: Filtrar imagens muito pequenas (< 20KB)
-                        const MIN_IMAGE_SIZE = 20 * 1024; // 20KB
+                        // 🆕 v3.8.3.10.20: Filtrar imagens muito pequenas (< 50KB) - Simplificar bucket
+                        const MIN_IMAGE_SIZE = 50 * 1024; // 50KB (anteriormente 20KB)
                         if (regionBlob.size < MIN_IMAGE_SIZE) {
-                            console.log(`    ⏭️ ${region.type} ${idx + 1} ignorada (${(regionBlob.size / 1024).toFixed(1)}KB < 20KB)`);
+                            console.log(`    ⏭️ ${region.type} ${idx + 1} ignorada (${(regionBlob.size / 1024).toFixed(1)}KB < 50KB)`);
                             continue; // Pular esta imagem
                         }
                         
