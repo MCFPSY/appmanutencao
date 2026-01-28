@@ -14298,19 +14298,27 @@ async function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
     let manuaisRelevantes = AppState.manuais;
     
     // 🆕 v3.7.6.9: Detectar equipamentos mencionados na pergunta (não só em pedidos)
-    // Procurar por nomes de equipamentos de manuais ativos
+    // 🆕 v3.8.3.10.16: Procurar em equipamento_nome E equipamento_area
     const equipamentosNaPergunta = AppState.manuais
         .filter(m => m.ativo)
-        .map(m => m.equipamento_nome)
-        .filter(nome => nome && perguntaLower.includes(nome.toLowerCase()));
+        .filter(m => {
+            const nome = (m.equipamento_nome || '').toLowerCase();
+            const area = (m.equipamento_area || '').toLowerCase();
+            return perguntaLower.includes(nome) || perguntaLower.includes(area);
+        })
+        .map(m => m.equipamento_nome || m.equipamento_area);
     
     if (equipamentosMencionados.length > 0 || equipamentosNaPergunta.length > 0) {
         // Filtrar por equipamento mencionado (de pedidos OU de manuais)
         const todosEquipamentos = [...equipamentosMencionados, ...equipamentosNaPergunta];
+        // 🆕 v3.8.3.10.16: Procurar em equipamento_nome E equipamento_area
         manuaisRelevantes = AppState.manuais.filter(m => 
-            todosEquipamentos.some(eq => 
-                m.equipamento_nome && m.equipamento_nome.toLowerCase().includes(eq.toLowerCase())
-            )
+            todosEquipamentos.some(eq => {
+                const eqLower = eq.toLowerCase();
+                const nome = (m.equipamento_nome || '').toLowerCase();
+                const area = (m.equipamento_area || '').toLowerCase();
+                return nome.includes(eqLower) || area.includes(eqLower);
+            })
         );
     }
     
