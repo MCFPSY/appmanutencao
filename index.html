@@ -13641,10 +13641,10 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
     // 🆕 v3.8.2.5: ATIVAR PARSER INLINE (inserir imagens contextualizadas)
     console.log('🖼️ [INLINE] Iniciando processamento de imagens inline...');
     
-    // 🆕 v3.8.3.10.9: Regex aceita PT e EN (TABLE|TABELA|DIAGRAM|FIGURA)
-    const imageRegex = /[📊🖼️⚡📎�\uFFFD]*\s*\[(TABLE|TABELA|DIAGRAM|FIGURA|ESQUEMA|ANEXO)(?:\s+\d+)?\]:\s*(https?:\/\/[^\s\)\.]+(?:\.png|\.jpg|\.jpeg|\.gif|\.webp)?)/gi;
-    //                                                                                  ^^^^^^^^^^^                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    //                                                                                  Número OPCIONAL                       Para ANTES de ) ou . estranho
+    // 🆕 v3.8.3.10.17: FIX CRÍTICO - Regex agora aceita pontos na URL (não para prematuramente)
+    const imageRegex = /[📊🖼️⚡📎�\uFFFD]*\s*\[(TABLE|TABELA|DIAGRAM|FIGURA|ESQUEMA|ANEXO)(?:\s+\d+)?\]:\s*(https?:\/\/[^\s\)]+?\.(?:png|jpg|jpeg|gif|webp))/gi;
+    //                                                                                  ^^^^^^^^^^^                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    //                                                                                  Número OPCIONAL                       Captura URL COMPLETA até extensão
     const imagesFound = [];
     let mensagemProcessada = mensagem;
     
