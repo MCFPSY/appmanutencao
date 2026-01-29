@@ -7716,24 +7716,42 @@ async function extractTextFromPDF(file, progressCallback = null) {
                             
                             // 2. Determinar nome do ficheiro (com ou sem metadata)
                             let fileName;
-                            if (metadata && metadata.numero) {
-                                console.log(`    ✅ GPT-4 identificou: ${metadata.tipo || 'imagem'} ${metadata.numero} - "${metadata.titulo || metadata.descricao}"`);
+                            if (metadata && metadata.tipo) {
+                                // 🆕 v3.8.3.10.21: Gerar nome descritivo SEMPRE que GPT-4 identificar o tipo
+                                const tipo = metadata.tipo.toLowerCase().replace(/[^a-z0-9]/g, '');
+                                const tags = metadata.tags || [];
                                 
-                                const tipoLabel = (metadata.tipo || 'imagem').toLowerCase().replace(/[^a-z0-9]/g, '');
-                                const numero = String(metadata.numero).padStart(2, '0');
-                                const tituloSlug = (metadata.titulo || metadata.descricao || '')
-                                    .toLowerCase()
-                                    .normalize('NFD')
-                                    .replace(/[\u0300-\u036f]/g, '') // Remover acentos
-                                    .replace(/[^a-z0-9]/g, '_')
-                                    .substring(0, 30); // Limitar tamanho
+                                // Gerar nome baseado no tipo e tags
+                                let nomeBase;
+                                if (tipo === 'esquema' || tags.includes('esquema_eletrico')) {
+                                    nomeBase = 'esquema_eletrico';
+                                } else if (tipo === 'diagrama') {
+                                    const subtipo = tags.find(t => ['lubrificacao', 'componentes', 'instalacao'].includes(t));
+                                    nomeBase = subtipo ? `diagrama_${subtipo}` : 'diagrama';
+                                } else if (tipo === 'tabela') {
+                                    if (tags.includes('indice')) {
+                                        nomeBase = 'indice_manual';
+                                    } else {
+                                        const subtipo = tags.find(t => ['especificacoes', 'manutencao', 'problemas'].includes(t));
+                                        nomeBase = subtipo ? `tabela_${subtipo}` : 'tabela';
+                                    }
+                                } else if (tipo === 'anexo') {
+                                    const numero = metadata.numero ? `_${metadata.numero}` : '';
+                                    nomeBase = `anexo${numero}`;
+                                } else {
+                                    nomeBase = tipo;
+                                }
                                 
-                                fileName = `${manualId}/page_${String(pageNum).padStart(3, '0')}_${tipoLabel}_${numero}_${tituloSlug}.png`;
+                                // Adicionar índice sequencial
+                                fileName = `${manualId}/${nomeBase}_${String(idx + 1).padStart(2, '0')}.png`;
+                                
+                                console.log(`    ✅ GPT-4 identificou: ${tipo} - "${metadata.titulo || 'sem título'}" → ${nomeBase}_${String(idx + 1).padStart(2, '0')}.png`);
                             } else {
                                 // Fallback: nome genérico se GPT-4 não identificar
                                 const typeLabel = region.type.toLowerCase();
                                 const indexStr = String(idx).padStart(2, '0');
                                 fileName = `${manualId}/page_${String(pageNum).padStart(3, '0')}_${typeLabel}_${indexStr}.png`;
+                                console.log(`    ⚠️ GPT-4 não identificou tipo, usando nome genérico: ${fileName.split('/').pop()}`);
                             }
                             
                             // 3. Upload DIRETO com nome final (não cria ficheiro temporário!)
