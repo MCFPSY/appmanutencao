@@ -1655,6 +1655,16 @@
             font-size: 1.125rem;
         }
         
+        /* 🆕 v3.8.3.10.23: Preventivas = VERDE */
+        .planning-grid td.date-cell.allocated.preventiva {
+            background: #34C759;  /* Verde */
+        }
+        
+        .planning-grid td.date-cell.weekend.allocated.preventiva {
+            background: #34C759;  /* Verde */
+            opacity: 0.8;
+        }
+        
         .planning-grid td.date-cell.weekend {
             background: #f9f9f9;
         }
@@ -3864,18 +3874,18 @@
                             <textarea class="form-input" id="descricao" name="descricao" rows="4" placeholder="Descreva o problema ou melhoria necessária..." required></textarea>
                         </div>
 
-                        <!-- Upload de Foto -->
+                        <!-- Upload de Foto/PDF -->
                         <div class="form-group">
-                            <label class="form-label" for="foto">Fotografia (opcional, máx. 5MB)</label>
+                            <label class="form-label" for="foto">Anexo (opcional, máx. 5MB) - Imagem ou PDF</label>
                             <div class="file-upload">
-                                <input type="file" id="foto" name="foto" accept="image/*" class="file-input">
+                                <input type="file" id="foto" name="foto" accept="image/*,.pdf,application/pdf" class="file-input">
                                 <label for="foto" class="file-label">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                                         <circle cx="8.5" cy="8.5" r="1.5"/>
                                         <path d="M21 15l-5-5L5 21"/>
                                     </svg>
-                                    <span id="fileName">Escolher imagem</span>
+                                    <span id="fileName">Escolher imagem ou PDF</span>
                                 </label>
                                 <div id="imagePreview" class="image-preview"></div>
                             </div>
@@ -3921,6 +3931,19 @@
                                 <label class="checkbox-label">
                                     <input type="checkbox" value="Preventiva" class="filter-tipo">
                                     <span>Preventiva</span>
+                                </label>
+                                <!-- 🆕 v3.8.3.10.25: Filtros de preventivas (todas, para breve, atrasadas) -->
+                                <label class="checkbox-label" style="margin-left: 20px;">
+                                    <input type="checkbox" id="filterPreventivaTodas" class="filter-preventiva-todas">
+                                    <span style="color: #666; font-size: 0.9em;">Todas</span>
+                                </label>
+                                <label class="checkbox-label" style="margin-left: 20px;">
+                                    <input type="checkbox" id="filterPreventivaBreve" class="filter-preventiva-breve" checked>
+                                    <span style="color: #FF9500; font-weight: 600;">⚡ Para breve</span>
+                                </label>
+                                <label class="checkbox-label" style="margin-left: 20px;">
+                                    <input type="checkbox" id="filterPreventivaAtrasadas" class="filter-preventiva-atrasadas" checked>
+                                    <span style="color: #e74c3c; font-weight: 600;">⚠️ Atrasadas</span>
                                 </label>
                                 <label class="checkbox-label">
                                     <input type="checkbox" value="Corretiva" class="filter-tipo">
@@ -4163,6 +4186,19 @@
                                 <label class="checkbox-label">
                                     <input type="checkbox" value="Preventiva" class="planning-filter-tipo" checked>
                                     <span>Preventiva</span>
+                                </label>
+                                <!-- 🆕 v3.8.3.10.25: Filtros de preventivas (todas, para breve, atrasadas) -->
+                                <label class="checkbox-label" style="margin-left: 20px;">
+                                    <input type="checkbox" id="planningFilterPreventivaTodas" class="planning-filter-preventiva-todas">
+                                    <span style="color: #666; font-size: 0.9em;">Todas</span>
+                                </label>
+                                <label class="checkbox-label" style="margin-left: 20px;">
+                                    <input type="checkbox" id="planningFilterPreventivaBreve" class="planning-filter-preventiva-breve" checked>
+                                    <span style="color: #FF9500; font-weight: 600;">⚡ Para breve</span>
+                                </label>
+                                <label class="checkbox-label" style="margin-left: 20px;">
+                                    <input type="checkbox" id="planningFilterPreventivaAtrasadas" class="planning-filter-preventiva-atrasadas" checked>
+                                    <span style="color: #e74c3c; font-weight: 600;">⚠️ Atrasadas</span>
                                 </label>
                                 <label class="checkbox-label">
                                     <input type="checkbox" value="Corretiva" class="planning-filter-tipo" checked>
@@ -5382,6 +5418,155 @@ async function uploadManualPDF(manualId, file) {
     }
 }
 
+// 🆕 v3.8.3.10.27: HISTÓRICO DE EXECUÇÕES PREVENTIVAS
+// ============================================
+
+// Adicionar execução de preventiva
+async function addExecucaoPreventiva(pedidoId, dadosExecucao) {
+    try {
+        console.log('📝 Registrando execução preventiva...', pedidoId);
+        
+        const execucao = {
+            pedido_id: pedidoId,
+            data_execucao: dadosExecucao.dataExecucao || new Date().toISOString(),
+            responsavel: dadosExecucao.responsavel || '',
+            observacoes: dadosExecucao.observacoes || '',
+            foto_url: dadosExecucao.fotoUrl || '',
+            horas_gastas: dadosExecucao.horasGastas || 0,
+            custo_materiais: dadosExecucao.custoMateriais || 0
+        };
+        
+        const response = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/execucoes_preventivas`, {
+            method: 'POST',
+            headers: {
+                'apikey': SUPABASE_CONFIG.ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            },
+            body: JSON.stringify(execucao)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Erro ao registrar execução: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ Execução registrada:', data[0]);
+        return data[0];
+        
+    } catch (error) {
+        console.error('❌ Erro ao registrar execução:', error);
+        throw error;
+    }
+}
+
+// Buscar histórico de execuções de uma preventiva
+async function getExecucoesPreventiva(pedidoId) {
+    try {
+        console.log('📋 Buscando histórico de execuções...', pedidoId);
+        
+        const response = await fetch(
+            `${SUPABASE_CONFIG.URL}/rest/v1/execucoes_preventivas?pedido_id=eq.${pedidoId}&order=data_execucao.desc`,
+            {
+                headers: {
+                    'apikey': SUPABASE_CONFIG.ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`
+                }
+            }
+        );
+        
+        if (!response.ok) {
+            throw new Error(`Erro ao buscar execuções: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`✅ ${data.length} execuções encontradas`);
+        return data;
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar execuções:', error);
+        return [];
+    }
+}
+
+// Calcular e atualizar próxima execução
+async function atualizarProximaExecucao(pedidoId, frequencia, dataBase) {
+    try {
+        console.log('📅 Calculando próxima execução...', pedidoId);
+        
+        // Buscar dados do pedido
+        const response = await fetch(
+            `${SUPABASE_CONFIG.URL}/rest/v1/pedidos?ID=eq.${pedidoId}&select=data_primeira_intervencao,frequencia,total_execucoes`,
+            {
+                headers: {
+                    'apikey': SUPABASE_CONFIG.ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`
+                }
+            }
+        );
+        
+        if (!response.ok) {
+            throw new Error(`Erro ao buscar pedido: ${response.status}`);
+        }
+        
+        const pedidos = await response.json();
+        if (pedidos.length === 0) {
+            throw new Error('Pedido não encontrado');
+        }
+        
+        const pedido = pedidos[0];
+        const dataInicial = dataBase || pedido.data_primeira_intervencao;
+        const freq = frequencia || pedido.frequencia;
+        
+        if (!dataInicial || !freq) {
+            console.warn('⚠️ Sem data inicial ou frequência');
+            return null;
+        }
+        
+        // Calcular próxima data usando a função existente
+        const proximaData = calcularProximaIntervencao(dataInicial, freq);
+        
+        if (!proximaData) {
+            console.warn('⚠️ Não foi possível calcular próxima data');
+            return null;
+        }
+        
+        // Formatar data para SQL (YYYY-MM-DD)
+        const proximaDataSQL = proximaData.toISOString().split('T')[0];
+        
+        // Atualizar pedido
+        const updateResponse = await fetch(
+            `${SUPABASE_CONFIG.URL}/rest/v1/pedidos?ID=eq.${pedidoId}`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'apikey': SUPABASE_CONFIG.ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify({
+                    proxima_execucao: proximaDataSQL,
+                    ultima_execucao: new Date().toISOString(),
+                    total_execucoes: (pedido.total_execucoes || 0) + 1
+                })
+            }
+        );
+        
+        if (!updateResponse.ok) {
+            throw new Error(`Erro ao atualizar próxima execução: ${updateResponse.status}`);
+        }
+        
+        console.log('✅ Próxima execução calculada:', proximaDataSQL);
+        return proximaDataSQL;
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar próxima execução:', error);
+        throw error;
+    }
+}
+
 // Exportar para uso global
 window.SupabaseAPI = {
     getArtigos,
@@ -5408,7 +5593,11 @@ window.SupabaseAPI = {
     deleteManual,
     addConteudoManual,
     getConteudoManual,
-    uploadManualPDF
+    uploadManualPDF,
+    // 🆕 v3.8.3.10.27: Execuções preventivas
+    addExecucaoPreventiva,
+    getExecucoesPreventiva,
+    atualizarProximaExecucao
 };
 
 // Supabase API inicializada
@@ -5907,7 +6096,10 @@ async function loadDataFromSupabase() {
             fechadoPor: p['Fechado Por'] || '',  // 🆕 v3.7.6.9: Quem fechou (display)
             fechadoPorUsername: p.fechado_por_username || '',  // 🆕 v3.7.7.0: FK
             observacoesFecho: p.observacoes_fecho || '',  // 🆕 v3.8.3.5: Observações de fecho
-            fotoFecho: p.foto_fecho || ''  // 🆕 v3.8.3.5: Foto de fecho
+            fotoFecho: p.foto_fecho || '',  // 🆕 v3.8.3.5: Foto de fecho
+            ultimaExecucao: p.ultima_execucao || null,  // 🆕 v3.8.3.10.27: Última execução (preventivas)
+            proximaExecucao: p.proxima_execucao || null,  // 🆕 v3.8.3.10.27: Próxima execução (preventivas)
+            totalExecucoes: parseInt(p.total_execucoes) || 0  // 🆕 v3.8.3.10.27: Total de execuções (preventivas)
         }));
         
         // ✅ Ordenar por data (mais recentes primeiro) - ordem no JavaScript
@@ -8395,6 +8587,15 @@ function setupEventListeners() {
     
     document.querySelectorAll('.filter-tipo, .filter-prioridade, .filter-estado, .filter-empresa, .filter-tipoIntervencao, .filter-urgente, .filter-paragemProducao, .filter-exigeCompra').forEach(checkbox => checkbox.addEventListener('change', handleFilterChange));
     
+    // 🆕 v3.8.3.10.24: Event listener para filtro "Para breve"
+    const filterPreventivaBreve = document.getElementById('filterPreventivaBreve');
+    if (filterPreventivaBreve) {
+        filterPreventivaBreve.addEventListener('change', () => {
+            console.log('⚡ Filtro "Para breve" mudou:', filterPreventivaBreve.checked);
+            renderRequestsList();
+        });
+    }
+    
     // ⚡ NOVO: Event listener para filtro de equipamento (SELECT, não checkbox!)
     const filterEquipamento = document.getElementById('filterEquipamento');
     if (filterEquipamento) {
@@ -8435,6 +8636,12 @@ function setupEventListeners() {
     document.querySelectorAll('.planning-filter-tipo, .planning-filter-prioridade, .planning-filter-estado, .planning-filter-empresa, .planning-filter-tipoIntervencao, .planning-filter-urgente, .planning-filter-paragemProducao, .planning-filter-exigeCompra').forEach(cb => {
         cb.addEventListener('change', renderPlanningGrid);
     });
+    
+    // 🆕 v3.8.3.10.24: Event listener para filtro "Para breve" no Planeamento
+    const planningFilterPreventivaBreve = document.getElementById('planningFilterPreventivaBreve');
+    if (planningFilterPreventivaBreve) {
+        planningFilterPreventivaBreve.addEventListener('change', renderPlanningGrid);
+    }
     
     const planningFilterEquipamento = document.getElementById('planningFilterEquipamento');
     if (planningFilterEquipamento) {
@@ -8877,33 +9084,47 @@ function loadSavedUserName() {
 // 📸 v3.6.18: Variável global para guardar o File original
 let currentPhotoFile = null;
 
-// UPLOAD DE IMAGENS
+// UPLOAD DE IMAGENS E PDFs
 async function handlePhotoUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
+    
+    // 🆕 v3.8.3.10.22: Validar tamanho (5MB para imagens e PDFs)
     if (file.size > CONFIG.MAX_IMAGE_SIZE) {
-        showToast('A imagem deve ter no máximo 5MB.', 'error');
+        showToast('O ficheiro deve ter no máximo 5MB.', 'error');
         e.target.value = '';
         return;
     }
-    if (!file.type.startsWith('image/')) {
-        showToast('Por favor, selecione uma imagem válida.', 'error');
+    
+    // 🆕 v3.8.3.10.22: Aceitar imagens OU PDFs
+    const isImage = file.type.startsWith('image/');
+    const isPDF = file.type === 'application/pdf';
+    
+    if (!isImage && !isPDF) {
+        showToast('Por favor, selecione uma imagem (JPG, PNG, etc.) ou um PDF.', 'error');
         e.target.value = '';
         return;
     }
+    
     try {
         // ✅ Guardar File original para upload posterior
         currentPhotoFile = file;
         
-        // Criar preview comprimido (só para visualização)
-        const compressedImage = await compressImage(file);
-        showImagePreview(compressedImage);
-        document.getElementById('fileName').textContent = file.name;
-        
-        console.log('📸 Foto selecionada:', file.name, (file.size / 1024 / 1024).toFixed(2) + ' MB');
+        if (isImage) {
+            // Criar preview comprimido (só para visualização de imagens)
+            const compressedImage = await compressImage(file);
+            showImagePreview(compressedImage);
+            document.getElementById('fileName').textContent = file.name;
+            console.log('📸 Imagem selecionada:', file.name, (file.size / 1024 / 1024).toFixed(2) + ' MB');
+        } else if (isPDF) {
+            // Mostrar preview de PDF (ícone)
+            showPDFPreview(file.name);
+            document.getElementById('fileName').textContent = file.name;
+            console.log('📄 PDF selecionado:', file.name, (file.size / 1024 / 1024).toFixed(2) + ' MB');
+        }
     } catch (error) {
-        console.error('Erro ao processar imagem:', error);
-        showToast('Erro ao processar imagem.', 'error');
+        console.error('Erro ao processar ficheiro:', error);
+        showToast('Erro ao processar ficheiro.', 'error');
         e.target.value = '';
         currentPhotoFile = null;
     }
@@ -8947,12 +9168,34 @@ function showImagePreview(dataUrl) {
     preview.classList.add('active');
 }
 
+// 🆕 v3.8.3.10.22: Preview para PDFs
+function showPDFPreview(fileName) {
+    const preview = document.getElementById('imagePreview');
+    preview.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px; padding: 15px; background: #f5f5f5; border-radius: 8px; border: 2px solid #e0e0e0;">
+            <svg style="width: 48px; height: 48px; color: #d32f2f;" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H15V15L13,19H10Z"/>
+            </svg>
+            <div style="flex: 1;">
+                <div style="font-weight: 600; color: #333; font-size: 14px;">📄 PDF Anexado</div>
+                <div style="font-size: 12px; color: #666; margin-top: 4px;">${fileName}</div>
+            </div>
+            <button type="button" class="remove-image" onclick="clearImagePreview()" style="position: static;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    `;
+    preview.classList.add('active');
+}
+
 function clearImagePreview() {
     const preview = document.getElementById('imagePreview');
     preview.innerHTML = '';
     preview.classList.remove('active');
     document.getElementById('foto').value = '';
-    document.getElementById('fileName').textContent = 'Escolher imagem';
+    document.getElementById('fileName').textContent = 'Escolher imagem ou PDF';  // 🆕 v3.8.3.10.22
     currentPhotoFile = null;  // ✅ Limpar File guardado
 }
 
@@ -9074,7 +9317,42 @@ function applyFilters() {
         const passaExigeCompra = AppState.currentFilters.exigeCompra.length === 0 || 
                                 (AppState.currentFilters.exigeCompra.includes('true') && request.exigeCompra === true);
         
-        return passaTipo && passaPrioridade && passaEstado && passaEmpresa && passaEquipamento && passaResponsavel && passaTipoIntervencao && passaUrgente && passaParagem && passaExigeCompra;
+        // 🆕 v3.8.3.10.25: Filtros de preventivas (todas, para breve, atrasadas)
+        const filterPreventivaTodas = document.getElementById('filterPreventivaTodas')?.checked || false;
+        const filterPreventivaBreve = document.getElementById('filterPreventivaBreve')?.checked || false;
+        const filterPreventivaAtrasadas = document.getElementById('filterPreventivaAtrasadas')?.checked || false;
+        let passaFiltroPreventiva = true;
+        
+        // Só aplicar filtros se for preventiva
+        if (tipoPedido === 'Preventiva') {
+            // Se NENHUM filtro de preventiva estiver ativo, ocultar todas
+            if (!filterPreventivaTodas && !filterPreventivaBreve && !filterPreventivaAtrasadas) {
+                passaFiltroPreventiva = false;
+            } else if (request.dataPrimeiraIntervencao && request.frequencia) {
+                // Calcular próxima intervenção
+                const proximaData = calcularProximaIntervencao(request.dataPrimeiraIntervencao, request.frequencia);
+                if (proximaData) {
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
+                    
+                    // Verificar se passa em algum dos filtros ativos
+                    const passaTodas = filterPreventivaTodas;
+                    const passaBreve = filterPreventivaBreve && diasRestantes <= 30;
+                    const passaAtrasadas = filterPreventivaAtrasadas && diasRestantes < 0;
+                    
+                    passaFiltroPreventiva = passaTodas || passaBreve || passaAtrasadas;
+                } else {
+                    // Sem data calculada, só mostrar se "Todas" estiver ativo
+                    passaFiltroPreventiva = filterPreventivaTodas;
+                }
+            } else {
+                // Sem data/frequência, só mostrar se "Todas" estiver ativo
+                passaFiltroPreventiva = filterPreventivaTodas;
+            }
+        }
+        
+        return passaTipo && passaPrioridade && passaEstado && passaEmpresa && passaEquipamento && passaResponsavel && passaTipoIntervencao && passaUrgente && passaParagem && passaExigeCompra && passaPreventivaBreve;
     });
     
     console.log(`✅ Filtros aplicados: ${AppState.filteredRequests.length} de ${AppState.requests.length} pedidos`);
@@ -9474,23 +9752,46 @@ function openRequestDetails(id) {
             <div class="detail-value">${request.nome}</div>
         </div>`;
     
-    // 📸 v3.8.3.10.6: FOTOGRAFIA (INICIAL) - movida para cima
+    // 📸 v3.8.3.10.22: ANEXO (INICIAL) - Imagem ou PDF
     if (request.foto) {
         const fotoSrc = request.foto.startsWith('http') || request.foto.startsWith('data:') 
             ? request.foto 
             : window.SupabaseAPI.getFotoUrl(request.id);
         
-        html += `
-        <div class="detail-group">
-            <div class="detail-label">📸 Fotografia (inicial)</div>
-            <div class="detail-value">
-                <img src="${fotoSrc}" 
-                     alt="Foto da ordem de trabalho" 
-                     class="detail-image"
-                     style="max-width: 100%; max-height: 500px; border-radius: 8px; margin-top: 8px; display: block; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
-                     onerror="this.style.display='none'; this.parentElement.innerHTML='<p style=color:red>⚠️ Foto não disponível</p>'">
-            </div>
-        </div>`;
+        // 🆕 v3.8.3.10.22: Verificar se é PDF pela extensão
+        const isPDF = fotoSrc.toLowerCase().endsWith('.pdf');
+        
+        if (isPDF) {
+            // Renderizar como link para PDF
+            html += `
+            <div class="detail-group">
+                <div class="detail-label">📄 Anexo (inicial)</div>
+                <div class="detail-value">
+                    <a href="${fotoSrc}" target="_blank" style="display: inline-flex; align-items: center; gap: 10px; padding: 12px 16px; background: #f5f5f5; border: 2px solid #e0e0e0; border-radius: 8px; text-decoration: none; color: #333; transition: all 0.2s;">
+                        <svg style="width: 32px; height: 32px; color: #d32f2f;" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H15V15L13,19H10Z"/>
+                        </svg>
+                        <div>
+                            <div style="font-weight: 600; font-size: 14px;">📄 Documento PDF</div>
+                            <div style="font-size: 12px; color: #666; margin-top: 2px;">Clique para abrir</div>
+                        </div>
+                    </a>
+                </div>
+            </div>`;
+        } else {
+            // Renderizar como imagem
+            html += `
+            <div class="detail-group">
+                <div class="detail-label">📸 Fotografia (inicial)</div>
+                <div class="detail-value">
+                    <img src="${fotoSrc}" 
+                         alt="Foto da ordem de trabalho" 
+                         class="detail-image"
+                         style="max-width: 100%; max-height: 500px; border-radius: 8px; margin-top: 8px; display: block; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+                         onerror="this.style.display='none'; this.parentElement.innerHTML='<p style=color:red>⚠️ Foto não disponível</p>'">
+                </div>
+            </div>`;
+        }
     }
     
     // 🆕 v3.8.3.0: OBSERVAÇÕES DE FECHO (editável)
@@ -9678,6 +9979,102 @@ function printRequest(id) {
 }
 
 // AÇÕES
+// 🆕 v3.8.3.10.27: Registrar execução de preventiva
+async function registrarExecucaoPreventiva(id) {
+    const request = AppState.requests.find(r => r.id === id);
+    if (!request) return;
+    
+    console.log('📝 Iniciando registro de execução preventiva:', id);
+    
+    // Modal para coletar dados da execução
+    showCustomAlert({
+        title: '✅ Registrar Execução da Preventiva',
+        message: `
+            <div style="text-align: left; margin: 20px 0;">
+                <p style="margin-bottom: 15px;"><strong>📋 ${request.descricao}</strong></p>
+                
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">
+                    Observações da execução:
+                </label>
+                <textarea 
+                    id="execucaoObservacoes" 
+                    style="width: 100%; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+                    placeholder="Ex: Troca de óleo realizada, filtros limpos..."
+                ></textarea>
+                
+                <label style="display: block; margin: 15px 0 5px; font-weight: 600;">
+                    Horas gastas (opcional):
+                </label>
+                <input 
+                    type="number" 
+                    id="execucaoHoras" 
+                    step="0.5" 
+                    min="0"
+                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+                    placeholder="Ex: 2.5"
+                />
+                
+                <p style="margin-top: 15px; padding: 10px; background: #e8f5e9; border-left: 3px solid #4caf50; font-size: 13px;">
+                    ℹ️ A próxima execução será calculada automaticamente com base na frequência (${request.frequencia})
+                </p>
+            </div>
+        `,
+        icon: '✅',
+        buttonText: 'Registrar Execução',
+        secondaryButtonText: 'Cancelar',
+        onConfirm: async () => {
+            try {
+                const observacoes = document.getElementById('execucaoObservacoes').value;
+                const horasGastas = parseFloat(document.getElementById('execucaoHoras').value) || 0;
+                
+                if (!observacoes.trim()) {
+                    showToast('⚠️ Por favor, adicione observações sobre a execução', 'warning');
+                    return;
+                }
+                
+                // Registrar execução no Supabase
+                const execucao = await window.SupabaseAPI.addExecucaoPreventiva(id, {
+                    responsavel: AppState.currentUser?.nomeCompleto || request.responsavel || 'Desconhecido',
+                    observacoes: observacoes.trim(),
+                    horasGastas: horasGastas,
+                    custoMateriais: 0 // Pode ser preenchido depois
+                });
+                
+                console.log('✅ Execução registrada:', execucao);
+                
+                // Atualizar próxima execução
+                const proximaData = await window.SupabaseAPI.atualizarProximaExecucao(
+                    id, 
+                    request.frequencia, 
+                    request.dataPrimeiraIntervencao
+                );
+                
+                console.log('✅ Próxima execução calculada:', proximaData);
+                
+                // Atualizar request local
+                request.ultimaExecucao = new Date().toISOString();
+                request.proximaExecucao = proximaData;
+                request.totalExecucoes = (request.totalExecucoes || 0) + 1;
+                
+                // Recarregar dados do Supabase para garantir sincronização
+                await loadDataFromSupabase();
+                
+                // Atualizar interface
+                renderRequestsList();
+                
+                showToast(`✅ Execução registrada! Próxima em: ${formatDateShort(new Date(proximaData))}`, 'success');
+                
+                // Reabrir modal para mostrar histórico atualizado
+                setTimeout(() => openRequestDetails(id), 500);
+                
+            } catch (error) {
+                console.error('❌ Erro ao registrar execução:', error);
+                showToast('❌ Erro ao registrar execução: ' + error.message, 'error');
+            }
+        }
+    });
+}
+
 async function changeRequestState(id) {
     const request = AppState.requests.find(r => r.id === id);
     if (!request) return;
@@ -9695,9 +10092,16 @@ async function changeRequestState(id) {
         }
     }
     
-    // 🆕 v3.8.3.0: Se está a fechar (Resolvido), mostrar aviso de consumos
+    // 🆕 v3.8.3.10.27: PREVENTIVAS não fecham - registram execução!
     if (newState === 'Resolvido' && request.estado !== 'Resolvido') {
-        // 🆕 v3.7.6.9: Registar quem fechou a OT
+        
+        // 🔄 Se for PREVENTIVA, registrar execução em vez de fechar
+        if (request.tipo === 'Preventiva') {
+            registrarExecucaoPreventiva(id);
+            return; // Não fecha a OT
+        }
+        
+        // 🆕 v3.7.6.9: Registar quem fechou a OT (Corretivas/Melhorias)
         if (AppState.currentUser) {
             request.fechadoPor = AppState.currentUser.nomeCompleto;  // Display
             request.fechadoPorUsername = AppState.currentUser.username;  // 🆕 v3.7.7.0: FK
@@ -10753,9 +11157,31 @@ function applyPlanningFilters(requests) {
         // Exige Compra
         const passaExigeCompra = filters.exigeCompra.length === 0 || (filters.exigeCompra.includes('true') && request.exigeCompra);
         
+        // 🆕 v3.8.3.10.24: Filtro "Para breve" (preventivas próximos 30 dias)
+        const filterPreventivaBreve = document.getElementById('planningFilterPreventivaBreve')?.checked || false;
+        let passaPreventivaBreve = true;
+        
+        if (filterPreventivaBreve && request.tipo === 'Preventiva') {
+            if (request.dataPrimeiraIntervencao && request.frequencia) {
+                const proximaData = calcularProximaIntervencao(request.dataPrimeiraIntervencao, request.frequencia);
+                if (proximaData) {
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
+                    passaPreventivaBreve = diasRestantes <= 30;
+                } else {
+                    passaPreventivaBreve = false;
+                }
+            } else {
+                passaPreventivaBreve = false;
+            }
+        } else if (filterPreventivaBreve && request.tipo !== 'Preventiva') {
+            passaPreventivaBreve = false;
+        }
+        
         return passaTipo && passaPrioridade && passaEstado && passaEmpresa && 
                passaEquipamento && passaResponsavel && passaTipoIntervencao && 
-               passaUrgente && passaParagem && passaExigeCompra;
+               passaUrgente && passaParagem && passaExigeCompra && passaPreventivaBreve;
     });
 }
 
@@ -10837,6 +11263,8 @@ function renderPlanningGrid() {
             const classes = ['date-cell'];
             if (isAllocated) classes.push('allocated');
             if (isWeekend) classes.push('weekend');
+            // 🆕 v3.8.3.10.23: Adicionar classe 'preventiva' se for OT Preventiva
+            if (task.tipo === 'Preventiva') classes.push('preventiva');
             html += `<td class="${classes.join(' ')}" data-task="${task.id}" data-date="${dateKey}" onclick="toggleAllocation('${task.id}', '${dateKey}')" title="Clique para alocar/desalocar"></td>`;
         });
         html += '</tr>';
