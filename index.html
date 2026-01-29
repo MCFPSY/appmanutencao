@@ -9352,7 +9352,7 @@ function applyFilters() {
             }
         }
         
-        return passaTipo && passaPrioridade && passaEstado && passaEmpresa && passaEquipamento && passaResponsavel && passaTipoIntervencao && passaUrgente && passaParagem && passaExigeCompra && passaPreventivaBreve;
+        return passaTipo && passaPrioridade && passaEstado && passaEmpresa && passaEquipamento && passaResponsavel && passaTipoIntervencao && passaUrgente && passaParagem && passaExigeCompra && passaFiltroPreventiva;
     });
     
     console.log(`✅ Filtros aplicados: ${AppState.filteredRequests.length} de ${AppState.requests.length} pedidos`);
@@ -11157,31 +11157,44 @@ function applyPlanningFilters(requests) {
         // Exige Compra
         const passaExigeCompra = filters.exigeCompra.length === 0 || (filters.exigeCompra.includes('true') && request.exigeCompra);
         
-        // 🆕 v3.8.3.10.24: Filtro "Para breve" (preventivas próximos 30 dias)
+        // 🆕 v3.8.3.10.27: Filtros de preventivas (todas, para breve, atrasadas)
+        const filterPreventivaTodas = document.getElementById('planningFilterPreventivaTodas')?.checked || false;
         const filterPreventivaBreve = document.getElementById('planningFilterPreventivaBreve')?.checked || false;
-        let passaPreventivaBreve = true;
+        const filterPreventivaAtrasadas = document.getElementById('planningFilterPreventivaAtrasadas')?.checked || false;
+        let passaFiltroPreventiva = true;
         
-        if (filterPreventivaBreve && request.tipo === 'Preventiva') {
-            if (request.dataPrimeiraIntervencao && request.frequencia) {
+        // Só aplicar filtros se for preventiva
+        if (request.tipo === 'Preventiva') {
+            // Se NENHUM filtro de preventiva estiver ativo, ocultar todas
+            if (!filterPreventivaTodas && !filterPreventivaBreve && !filterPreventivaAtrasadas) {
+                passaFiltroPreventiva = false;
+            } else if (request.dataPrimeiraIntervencao && request.frequencia) {
+                // Calcular próxima intervenção
                 const proximaData = calcularProximaIntervencao(request.dataPrimeiraIntervencao, request.frequencia);
                 if (proximaData) {
                     const hoje = new Date();
                     hoje.setHours(0, 0, 0, 0);
                     const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
-                    passaPreventivaBreve = diasRestantes <= 30;
+                    
+                    // Verificar se passa em algum dos filtros ativos
+                    const passaTodas = filterPreventivaTodas;
+                    const passaBreve = filterPreventivaBreve && diasRestantes <= 30;
+                    const passaAtrasadas = filterPreventivaAtrasadas && diasRestantes < 0;
+                    
+                    passaFiltroPreventiva = passaTodas || passaBreve || passaAtrasadas;
                 } else {
-                    passaPreventivaBreve = false;
+                    // Sem data calculada, só mostrar se "Todas" estiver ativo
+                    passaFiltroPreventiva = filterPreventivaTodas;
                 }
             } else {
-                passaPreventivaBreve = false;
+                // Sem data/frequência, só mostrar se "Todas" estiver ativo
+                passaFiltroPreventiva = filterPreventivaTodas;
             }
-        } else if (filterPreventivaBreve && request.tipo !== 'Preventiva') {
-            passaPreventivaBreve = false;
         }
         
         return passaTipo && passaPrioridade && passaEstado && passaEmpresa && 
                passaEquipamento && passaResponsavel && passaTipoIntervencao && 
-               passaUrgente && passaParagem && passaExigeCompra && passaPreventivaBreve;
+               passaUrgente && passaParagem && passaExigeCompra && passaFiltroPreventiva;
     });
 }
 
