@@ -8637,10 +8637,20 @@ function setupEventListeners() {
         cb.addEventListener('change', renderPlanningGrid);
     });
     
-    // 🆕 v3.8.3.10.24: Event listener para filtro "Para breve" no Planeamento
+    // 🆕 v3.8.3.10.27: Event listeners para filtros de preventivas no Planeamento
+    const planningFilterPreventivaTodas = document.getElementById('planningFilterPreventivaTodas');
+    if (planningFilterPreventivaTodas) {
+        planningFilterPreventivaTodas.addEventListener('change', renderPlanningGrid);
+    }
+    
     const planningFilterPreventivaBreve = document.getElementById('planningFilterPreventivaBreve');
     if (planningFilterPreventivaBreve) {
         planningFilterPreventivaBreve.addEventListener('change', renderPlanningGrid);
+    }
+    
+    const planningFilterPreventivaAtrasadas = document.getElementById('planningFilterPreventivaAtrasadas');
+    if (planningFilterPreventivaAtrasadas) {
+        planningFilterPreventivaAtrasadas.addEventListener('change', renderPlanningGrid);
     }
     
     const planningFilterEquipamento = document.getElementById('planningFilterEquipamento');
@@ -9987,6 +9997,7 @@ async function registrarExecucaoPreventiva(id) {
     console.log('📝 Iniciando registro de execução preventiva:', id);
     
     // Modal para coletar dados da execução
+    console.log('🔨 Criando modal de execução...');
     showCustomAlert({
         title: '✅ Registrar Execução da Preventiva',
         message: `
@@ -10024,8 +10035,22 @@ async function registrarExecucaoPreventiva(id) {
         secondaryButtonText: 'Cancelar',
         onConfirm: async () => {
             try {
-                const observacoes = document.getElementById('execucaoObservacoes').value;
-                const horasGastas = parseFloat(document.getElementById('execucaoHoras').value) || 0;
+                // 🆕 v3.8.3.10.27.2: Verificação defensiva dos elementos
+                const observacoesEl = document.getElementById('execucaoObservacoes');
+                const horasEl = document.getElementById('execucaoHoras');
+                
+                if (!observacoesEl || !horasEl) {
+                    console.error('❌ Elementos do modal não encontrados!', {
+                        observacoesEl,
+                        horasEl,
+                        modalExists: !!document.querySelector('.custom-alert-overlay')
+                    });
+                    showToast('❌ Erro: Elementos do formulário não encontrados', 'error');
+                    return false;
+                }
+                
+                const observacoes = observacoesEl.value;
+                const horasGastas = parseFloat(horasEl.value) || 0;
                 
                 if (!observacoes.trim()) {
                     showToast('⚠️ Por favor, adicione observações sobre a execução', 'warning');
@@ -11124,7 +11149,12 @@ function getPlanningFilters() {
 function applyPlanningFilters(requests) {
     const filters = getPlanningFilters();
     
-    return requests.filter(request => {
+    console.log('🔍 Aplicando filtros de planeamento:', {
+        totalRequests: requests.length,
+        filters
+    });
+    
+    const filtered = requests.filter(request => {
         // Tipo
         const passaTipo = filters.tipo.length === 0 || filters.tipo.includes(request.tipo);
         
@@ -11165,9 +11195,17 @@ function applyPlanningFilters(requests) {
         
         // Só aplicar filtros se for preventiva
         if (request.tipo === 'Preventiva') {
+            console.log(`🔧 Processando preventiva ${request.id}:`, {
+                filterPreventivaTodas,
+                filterPreventivaBreve,
+                filterPreventivaAtrasadas,
+                dataPrimeiraIntervencao: request.dataPrimeiraIntervencao,
+                frequencia: request.frequencia
+            });
             // Se NENHUM filtro de preventiva estiver ativo, ocultar todas
             if (!filterPreventivaTodas && !filterPreventivaBreve && !filterPreventivaAtrasadas) {
                 passaFiltroPreventiva = false;
+                console.log(`   → NENHUM filtro ativo, ocultar!`);
             } else if (request.dataPrimeiraIntervencao && request.frequencia) {
                 // Calcular próxima intervenção
                 const proximaData = calcularProximaIntervencao(request.dataPrimeiraIntervencao, request.frequencia);
@@ -11182,13 +11220,16 @@ function applyPlanningFilters(requests) {
                     const passaAtrasadas = filterPreventivaAtrasadas && diasRestantes < 0;
                     
                     passaFiltroPreventiva = passaTodas || passaBreve || passaAtrasadas;
+                    console.log(`   → diasRestantes: ${diasRestantes}, passa: ${passaFiltroPreventiva} (todas:${passaTodas}, breve:${passaBreve}, atrasadas:${passaAtrasadas})`);
                 } else {
                     // Sem data calculada, só mostrar se "Todas" estiver ativo
                     passaFiltroPreventiva = filterPreventivaTodas;
+                    console.log(`   → SEM proximaData calculada, passa: ${passaFiltroPreventiva}`);
                 }
             } else {
                 // Sem data/frequência, só mostrar se "Todas" estiver ativo
                 passaFiltroPreventiva = filterPreventivaTodas;
+                console.log(`   → SEM data/frequência, passa: ${passaFiltroPreventiva}`);
             }
         }
         
@@ -11196,6 +11237,9 @@ function applyPlanningFilters(requests) {
                passaEquipamento && passaResponsavel && passaTipoIntervencao && 
                passaUrgente && passaParagem && passaExigeCompra && passaFiltroPreventiva;
     });
+    
+    console.log(`✅ Filtros aplicados: ${filtered.length} de ${requests.length} pedidos`);
+    return filtered;
 }
 
 function renderPlanningGrid() {
@@ -15043,6 +15087,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function showCustomAlert(options) {
     const { title, message, icon, buttonText, secondaryButtonText, onConfirm } = options;
     
+    console.log('🎨 showCustomAlert chamado:', { title, hasOnConfirm: !!onConfirm });
+    
     // Criar overlay
     const overlay = document.createElement('div');
     overlay.style.cssText = `
@@ -15111,19 +15157,33 @@ function showCustomAlert(options) {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     
+    console.log('✅ Modal adicionado ao DOM. Elementos:', {
+        execucaoObservacoes: !!document.getElementById('execucaoObservacoes'),
+        execucaoHoras: !!document.getElementById('execucaoHoras'),
+        overlay: !!document.querySelector('.custom-alert-overlay')
+    });
+    
     // Event listeners para botões
     const primaryBtn = modal.querySelector('.primary-btn');
     const secondaryBtn = modal.querySelector('.secondary-btn');
     
     if (primaryBtn) {
         primaryBtn.addEventListener('click', async () => {
+            console.log('🖱️ Botão primário clicado. Verificando elementos antes de onConfirm:', {
+                execucaoObservacoes: !!document.getElementById('execucaoObservacoes'),
+                execucaoHoras: !!document.getElementById('execucaoHoras'),
+                hasOnConfirm: !!onConfirm
+            });
+            
             // 🆕 v3.8.3.10.27: Executar onConfirm ANTES de remover o modal
             // para que os inputs ainda existam no DOM
             if (onConfirm) {
                 const result = await onConfirm();
+                console.log('✅ onConfirm executado. Resultado:', result);
                 // Se onConfirm retornar false, não fecha o modal
                 if (result === false) return;
             }
+            console.log('🗑️ Removendo modal...');
             overlay.remove();
         });
     }
@@ -15303,4 +15363,3 @@ document.head.appendChild(styleAnimations);
     </script>
 </body>
 </html>
-
