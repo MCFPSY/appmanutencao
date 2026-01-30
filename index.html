@@ -11148,6 +11148,11 @@ function getPlanningFilters() {
 // ✅ v3.7.0.9: Aplicar filtros aos pedidos do planeamento
 function applyPlanningFilters(requests) {
     const filters = getPlanningFilters();
+    console.log('🔍 APPLY PLANNING FILTERS - INÍCIO:', {
+        totalRequests: requests.length,
+        filters: filters,
+        preventivasNaEntrada: requests.filter(r => r.tipo === 'Preventiva').length
+    });
     
     console.log('🔍 Aplicando filtros de planeamento:', {
         totalRequests: requests.length,
@@ -11201,12 +11206,15 @@ function applyPlanningFilters(requests) {
         
         // Só aplicar filtros se for preventiva
         if (request.tipo === 'Preventiva') {
-            console.log(`🔧 Processando preventiva ${request.id}:`, {
+            console.log(`🔧 Processando preventiva ${request.id || request.ID}:`, {
+                id: request.id || request.ID,
+                estado: request.estado,
                 filterPreventivaTodas,
                 filterPreventivaBreve,
                 filterPreventivaAtrasadas,
-                dataPrimeiraIntervencao: request.dataPrimeiraIntervencao,
-                frequencia: request.frequencia
+                dataPrimeiraIntervencao: request.dataPrimeiraIntervencao || request.data_primeira_intervencao,
+                frequencia: request.frequencia,
+                passaTipo: filters.tipo.length === 0 || filters.tipo.includes(request.tipo)
             });
             // Se NENHUM filtro de preventiva estiver ativo, ocultar todas
             if (!filterPreventivaTodas && !filterPreventivaBreve && !filterPreventivaAtrasadas) {
@@ -11239,12 +11247,34 @@ function applyPlanningFilters(requests) {
             }
         }
         
-        return passaTipo && passaPrioridade && passaEstado && passaEmpresa && 
+        const resultado = passaTipo && passaPrioridade && passaEstado && passaEmpresa && 
                passaEquipamento && passaResponsavel && passaTipoIntervencao && 
                passaUrgente && passaParagem && passaExigeCompra && passaFiltroPreventiva;
+        
+        if (request.tipo === 'Preventiva') {
+            console.log(`   ✅ RESULTADO FINAL ${request.id || request.ID}:`, {
+                resultado,
+                passaTipo,
+                passaPrioridade,
+                passaEstado,
+                passaEmpresa,
+                passaEquipamento,
+                passaResponsavel,
+                passaTipoIntervencao,
+                passaUrgente,
+                passaParagem,
+                passaExigeCompra,
+                passaFiltroPreventiva
+            });
+        }
+        
+        return resultado;
     });
     
-    console.log(`✅ Filtros aplicados: ${filtered.length} de ${requests.length} pedidos`);
+    console.log(`✅ Filtros aplicados: ${filtered.length} de ${requests.length} pedidos`, {
+        preventivas: filtered.filter(r => r.tipo === 'Preventiva').length,
+        corretivas: filtered.filter(r => r.tipo === 'Corretiva').length
+    });
     return filtered;
 }
 
@@ -11264,7 +11294,19 @@ function renderPlanningGrid() {
     
     // ✅ v3.7.0.9: Aplicar filtros
     const allRequests = AppState.requests.filter(r => r.estado !== 'Resolvido');
+    console.log('🔍 RENDER PLANNING GRID - INÍCIO:', {
+        totalRequests: AppState.requests.length,
+        allRequests: allRequests.length,
+        preventivas: allRequests.filter(r => r.tipo === 'Preventiva').length,
+        corretivas: allRequests.filter(r => r.tipo === 'Corretiva').length,
+        preventivasNaoResolvidas: allRequests.filter(r => r.tipo === 'Preventiva' && r.estado !== 'Resolvido').length
+    });
     const activeTasks = applyPlanningFilters(allRequests);
+    console.log('🔍 RENDER PLANNING GRID - APÓS FILTROS:', {
+        activeTasks: activeTasks.length,
+        preventivas: activeTasks.filter(r => r.tipo === 'Preventiva').length,
+        corretivas: activeTasks.filter(r => r.tipo === 'Corretiva').length
+    });
     if (activeTasks.length === 0) {
         grid.innerHTML = `<tr><td colspan="${dates.length + 1}" style="text-align: center; padding: var(--spacing-xl);"><p>Não há ordens de trabalho ativas para planear.</p><p style="color: var(--color-text-secondary); font-size: 0.875rem;">Crie novas ordens na tab "Nova Ordem"</p></td></tr>`;
         return;
