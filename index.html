@@ -10029,7 +10029,7 @@ async function registrarExecucaoPreventiva(id) {
                 
                 if (!observacoes.trim()) {
                     showToast('⚠️ Por favor, adicione observações sobre a execução', 'warning');
-                    return;
+                    return false; // 🆕 v3.8.3.10.27: Retornar false para não fechar o modal
                 }
                 
                 // Registrar execução no Supabase
@@ -15116,9 +15116,15 @@ function showCustomAlert(options) {
     const secondaryBtn = modal.querySelector('.secondary-btn');
     
     if (primaryBtn) {
-        primaryBtn.addEventListener('click', () => {
+        primaryBtn.addEventListener('click', async () => {
+            // 🆕 v3.8.3.10.27: Executar onConfirm ANTES de remover o modal
+            // para que os inputs ainda existam no DOM
+            if (onConfirm) {
+                const result = await onConfirm();
+                // Se onConfirm retornar false, não fecha o modal
+                if (result === false) return;
+            }
             overlay.remove();
-            if (onConfirm) onConfirm();
         });
     }
     
@@ -15297,3 +15303,4 @@ document.head.appendChild(styleAnimations);
     </script>
 </body>
 </html>
+
