@@ -11172,6 +11172,10 @@ function applyPlanningFilters(requests) {
         // Prioridade
         const passaPrioridade = filters.prioridade.length === 0 || filters.prioridade.includes(request.prioridade);
         
+        if (request.tipo === 'Preventiva') {
+            console.log(`   → Prioridade: request=${request.prioridade}, filters=${JSON.stringify(filters.prioridade)}, passa=${passaPrioridade}`);
+        }
+        
         // Estado
         const passaEstado = filters.estado.length === 0 || filters.estado.includes(request.estado);
         
@@ -11216,10 +11220,10 @@ function applyPlanningFilters(requests) {
                 frequencia: request.frequencia,
                 passaTipo: filters.tipo.length === 0 || filters.tipo.includes(request.tipo)
             });
-            // Se NENHUM filtro de preventiva estiver ativo, ocultar todas
+            // ✅ FIX v3.8.3.10.27.6: Se NENHUM filtro está ativo, mostrar TODAS
             if (!filterPreventivaTodas && !filterPreventivaBreve && !filterPreventivaAtrasadas) {
-                passaFiltroPreventiva = false;
-                console.log(`   → NENHUM filtro ativo, ocultar!`);
+                passaFiltroPreventiva = true;  // ✅ MUDOU: mostrar todas quando nenhum filtro ativo
+                console.log(`   → NENHUM sub-filtro ativo, MOSTRAR TODAS`);
             } else if (request.dataPrimeiraIntervencao && request.frequencia) {
                 // Calcular próxima intervenção
                 const proximaData = calcularProximaIntervencao(request.dataPrimeiraIntervencao, request.frequencia);
