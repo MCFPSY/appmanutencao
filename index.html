@@ -11151,12 +11151,18 @@ function applyPlanningFilters(requests) {
     
     console.log('🔍 Aplicando filtros de planeamento:', {
         totalRequests: requests.length,
-        filters
+        filters,
+        checkboxPreventiva: document.querySelector('.planning-filter-tipo[value="Preventiva"]')?.checked,
+        preventivas: requests.filter(r => r.tipo === 'Preventiva').length
     });
     
     const filtered = requests.filter(request => {
         // Tipo
         const passaTipo = filters.tipo.length === 0 || filters.tipo.includes(request.tipo);
+        
+        if (request.tipo === 'Preventiva') {
+            console.log(`🔧 Preventiva ${request.id}: passaTipo=${passaTipo}, filters.tipo=${JSON.stringify(filters.tipo)}`);
+        }
         
         // Prioridade
         const passaPrioridade = filters.prioridade.length === 0 || filters.prioridade.includes(request.prioridade);
