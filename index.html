@@ -13387,8 +13387,9 @@ function calcularMetricasSemana(empresaFiltro = '') {
         return data.getFullYear() === anoAtual && getWeekNumber(data) === semanaAtual;
     });
     
-    // Abertos = Novo + Em curso (NÃO resolvidos)
-    const abertos = pedidosEstaSemana.filter(p => p.estado !== 'Resolvido').length;
+    // ✅ v3.8.3.10.27.9: Abertos = TODAS as OTs criadas esta semana (independente do estado)
+    const abertos = pedidosEstaSemana.length;
+    // Fechados = OTs que foram FECHADAS esta semana (estado mudou para Resolvido)
     const fechados = pedidosEstaSemana.filter(p => p.estado === 'Resolvido').length;
     
     // Calcular backlog total atual (todos os pedidos não resolvidos)
