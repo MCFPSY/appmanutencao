@@ -4388,6 +4388,11 @@
                                 <path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4"/>
                             </svg>
                         </button>
+                        <button class="btn-icon" id="groupBtn" title="Agrupar por Hierarquia (Empresa → Área → Componente)" style="background: #10B981;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
 
@@ -6232,6 +6237,7 @@ const AppState = {
     requests: [],
     filteredRequests: [],
     sortOrder: 'desc',
+    groupMode: false,
     currentFilters: { tipo: [], prioridade: [], estado: ['Novo', 'Em curso'], empresa: [], tipoIntervencao: [], urgente: [], paragemProducao: [], exigeCompra: [] },
     isOnline: navigator.onLine,
     planning: { 
@@ -9084,6 +9090,7 @@ function setupEventListeners() {
     
     document.getElementById('clearFilters').addEventListener('click', clearFilters);
     document.getElementById('sortBtn').addEventListener('click', toggleSortOrder);
+    document.getElementById('groupBtn').addEventListener('click', toggleGroupMode);
     document.getElementById('closeModal').addEventListener('click', closeModal);
     
     // 🆕 v3.8.3.10.27.10: Event listeners para Relatório de OTs
@@ -9691,7 +9698,14 @@ async function getImageData() {
 // LISTAGEM
 function renderRequestsList() {
     applyFilters();
-    applySorting();
+    
+    // Aplicar ordenação por hierarquia OU por data
+    if (AppState.groupMode) {
+        applySortingByHierarchy();
+    } else {
+        applySorting();
+    }
+    
     const container = document.getElementById('requestsList');
     const emptyState = document.getElementById('emptyState');
     const listCount = document.getElementById('listCount');
@@ -9703,7 +9717,16 @@ function renderRequestsList() {
         return;
     }
     emptyState.classList.remove('active');
-    container.innerHTML = AppState.filteredRequests.map(request => {
+    
+    // Se modo grupo, adicionar separadores
+    if (AppState.groupMode) {
+        container.innerHTML = renderWithGroups();
+    } else {
+        container.innerHTML = AppState.filteredRequests.map(request => renderRequestCard(request)).join('');
+    }
+}
+
+function renderRequestCard(request) {
         // ✅ VERIFICAÇÕES DE SEGURANÇA para evitar erros de undefined
         const tipo = request.tipo || 'N/A';
         const frequencia = request.frequencia || '-';
@@ -9758,7 +9781,6 @@ function renderRequestsList() {
                 </div>
             </div>
         </div>`;
-    }).join('');
 }
 
 function applyFilters() {
@@ -9847,6 +9869,73 @@ function applySorting() {
         const dateA = new Date(a.dataHora), dateB = new Date(b.dataHora);
         return AppState.sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
+}
+
+function applySortingByHierarchy() {
+    AppState.filteredRequests.sort((a, b) => {
+        // 1. Por empresa
+        const empresaA = a.empresa || 'MCF';
+        const empresaB = b.empresa || 'MCF';
+        if (empresaA !== empresaB) return empresaA.localeCompare(empresaB);
+        
+        // 2. Por área/equipamento
+        const areaA = a.areaEquipamento || '';
+        const areaB = b.areaEquipamento || '';
+        if (areaA !== areaB) return areaA.localeCompare(areaB);
+        
+        // 3. Por componente
+        const compA = a.componente || '';
+        const compB = b.componente || '';
+        if (compA !== compB) return compA.localeCompare(compB);
+        
+        // 4. Por prioridade
+        const prioridadeOrdem = { 'Alta': 1, 'Média': 2, 'Baixa': 3 };
+        const prioA = prioridadeOrdem[a.prioridade] || 4;
+        const prioB = prioridadeOrdem[b.prioridade] || 4;
+        return prioA - prioB;
+    });
+}
+
+function renderWithGroups() {
+    let html = '';
+    let currentEmpresa = '';
+    let currentArea = '';
+    
+    AppState.filteredRequests.forEach((request, index) => {
+        const empresa = request.empresa || 'MCF';
+        const area = request.areaEquipamento || 'Sem Área';
+        
+        // Cabeçalho de Empresa
+        if (empresa !== currentEmpresa) {
+            const countEmpresa = AppState.filteredRequests.filter(r => (r.empresa || 'MCF') === empresa).length;
+            html += `
+                <div style="background: #E5E7EB; padding: 12px 16px; margin: 20px 0 10px 0; border-radius: 8px; font-weight: bold; font-size: 14px; color: #1F2937;">
+                    📊 ${empresa} (${countEmpresa} OTs)
+                </div>
+            `;
+            currentEmpresa = empresa;
+            currentArea = ''; // Reset área
+        }
+        
+        // Cabeçalho de Área
+        if (area !== currentArea) {
+            const countArea = AppState.filteredRequests.filter(r => 
+                (r.empresa || 'MCF') === empresa && 
+                (r.areaEquipamento || 'Sem Área') === area
+            ).length;
+            html += `
+                <div style="background: #F3F4F6; padding: 10px 16px; margin: 10px 0 8px 0; border-radius: 6px; font-weight: 600; font-size: 13px; color: #374151;">
+                    🔧 ${area} (${countArea} OTs)
+                </div>
+            `;
+            currentArea = area;
+        }
+        
+        // Card da OT
+        html += renderRequestCard(request);
+    });
+    
+    return html;
 }
 
 function handleFilterChange(e) {
@@ -10350,23 +10439,74 @@ async function exportarRelatorioImagem() {
 }
 
 function imprimirRelatorio() {
-    console.log('🖨️ Iniciando impressão simples...');
+    console.log('🖨️ Iniciando impressão via nova janela...');
     
-    // Mostrar cabeçalho
-    const header = document.getElementById('relatorioHeader');
-    if (header) {
-        header.style.display = 'block';
+    // Obter conteúdo do relatório
+    const relatorioHeader = document.getElementById('relatorioHeader');
+    const relatorioContainer = document.getElementById('relatorioContainer');
+    
+    if (!relatorioHeader || !relatorioContainer) {
+        console.error('❌ Elementos do relatório não encontrados!');
+        showToast('Erro: Relatório não encontrado', 'error');
+        return;
     }
     
-    // Imprimir após pequeno delay
-    setTimeout(() => {
-        window.print();
-        
-        // Esconder cabeçalho novamente
-        setTimeout(() => {
-            if (header) header.style.display = 'none';
-        }, 500);
-    }, 100);
+    // Criar HTML completo para impressão
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!printWindow) {
+        console.error('❌ Não foi possível abrir janela de impressão. Popup bloqueado?');
+        showToast('Erro: Popup bloqueado. Permita popups para este site.', 'error');
+        return;
+    }
+    
+    // Escrever documento de forma segura usando DOM
+    printWindow.document.write('<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8">');
+    printWindow.document.write('<title>Relatorio de OTs - ' + new Date().toLocaleDateString('pt-PT') + '</title>');
+    printWindow.document.write('<style>');
+    printWindow.document.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
+    printWindow.document.write('body { font-family: Arial, sans-serif; padding: 15mm; background: white; }');
+    printWindow.document.write('#relatorioHeader { text-align: center; margin-bottom: 20px; }');
+    printWindow.document.write('#relatorioHeader h1 { color: #1E3A8A; font-size: 18pt; margin-bottom: 10px; }');
+    printWindow.document.write('#relatorioHeader p { color: #4B5563; font-size: 10pt; margin: 5px 0; }');
+    printWindow.document.write('.relatorio-tabela { width: 100%; border-collapse: collapse; font-size: 8pt; }');
+    printWindow.document.write('.relatorio-tabela thead { display: table-header-group; }');
+    printWindow.document.write('.relatorio-tabela th { background-color: #1E3A8A; color: white; padding: 6px 8px; text-align: left; border: 1px solid #1E3A8A; font-weight: bold; font-size: 8pt; }');
+    printWindow.document.write('.relatorio-tabela td { padding: 5px 8px; border: 1px solid #D1D5DB; vertical-align: top; font-size: 8pt; }');
+    printWindow.document.write('.relatorio-grupo-header td { background-color: #E5E7EB; font-weight: bold; font-size: 9pt; padding: 8px; }');
+    printWindow.document.write('.relatorio-area-header td { background-color: #F3F4F6; font-weight: 600; font-size: 8.5pt; padding: 6px 8px; }');
+    printWindow.document.write('.relatorio-item-row { page-break-inside: avoid; }');
+    printWindow.document.write('@page { size: A4 portrait; margin: 12mm; }');
+    printWindow.document.write('@media print {');
+    printWindow.document.write('body { padding: 0; }');
+    printWindow.document.write('.relatorio-tabela th { background-color: #1E3A8A !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+    printWindow.document.write('.relatorio-grupo-header td { background-color: #E5E7EB !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+    printWindow.document.write('.relatorio-area-header td { background-color: #F3F4F6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+    printWindow.document.write('}');
+    printWindow.document.write('</style></head><body>');
+    
+    // Clonar cabeçalho e torná-lo visível
+    const headerClone = relatorioHeader.cloneNode(true);
+    headerClone.style.display = 'block';
+    printWindow.document.write(headerClone.outerHTML);
+    
+    // Adicionar conteúdo da tabela
+    printWindow.document.write(relatorioContainer.innerHTML);
+    
+    // Adicionar script de impressão
+    printWindow.document.write('<script>');
+    printWindow.document.write('window.onload = function() {');
+    printWindow.document.write('setTimeout(function() { window.print(); }, 500);');
+    printWindow.document.write('};');
+    printWindow.document.write('window.onafterprint = function() {');
+    printWindow.document.write('console.log("Impressao concluida");');
+    printWindow.document.write('};');
+    printWindow.document.write('</script>');
+    
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    
+    console.log('✅ Janela de impressão aberta com sucesso');
 }
 
 // ✅ v3.7.0.9: NOVO - Popular filtro de Responsável
@@ -10551,8 +10691,15 @@ function clearFilters() {
 
 function toggleSortOrder() {
     AppState.sortOrder = AppState.sortOrder === 'desc' ? 'asc' : 'desc';
+    AppState.groupMode = false; // Desativar modo grupo
     renderRequestsList();
     showToast(`Ordenação: ${AppState.sortOrder === 'desc' ? 'Mais recentes primeiro' : 'Mais antigos primeiro'}`, 'info');
+}
+
+function toggleGroupMode() {
+    AppState.groupMode = !AppState.groupMode;
+    renderRequestsList();
+    showToast(AppState.groupMode ? '📊 Agrupado por Hierarquia' : '📅 Ordenado por Data', 'info');
 }
 
 // DETALHES
