@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.9 (Worker: v3.8.3.10.27.9)
+    📦 Versão: v3.8.3.10.27.10 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-01-31
     
-    ✨ v3.8.3.10.27.9: CORREÇÕES CRÍTICAS + DETECÇÃO MELHORADA (2026-01-31) 🐛
+    ✨ v3.8.3.10.27.10: DETECÇÃO HÍBRIDA (AUTO + FALLBACK GPT-4 PÁGINA INTEIRA) (2026-02-02) 🚀
     ────────────────────────────────────────────────────────────────────────────
     ✅ FIX FOTO FECHO: Pasta separada (ot-fecho/) para evitar substituição
     ✅ FIX DASHBOARD: Card 'Abertas Esta Semana' agora conta TODAS (não só não resolvidas)
@@ -7475,9 +7475,9 @@ function detectImageRegions(canvas) {
             
             // 🆕 v3.8.3.10.27.9: Thresholds REDUZIDOS (detectar mais esquemas/índices)
             // ANTES: tableScore > 18, diagramScore > 15 (muito restritivo, perdia esquemas simples)
-            // DEPOIS: tableScore > 12, diagramScore > 10 (mais sensível, detecta esquemas com poucas linhas)
-            const isTable = tableScore > 12 && lineBalance > 0.25; // Reduzido: 18→12, 0.35→0.25
-            const isDiagram = diagramScore > 10 && darkRatio > 0.05 && darkRatio < 0.85; // Reduzido: 15→10, 0.1→0.05
+            // v3.8.3.10.27.9: ULTRA-BAIXO para máxima detecção + fallback página inteira
+            const isTable = tableScore > 8 && lineBalance > 0.20; // ULTRA: 12→8, 0.25→0.20
+            const isDiagram = diagramScore > 6 && darkRatio > 0.03 && darkRatio < 0.90; // ULTRA: 10→6, 0.05→0.03
             
             // 🆕 DEBUG: Log das primeiras 5 regiões com score alto
             if ((tableScore > 10 || diagramScore > 10) && regions.length < 5) {
@@ -7559,14 +7559,14 @@ function detectImageRegions(canvas) {
         const minArea = 3500; // 🆕 v3.7.6.6: Área mínima REDUZIDA (5000→3500, ~59x59 px)
         const aspectRatio = merged.width / merged.height;
         
-        // 🆕 v3.8.3.10.27.9: Validação RELAXADA para capturar mais esquemas/índices
-        const isValidAspectRatio = aspectRatio > 0.3 && aspectRatio < 3.5; // RELAXADO: era 0.5-2.0
+        // 🆕 v3.8.3.10.27.9: Validação ULTRA-RELAXADA para máxima detecção
+        const isValidAspectRatio = aspectRatio > 0.2 && aspectRatio < 5.0; // ULTRA: era 0.3-3.5
         
-        // 🆕 v3.8.3.10.27.9: Dimensões mínimas REDUZIDAS (80→50px) para esquemas pequenos
-        const isValidSize = merged.width >= 50 && merged.height >= 50; // REDUZIDO: era 80x80px
+        // 🆕 v3.8.3.10.27.9: Dimensões mínimas ULTRA-BAIXAS (50→40px)
+        const isValidSize = merged.width >= 40 && merged.height >= 40; // ULTRA: era 50x50px
         
-        // 🆕 v3.8.3.10.27.9: Score mínimo REDUZIDO (18→10) para detectar mais regiões
-        if (area > minArea && merged.score > 10 && isValidAspectRatio && isValidSize) { // REDUZIDO: era score>18
+        // 🆕 v3.8.3.10.27.9: Score mínimo ULTRA-BAIXO (10→6)
+        if (area > minArea && merged.score > 6 && isValidAspectRatio && isValidSize) { // ULTRA: era score>10
             console.log(`  [DEBUG-MERGE] Região válida: (${merged.x},${merged.y}) ${merged.width}x${merged.height} = ${area}px² (score: ${merged.score.toFixed(1)}, tipo: ${merged.type}, aspect: ${aspectRatio.toFixed(2)})`);
             mergedRegions.push(merged);
         } else if (area > 2000) { // Só log se for razoavelmente grande
@@ -7993,6 +7993,108 @@ async function extractTextFromPDF(file, progressCallback = null) {
                     }
                     
                     imagensPorPagina[pageNum] = imagensExtraidas;
+                }
+                
+                // 🆕 v3.8.3.10.27.9: FALLBACK - Análise da página inteira se nenhuma região foi detectada
+                if (regions.length === 0) {
+                    console.log(`  🔍 Nenhuma região detectada na página ${pageNum}, analisando página inteira...`);
+                    
+                    try {
+                        // Converter canvas para data URL
+                        const dataUrl = canvas.toDataURL('image/png');
+                        
+                        // Analisar com GPT-4 Vision
+                        const metadata = await analisarImagemComGPT4Vision(dataUrl, textoPage, pageNum);
+                        
+                        if (metadata && metadata.tipo) {
+                            // Tipos que QUEREMOS salvar a página inteira
+                            const tiposRelevantes = ['indice', 'esquema', 'tabela', 'diagrama', 'anexo'];
+                            
+                            if (tiposRelevantes.includes(metadata.tipo)) {
+                                console.log(`  ✅ GPT-4 detectou '${metadata.tipo}' na página inteira! Salvando...`);
+                                
+                                // Gerar nome descritivo
+                                const tipo = metadata.tipo.toLowerCase().replace(/[^a-z0-9]/g, '');
+                                const tags = metadata.tags || [];
+                                let nomeBase = tipo;
+                                
+                                // Lógica de renomeação (igual à atual)
+                                if (tipo === 'esquema' || tags.includes('esquema_eletrico')) {
+                                    nomeBase = 'esquema_eletrico';
+                                } else if (tipo === 'diagrama') {
+                                    const subtipo = tags.find(t => ['lubrificacao', 'componentes', 'instalacao'].includes(t));
+                                    nomeBase = subtipo ? `diagrama_${subtipo}` : 'diagrama';
+                                } else if (tipo === 'tabela') {
+                                    if (tags.includes('indice')) {
+                                        nomeBase = 'indice_manual';
+                                    } else {
+                                        const subtipo = tags.find(t => ['especificacoes', 'manutencao', 'problemas'].includes(t));
+                                        nomeBase = subtipo ? `tabela_${subtipo}` : 'tabela';
+                                    }
+                                } else if (tipo === 'indice') {
+                                    nomeBase = 'indice_manual';
+                                } else if (tipo === 'anexo' && metadata.numero) {
+                                    nomeBase = `anexo_${metadata.numero}`;
+                                }
+                                
+                                // Contar índice para nome único
+                                const imagensExistentes = imagensPorPagina[pageNum] || [];
+                                const idx = imagensExistentes.length;
+                                const fileName = `${manualId}/${nomeBase}_${String(idx + 1).padStart(2, '0')}.png`;
+                                
+                                console.log(`  📝 Nome do ficheiro: ${fileName.split('/').pop()}`);
+                                
+                                // Upload da página inteira
+                                canvas.toBlob(async (blob) => {
+                                    if (!blob) {
+                                        console.error('  ❌ Erro ao converter canvas para blob');
+                                        return;
+                                    }
+                                    
+                                    try {
+                                        const formData = new FormData();
+                                        formData.append('file', blob, fileName.split('/').pop());
+                                        
+                                        const uploadResponse = await fetch(`${SUPABASE_CONFIG.URL}/storage/v1/object/manuais/${fileName}`, {
+                                            method: 'POST',
+                                            headers: {
+                                                'apikey': SUPABASE_CONFIG.ANON_KEY,
+                                                'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+                                                'x-upsert': 'true'
+                                            },
+                                            body: formData
+                                        });
+                                        
+                                        if (!uploadResponse.ok) {
+                                            throw new Error(`Upload falhou: ${uploadResponse.status}`);
+                                        }
+                                        
+                                        const finalImageUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${fileName}`;
+                                        console.log(`  ✅ Página inteira salva: ${fileName.split('/').pop()} (${(blob.size / 1024).toFixed(1)}KB)`);
+                                        
+                                        // Adicionar às imagens extraídas
+                                        if (!imagensPorPagina[pageNum]) {
+                                            imagensPorPagina[pageNum] = [];
+                                        }
+                                        imagensPorPagina[pageNum].push({
+                                            url: finalImageUrl,
+                                            type: metadata.tipo,
+                                            score: 100, // Página inteira sempre tem score alto
+                                            gpt_metadata: metadata
+                                        });
+                                    } catch (uploadError) {
+                                        console.error(`  ❌ Erro ao fazer upload da página inteira:`, uploadError);
+                                    }
+                                }, 'image/png');
+                            } else {
+                                console.log(`  ℹ️ Tipo '${metadata.tipo}' não é relevante, ignorando página.`);
+                            }
+                        } else {
+                            console.log(`  ℹ️ GPT-4 não detectou conteúdo relevante na página ${pageNum}.`);
+                        }
+                    } catch (fallbackError) {
+                        console.error(`  ⚠️ Erro na análise fallback da página ${pageNum}:`, fallbackError);
+                    }
                 }
                 
                 // Extrair texto com OCR (alta qualidade)
@@ -15401,4 +15503,3 @@ document.head.appendChild(styleAnimations);
     </script>
 </body>
 </html>
-
