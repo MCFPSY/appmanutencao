@@ -2088,19 +2088,21 @@
             color: #3730A3;
         }
 
-        /* 🖨️ REGRAS DE IMPRESSÃO - VERSÃO ORIGINAL QUE FUNCIONAVA */
+        /* 🖨️ REGRAS DE IMPRESSÃO - VERSÃO SIMPLIFICADA */
         @media print {
             @page {
                 size: A4 portrait;
                 margin: 12mm;
             }
 
-            /* Esconder tudo exceto o modal do relatório */
-            body > *:not(#modalRelatorio) {
+            /* Esconder elementos que não devem ser impressos */
+            nav, header, footer, .sidebar, .btn, button, 
+            .modal-header, .modal-footer, .modal-overlay,
+            .filters, .filter-section, #sortBtn, #groupBtn {
                 display: none !important;
             }
 
-            /* Mostrar apenas o modal */
+            /* Garantir que o relatório seja visível */
             #modalRelatorio {
                 display: block !important;
                 position: static !important;
@@ -2126,8 +2128,10 @@
 
             /* Ajustar modal-body */
             #modalRelatorio .modal-body {
+                display: block !important;
                 padding: 0 !important;
                 overflow: visible !important;
+                background: white !important;
             }
 
             /* Esconder resumo de filtros (caixa cinzenta) */
