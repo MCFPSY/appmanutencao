@@ -10439,74 +10439,20 @@ async function exportarRelatorioImagem() {
 }
 
 function imprimirRelatorio() {
-    console.log('🖨️ Iniciando impressão via nova janela...');
-    
-    // Obter conteúdo do relatório
-    const relatorioHeader = document.getElementById('relatorioHeader');
-    const relatorioContainer = document.getElementById('relatorioContainer');
-    
-    if (!relatorioHeader || !relatorioContainer) {
-        console.error('❌ Elementos do relatório não encontrados!');
-        showToast('Erro: Relatório não encontrado', 'error');
-        return;
+    try {
+        console.log('Impressao iniciada');
+        const header = document.getElementById('relatorioHeader');
+        if (header) header.style.display = 'block';
+        setTimeout(function() {
+            window.print();
+            setTimeout(function() {
+                if (header) header.style.display = 'none';
+            }, 500);
+        }, 100);
+    } catch (error) {
+        console.error('Erro impressao:', error);
+        alert('Erro ao imprimir');
     }
-    
-    // Criar HTML completo para impressão
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    
-    if (!printWindow) {
-        console.error('❌ Não foi possível abrir janela de impressão. Popup bloqueado?');
-        showToast('Erro: Popup bloqueado. Permita popups para este site.', 'error');
-        return;
-    }
-    
-    // Escrever documento de forma segura usando DOM
-    printWindow.document.write('<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8">');
-    printWindow.document.write('<title>Relatorio de OTs - ' + new Date().toLocaleDateString('pt-PT') + '</title>');
-    printWindow.document.write('<style>');
-    printWindow.document.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
-    printWindow.document.write('body { font-family: Arial, sans-serif; padding: 15mm; background: white; }');
-    printWindow.document.write('#relatorioHeader { text-align: center; margin-bottom: 20px; }');
-    printWindow.document.write('#relatorioHeader h1 { color: #1E3A8A; font-size: 18pt; margin-bottom: 10px; }');
-    printWindow.document.write('#relatorioHeader p { color: #4B5563; font-size: 10pt; margin: 5px 0; }');
-    printWindow.document.write('.relatorio-tabela { width: 100%; border-collapse: collapse; font-size: 8pt; }');
-    printWindow.document.write('.relatorio-tabela thead { display: table-header-group; }');
-    printWindow.document.write('.relatorio-tabela th { background-color: #1E3A8A; color: white; padding: 6px 8px; text-align: left; border: 1px solid #1E3A8A; font-weight: bold; font-size: 8pt; }');
-    printWindow.document.write('.relatorio-tabela td { padding: 5px 8px; border: 1px solid #D1D5DB; vertical-align: top; font-size: 8pt; }');
-    printWindow.document.write('.relatorio-grupo-header td { background-color: #E5E7EB; font-weight: bold; font-size: 9pt; padding: 8px; }');
-    printWindow.document.write('.relatorio-area-header td { background-color: #F3F4F6; font-weight: 600; font-size: 8.5pt; padding: 6px 8px; }');
-    printWindow.document.write('.relatorio-item-row { page-break-inside: avoid; }');
-    printWindow.document.write('@page { size: A4 portrait; margin: 12mm; }');
-    printWindow.document.write('@media print {');
-    printWindow.document.write('body { padding: 0; }');
-    printWindow.document.write('.relatorio-tabela th { background-color: #1E3A8A !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
-    printWindow.document.write('.relatorio-grupo-header td { background-color: #E5E7EB !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
-    printWindow.document.write('.relatorio-area-header td { background-color: #F3F4F6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
-    printWindow.document.write('}');
-    printWindow.document.write('</style></head><body>');
-    
-    // Clonar cabeçalho e torná-lo visível
-    const headerClone = relatorioHeader.cloneNode(true);
-    headerClone.style.display = 'block';
-    printWindow.document.write(headerClone.outerHTML);
-    
-    // Adicionar conteúdo da tabela
-    printWindow.document.write(relatorioContainer.innerHTML);
-    
-    // Adicionar script de impressão
-    printWindow.document.write('<script>');
-    printWindow.document.write('window.onload = function() {');
-    printWindow.document.write('setTimeout(function() { window.print(); }, 500);');
-    printWindow.document.write('};');
-    printWindow.document.write('window.onafterprint = function() {');
-    printWindow.document.write('console.log("Impressao concluida");');
-    printWindow.document.write('};');
-    printWindow.document.write('</script>');
-    
-    printWindow.document.write('</body></html>');
-    printWindow.document.close();
-    
-    console.log('✅ Janela de impressão aberta com sucesso');
 }
 
 // ✅ v3.7.0.9: NOVO - Popular filtro de Responsável
