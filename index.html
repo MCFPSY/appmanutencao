@@ -2088,33 +2088,50 @@
             color: #3730A3;
         }
 
-        /* 🖨️ REGRAS DE IMPRESSÃO - LAYOUT ORIGINAL DO PDF */
+        /* 🖨️ REGRAS DE IMPRESSÃO - VERSÃO ORIGINAL QUE FUNCIONAVA */
         @media print {
             @page {
                 size: A4 portrait;
                 margin: 12mm;
             }
 
-            /* Esconder tudo exceto o relatório */
-            body > *:not(.modal) {
+            /* Esconder tudo exceto o modal do relatório */
+            body > *:not(#modalRelatorio) {
                 display: none !important;
             }
-            
-            .modal {
-                position: static !important;
+
+            /* Mostrar apenas o modal */
+            #modalRelatorio {
                 display: block !important;
+                position: static !important;
+                background: white !important;
             }
-            
-            .modal-content {
+
+            /* Ajustar modal-content */
+            #modalRelatorio .modal-content {
+                max-width: 100% !important;
+                width: 100% !important;
+                max-height: none !important;
                 box-shadow: none !important;
                 border: none !important;
-                max-width: 100% !important;
-                max-height: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
-            
-            .modal-header,
-            .modal-footer,
-            .modal-body > div:first-child {
+
+            /* Esconder header e footer do modal */
+            #modalRelatorio .modal-header,
+            #modalRelatorio .modal-footer {
+                display: none !important;
+            }
+
+            /* Ajustar modal-body */
+            #modalRelatorio .modal-body {
+                padding: 0 !important;
+                overflow: visible !important;
+            }
+
+            /* Esconder resumo de filtros (caixa cinzenta) */
+            #modalRelatorio .modal-body > div:first-child {
                 display: none !important;
             }
 
@@ -2149,12 +2166,11 @@
                 width: 100%;
                 border-collapse: collapse;
                 font-size: 8pt;
+                page-break-after: auto;
             }
 
             .relatorio-tabela thead {
                 display: table-header-group;
-                break-inside: avoid;
-                page-break-inside: avoid;
             }
 
             .relatorio-tabela th {
@@ -2183,7 +2199,6 @@
                 font-weight: bold;
                 font-size: 9pt !important;
                 padding: 6px 8px !important;
-                border: 1px solid #9CA3AF !important;
                 page-break-after: avoid !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
@@ -2195,7 +2210,6 @@
                 font-weight: 600;
                 font-size: 8.5pt !important;
                 padding: 5px 8px !important;
-                border: 1px solid #D1D5DB !important;
                 page-break-after: avoid !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
@@ -2204,10 +2218,6 @@
             /* Linhas de OT */
             .relatorio-item-row {
                 page-break-inside: avoid;
-            }
-
-            .relatorio-item-row td {
-                font-size: 7.5pt;
             }
 
             /* Evitar quebra após cabeçalhos */
