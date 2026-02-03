@@ -1,8 +1,17 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.16 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.17 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-02
+    
+    🔒 v3.8.3.10.27.17: FIX PERMISSÕES PLANEAMENTO + FIX CONTAGEM! ✅
+    ────────────────────────────────────────────────────────────────────────────
+    ✅ PERMISSÕES PLANEAMENTO: Bloqueio real em updateTaskHours, updateTaskResponsible, savePlanning
+    ✅ BLOQUEIO BD: Utilizadores sem podeEditarPlaneamento NÃO conseguem gravar
+    ✅ FEEDBACK: Toast "🔒 Sem permissão para editar o planeamento"
+    ✅ CONTAGEM CORRIGIDA: Respeita filtros de Estado (Novo, Em curso, Resolvido)
+    ✅ SINCRONIZAÇÃO: Número de OTs no dropdown = número de OTs na lista
+    ✅ ATUALIZAÇÃO DINÂMICA: Contagem atualiza quando filtros mudam
     
     🎉 v3.8.3.10.27.16: 23 PÁGINAS → 9 PÁGINAS! ✅
     ────────────────────────────────────────────────────────────────────────────
@@ -10070,6 +10079,8 @@ function handleFilterChange(e) {
         if (index > -1) AppState.currentFilters[filterType].splice(index, 1);
     }
     renderRequestsList();
+    // 🚨 FIX: Atualizar contagens do filtro de responsável após mudar filtros
+    populateResponsavelFilter();
 }
 
 // ⚡ EQUIPAMENTOS - Popular filtro de equipamento
@@ -10602,11 +10613,18 @@ function populateResponsavelFilter() {
         AppState.utilizadores
             .sort((a, b) => (a[nomeCompletoKey] || '').localeCompare(b[nomeCompletoKey] || ''))
             .forEach(user => {
-                // Contar pedidos deste responsável
+                // 🚨 FIX: Contar APENAS pedidos que passam nos filtros ativos
                 const nomeCompleto = user[nomeCompletoKey];
                 const count = AppState.requests.filter(r => {
                     const task = AppState.planning.tasks[r.id];
-                    return task?.responsavel === nomeCompleto;
+                    if (task?.responsavel !== nomeCompleto) return false;
+                    
+                    // ✅ Aplicar MESMOS filtros de estado que na lista
+                    const estadoPedido = (r.estado || '').trim();
+                    const passaEstado = AppState.currentFilters.estado.length === 0 || 
+                                       AppState.currentFilters.estado.includes(estadoPedido);
+                    
+                    return passaEstado;
                 }).length;
                 
                 const option = document.createElement('option');
@@ -10629,9 +10647,17 @@ function populateResponsavelFilter() {
         });
         
         Array.from(responsaveis).sort().forEach(responsavel => {
+            // 🚨 FIX: Contar APENAS pedidos que passam nos filtros ativos
             const count = AppState.requests.filter(r => {
                 const task = AppState.planning.tasks[r.id];
-                return task?.responsavel === responsavel;
+                if (task?.responsavel !== responsavel) return false;
+                
+                // ✅ Aplicar MESMOS filtros de estado que na lista
+                const estadoPedido = (r.estado || '').trim();
+                const passaEstado = AppState.currentFilters.estado.length === 0 || 
+                                   AppState.currentFilters.estado.includes(estadoPedido);
+                
+                return passaEstado;
             }).length;
             const option = document.createElement('option');
             option.value = responsavel;
@@ -12586,6 +12612,18 @@ function toggleAllocation(taskId, dateKey) {
 }
 // ✅ v3.7.0.8: Atualizar horas NO PLANEAMENTO (não na ordem de trabalho)
 async function updateTaskHours(taskId, hours) {
+    // 🔒 VERIFICAR PERMISSÕES
+    if (!AppState.currentUser) {
+        showToast('❌ Sessão expirada. Por favor, faça login novamente.', 'error');
+        return;
+    }
+    
+    const podeEditar = AppState.currentUser.podeEditarPlaneamento || AppState.currentUser.role === 'admin';
+    if (!podeEditar) {
+        showToast('🔒 Sem permissão para editar o planeamento', 'error');
+        return;
+    }
+    
     // Inicializar objeto do task se não existir
     if (!AppState.planning.tasks[taskId]) {
         AppState.planning.tasks[taskId] = {
@@ -12614,6 +12652,18 @@ async function updateTaskHours(taskId, hours) {
 
 // ✅ v3.7.0.8: Atualizar responsável NO PLANEAMENTO (não na ordem de trabalho)
 async function updateTaskResponsible(taskId, responsavel) {
+    // 🔒 VERIFICAR PERMISSÕES
+    if (!AppState.currentUser) {
+        showToast('❌ Sessão expirada. Por favor, faça login novamente.', 'error');
+        return;
+    }
+    
+    const podeEditar = AppState.currentUser.podeEditarPlaneamento || AppState.currentUser.role === 'admin';
+    if (!podeEditar) {
+        showToast('🔒 Sem permissão para editar o planeamento', 'error');
+        return;
+    }
+    
     // Inicializar objeto do task se não existir
     if (!AppState.planning.tasks[taskId]) {
         AppState.planning.tasks[taskId] = {
@@ -12641,6 +12691,18 @@ async function updateTaskResponsible(taskId, responsavel) {
     showToast(`Responsável atualizado: ${responsavel || 'Nenhum'}`, 'success');
 }
 async function savePlanning() {
+    // 🔒 VERIFICAR PERMISSÕES
+    if (!AppState.currentUser) {
+        showToast('❌ Sessão expirada. Por favor, faça login novamente.', 'error');
+        return;
+    }
+    
+    const podeEditar = AppState.currentUser.podeEditarPlaneamento || AppState.currentUser.role === 'admin';
+    if (!podeEditar) {
+        showToast('🔒 Sem permissão para salvar o planeamento', 'error');
+        return;
+    }
+    
     savePlanningToStorage();
     if (AppState.isOnline) await syncPlanningWithGoogleSheets();  // ✅ v3.7.0.8: AWAIT para garantir sync
     showToast('Planeamento salvo com sucesso!', 'success');
