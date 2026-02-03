@@ -1,8 +1,16 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.17 (Worker: v3.8.3.10.27.10)
-    📅 Data: 2026-02-02
+    📦 Versão: v3.8.3.10.27.18 (Worker: v3.8.3.10.27.10)
+    📅 Data: 2026-02-03
+    
+    🎯 v3.8.3.10.27.18: FIX CONTAGEM PLANEAMENTO! ✅
+    ────────────────────────────────────────────────────────────────────────────
+    ✅ PLANEAMENTO CORRIGIDO: Contagem de responsável agora respeita filtros de estado
+    ✅ LISTA OTs CORRIGIDO: Já estava correto desde v3.8.3.10.27.17
+    ✅ ATUALIZAÇÃO DINÂMICA: Contagens atualizam quando filtros mudam
+    🐛 LOGS DEBUG: Mantidos para validação (removidos após confirmar funcionamento)
+    ✅ 5 PONTOS BLOQUEIO: updateTaskHours, updateTaskResponsible, savePlanning, syncSingleTask, syncPlanningWithGoogleSheets
     
     🔒 v3.8.3.10.27.17: FIX PERMISSÕES PLANEAMENTO + FIX CONTAGEM! ✅
     ────────────────────────────────────────────────────────────────────────────
@@ -9246,7 +9254,10 @@ function setupEventListeners() {
     
     // ✅ v3.7.0.9: Event listeners para filtros do planeamento
     document.querySelectorAll('.planning-filter-tipo, .planning-filter-prioridade, .planning-filter-estado, .planning-filter-empresa, .planning-filter-tipoIntervencao, .planning-filter-urgente, .planning-filter-paragemProducao, .planning-filter-exigeCompra').forEach(cb => {
-        cb.addEventListener('change', renderPlanningGrid);
+        cb.addEventListener('change', () => {
+            renderPlanningGrid();
+            populatePlanningFilters(); // 🚨 FIX v3.8.3.10.27.17: Atualizar contagens quando filtros mudam
+        });
     });
     
     // 🆕 v3.8.3.10.27: Event listeners para filtros de preventivas no Planeamento
@@ -10597,6 +10608,15 @@ function populateResponsavelFilter() {
     }
     
     console.log('🔄 Populando filtro de responsável...');
+    console.log('📊 AppState.currentFilters.estado:', AppState.currentFilters.estado);
+    
+    // 🚨 FIX: Se filtros vazios, ler dos checkboxes
+    if (AppState.currentFilters.estado.length === 0) {
+        document.querySelectorAll('.filter-estado:checked').forEach(cb => {
+            AppState.currentFilters.estado.push(cb.value);
+        });
+        console.log('📊 Filtros lidos dos checkboxes:', AppState.currentFilters.estado);
+    }
     
     // Limpar opções existentes
     select.innerHTML = '<option value="">Todos os responsáveis</option>';
@@ -10615,17 +10635,26 @@ function populateResponsavelFilter() {
             .forEach(user => {
                 // 🚨 FIX: Contar APENAS pedidos que passam nos filtros ativos
                 const nomeCompleto = user[nomeCompletoKey];
-                const count = AppState.requests.filter(r => {
+                const allTasksForUser = AppState.requests.filter(r => {
                     const task = AppState.planning.tasks[r.id];
-                    if (task?.responsavel !== nomeCompleto) return false;
-                    
+                    return task?.responsavel === nomeCompleto;
+                });
+                const count = allTasksForUser.filter(r => {
                     // ✅ Aplicar MESMOS filtros de estado que na lista
                     const estadoPedido = (r.estado || '').trim();
                     const passaEstado = AppState.currentFilters.estado.length === 0 || 
                                        AppState.currentFilters.estado.includes(estadoPedido);
                     
+                    if (!passaEstado) {
+                        console.log(`   ❌ OT ${r.id} do ${nomeCompleto}: estado="${estadoPedido}" NÃO passa (filtros: ${AppState.currentFilters.estado.join(', ')})`);
+                    }
+                    
                     return passaEstado;
                 }).length;
+                
+                if (allTasksForUser.length > 0) {
+                    console.log(`👤 ${nomeCompleto}: ${allTasksForUser.length} total → ${count} visíveis após filtro de estado`);
+                }
                 
                 const option = document.createElement('option');
                 option.value = nomeCompleto;
@@ -10648,17 +10677,27 @@ function populateResponsavelFilter() {
         
         Array.from(responsaveis).sort().forEach(responsavel => {
             // 🚨 FIX: Contar APENAS pedidos que passam nos filtros ativos
-            const count = AppState.requests.filter(r => {
+            const allTasksForUser = AppState.requests.filter(r => {
                 const task = AppState.planning.tasks[r.id];
-                if (task?.responsavel !== responsavel) return false;
-                
+                return task?.responsavel === responsavel;
+            });
+            const count = allTasksForUser.filter(r => {
                 // ✅ Aplicar MESMOS filtros de estado que na lista
                 const estadoPedido = (r.estado || '').trim();
                 const passaEstado = AppState.currentFilters.estado.length === 0 || 
                                    AppState.currentFilters.estado.includes(estadoPedido);
                 
+                if (!passaEstado) {
+                    console.log(`   ❌ OT ${r.id} do ${responsavel}: estado="${estadoPedido}" NÃO passa (filtros: ${AppState.currentFilters.estado.join(', ')})`);
+                }
+                
                 return passaEstado;
             }).length;
+            
+            if (allTasksForUser.length > 0) {
+                console.log(`👤 ${responsavel}: ${allTasksForUser.length} total → ${count} visíveis após filtro de estado`);
+            }
+            
             const option = document.createElement('option');
             option.value = responsavel;
             option.textContent = `${responsavel} (${count})`;
@@ -10697,11 +10736,22 @@ function populatePlanningFilters() {
             AppState.utilizadores
                 .sort((a, b) => (a[nomeCompletoKey] || '').localeCompare(b[nomeCompletoKey] || ''))
                 .forEach(user => {
-                    // Contar pedidos planeados deste responsável
+                    // 🚨 FIX v3.8.3.10.27.17: Contar APENAS pedidos que passam nos filtros de estado do Planeamento
                     const nomeCompleto = user[nomeCompletoKey];
+                    
+                    // Obter filtros ativos do Planeamento (checkboxes marcados)
+                    const estadosFiltrados = Array.from(document.querySelectorAll('.planning-filter-estado:checked'))
+                        .map(cb => cb.value);
+                    
                     const count = AppState.requests.filter(r => {
                         const task = AppState.planning.tasks[r.id];
-                        return task?.responsavel === nomeCompleto;
+                        if (task?.responsavel !== nomeCompleto) return false;
+                        
+                        // ✅ Aplicar filtro de estado (igual à lista de OTs)
+                        const estadoPedido = (r.estado || '').trim();
+                        const passaEstado = estadosFiltrados.length === 0 || estadosFiltrados.includes(estadoPedido);
+                        
+                        return passaEstado;
                     }).length;
                     
                     const option = document.createElement('option');
@@ -10722,9 +10772,19 @@ function populatePlanningFilters() {
             });
             
             Array.from(responsaveis).sort().forEach(responsavel => {
+                // 🚨 FIX v3.8.3.10.27.17: Aplicar filtros de estado (fallback)
+                const estadosFiltrados = Array.from(document.querySelectorAll('.planning-filter-estado:checked'))
+                    .map(cb => cb.value);
+                
                 const count = AppState.requests.filter(r => {
                     const task = AppState.planning.tasks[r.id];
-                    return task?.responsavel === responsavel;
+                    if (task?.responsavel !== responsavel) return false;
+                    
+                    // ✅ Aplicar filtro de estado
+                    const estadoPedido = (r.estado || '').trim();
+                    const passaEstado = estadosFiltrados.length === 0 || estadosFiltrados.includes(estadoPedido);
+                    
+                    return passaEstado;
                 }).length;
                 const option = document.createElement('option');
                 option.value = responsavel;
@@ -12768,6 +12828,18 @@ function loadPlanningFromStorage() {
 }
 // ✅ v3.7.0.8: Sincronizar um único task (quando alterar responsável/horas)
 async function syncSingleTask(taskId) {
+    // 🔒 VERIFICAR PERMISSÕES
+    if (!AppState.currentUser) {
+        console.warn('❌ Sem sessão - sync bloqueado');
+        return;
+    }
+    
+    const podeEditar = AppState.currentUser.podeEditarPlaneamento || AppState.currentUser.role === 'admin';
+    if (!podeEditar) {
+        console.warn('🔒 Sem permissão para sincronizar planeamento');
+        return;
+    }
+    
     if (!AppState.isOnline) {
         console.log('⚠️ Offline - task não sincronizado');
         return;
@@ -12816,6 +12888,18 @@ async function syncSingleTask(taskId) {
 
 // 🔥 v3.7.0.8: Guardar planeamento completo no Supabase
 async function syncPlanningWithGoogleSheets() {
+    // 🔒 VERIFICAR PERMISSÕES
+    if (!AppState.currentUser) {
+        console.warn('❌ Sem sessão - sync bloqueado');
+        return;
+    }
+    
+    const podeEditar = AppState.currentUser.podeEditarPlaneamento || AppState.currentUser.role === 'admin';
+    if (!podeEditar) {
+        console.warn('🔒 Sem permissão para sincronizar planeamento');
+        return;
+    }
+    
     if (!AppState.isOnline) {
         console.log('⚠️ Offline - planeamento não sincronizado');
         return;
