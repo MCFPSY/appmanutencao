@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.18 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.19 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-03
     
-    🎯 v3.8.3.10.27.18: FIX CONTAGEM PLANEAMENTO! ✅
+    🔢 v3.8.3.10.27.19: NÚMERO DA OT NO PLANEAMENTO! ✅
     ────────────────────────────────────────────────────────────────────────────
-    ✅ PLANEAMENTO CORRIGIDO: Contagem de responsável agora respeita filtros de estado
-    ✅ LISTA OTs CORRIGIDO: Já estava correto desde v3.8.3.10.27.17
-    ✅ ATUALIZAÇÃO DINÂMICA: Contagens atualizam quando filtros mudam
-    🐛 LOGS DEBUG: Mantidos para validação (removidos após confirmar funcionamento)
+    ✅ PLANEAMENTO: Número da OT (#ID) visível à esquerda da descrição
+    ✅ ESTILO: Número em azul (#3B82F6) e negrito para destacar
+    ✅ MANTIDO: Todas as correções anteriores (contagem, permissões, impressão)
     ✅ 5 PONTOS BLOQUEIO: updateTaskHours, updateTaskResponsible, savePlanning, syncSingleTask, syncPlanningWithGoogleSheets
     
     🔒 v3.8.3.10.27.17: FIX PERMISSÕES PLANEAMENTO + FIX CONTAGEM! ✅
@@ -12580,7 +12579,7 @@ function renderPlanningGrid() {
     html += '</tr></thead><tbody>';
     activeTasks.forEach(task => {
         html += '<tr>';
-        html += `<td class="task-cell"><div class="task-info"><div class="task-title">${task.descricao}</div><div class="task-meta"><span class="badge badge-tipo">${task.tipo}</span><span class="badge badge-prioridade ${task.prioridade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}">${task.prioridade}</span>`;
+        html += `<td class="task-cell"><div class="task-info"><div class="task-title"><span style="font-weight: 600; color: #3B82F6; margin-right: 8px;">#${task.id}</span>${task.descricao}</div><div class="task-meta"><span class="badge badge-tipo">${task.tipo}</span><span class="badge badge-prioridade ${task.prioridade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}">${task.prioridade}</span>`;
         if (task.responsavel && task.responsavel !== '-') html += `<span class="task-responsible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${task.responsavel}</span>`;
         html += `</div></div></td>`;
         
@@ -16704,3 +16703,4 @@ document.head.appendChild(styleAnimations);
     </script>
 </body>
 </html>
+
