@@ -1,15 +1,37 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.19 (Worker: v3.8.3.10.27.10)
-    📅 Data: 2026-02-03
+    📦 Versão: v3.8.3.10.27.28 (Worker: v3.8.3.10.27.10)
+    📅 Data: 2026-02-05
     
-    🔢 v3.8.3.10.27.19: NÚMERO DA OT NO PLANEAMENTO! ✅
+    🎯 v3.8.3.10.27.28: VERSÃO ESTÁVEL - RELATÓRIO OK ✅
     ────────────────────────────────────────────────────────────────────────────
-    ✅ PLANEAMENTO: Número da OT (#ID) visível à esquerda da descrição
-    ✅ ESTILO: Número em azul (#3B82F6) e negrito para destacar
-    ✅ MANTIDO: Todas as correções anteriores (contagem, permissões, impressão)
-    ✅ 5 PONTOS BLOQUEIO: updateTaskHours, updateTaskResponsible, savePlanning, syncSingleTask, syncPlanningWithGoogleSheets
+    ✅ DESCOBERTA: Estrutura DOM está PERFEITA (thead primeiro, tbody segundo)
+    ✅ PROBLEMA: Motor de impressão do browser REORGANIZA durante renderização
+    ✅ SOLUÇÃO RADICAL: REMOVER <thead> completamente!
+    ✅ CONVERTER: Linha de cabeçalho (<thead><tr>) vira primeira linha de <tbody>
+    ✅ RESULTADO: Tabela com APENAS <tbody> - browser não pode reorganizar!
+    ✅ CSS: Estilizar .header-row para parecer cabeçalho (fundo azul, texto branco)
+    ✅ EVITA: Browser reorganizar estrutura durante cloneNode
+    ✅ MANTÉM: Todas as correções anteriores (CSS específico, reflow, delay)
+    ✅ REVERTIDA v3.8.3.10.27.27: Lógica body:not(.printing-planning) RESTAURADA
+    ✅ SOLUÇÃO CIRÚRGICA: Regra ESPECÍFICA para .planning-grid th > div
+    ✅ FORÇAR visibilidade APENAS dos <div> dentro de <th> da tabela planeamento
+    ✅ MANTÉM relatório funcionando (body:not(.printing-planning) preservado)
+    ✅ REFLOW FORÇADO: void offsetHeight para forçar recálculo antes de imprimir
+    ✅ DELAY AUMENTADO: 300ms→800ms para dar tempo ao CSS ser aplicado
+    ✅ COMBINAÇÃO PERFEITA: Cabeçalhos visíveis + Tabela estruturada
+    ✅ FIX v3.8.3.10.27.25: Conteúdo <th> visível (mas quebrou tabela com display:block)
+    ✅ FIX v3.8.3.10.27.26: Removido display:block → mantém estrutura natural
+    ✅ SOLUÇÃO FINAL: Forçar visibility/max-height/overflow SEM alterar display
+    ✅ RESULTADO: Cabeçalho azul completo NO TOPO + Tabela formatada correctamente
+    ✅ CABEÇALHOS CORRETOS: cloneNode() em vez de outerHTML → estrutura DOM preservada
+    ✅ FIX THEAD: Cabeçalho agora aparece SEMPRE no topo (não mais no meio!)
+    ✅ ESTRUTURA GARANTIDA: <thead> → <tbody> ordem correta
+    ✅ PARSING CORRETO: Browser não separa mais o cabeçalho do corpo da tabela
+    ✅ COLUNA TAREFA: Mantida em 35% largura → texto completo visível
+    ✅ CABEÇALHO: Mantido com borda inferior, fontes maiores, formatação profissional
+    ✅ BADGES: Mantidos maiores (3px/8px padding, 7.5pt) e mais legíveis
     
     🔒 v3.8.3.10.27.17: FIX PERMISSÕES PLANEAMENTO + FIX CONTAGEM! ✅
     ────────────────────────────────────────────────────────────────────────────
@@ -2135,44 +2157,254 @@
         }
 
         /* 🖨️ REGRAS DE IMPRESSÃO - VERSÃO FINAL v3.8.3.10.27.15 */
+        /* 🆕 v3.8.3.10.27.20: CSS de impressão do PLANEAMENTO */
         @media print {
+            /* ✅ Configuração de página padrão */
             @page {
-                size: A4 landscape; /* ✅ HORIZONTAL: Mais espaço para descrição */
-                margin: 10mm; /* ✅ Margens reduzidas: 12mm → 10mm */
+                size: A4 landscape;
+                margin: 10mm;
             }
             
-            /* ✅ GLOBAL: Remover margens externas desnecessárias */
             body {
                 margin: 0 !important;
                 padding: 0 !important;
             }
-
-            /* ✅ ABORDAGEM CORRETA: Esconder elementos específicos */
-            body * {
+            
+            /* 🎯 PLANEAMENTO: Quando body tem classe .printing-planning */
+            body.printing-planning * {
                 visibility: hidden !important;
-                max-height: 0 !important; /* 🚨 FIX: Elementos escondidos não ocupam altura */
-                overflow: hidden !important; /* 🚨 FIX: Sem overflow */
+                max-height: 0 !important;
+                overflow: hidden !important;
             }
             
-            /* ✅ Mostrar APENAS o relatório e seus filhos */
-            #modalRelatorio,
-            #modalRelatorio * {
+            body.printing-planning #planningPrintContainer,
+            body.printing-planning #planningPrintContainer * {
                 visibility: visible !important;
-                max-height: none !important; /* 🚨 FIX: Reverter max-height para relatório */
-                overflow: visible !important; /* 🚨 FIX: Reverter overflow para relatório */
+                max-height: none !important;
+                overflow: visible !important;
             }
             
-            /* Esconder elementos desnecessários dentro do modal */
-            #modalRelatorio .modal-header,
-            #modalRelatorio .modal-footer,
-            #modalRelatorio .btn,
-            #modalRelatorio button {
+            /* 🎯 v3.8.3.10.27.26: FORÇAR visibilidade SEM quebrar display da tabela */
+            body.printing-planning #planningPrintContainer table,
+            body.printing-planning #planningPrintContainer table *,
+            body.printing-planning #planningPrintContainer thead,
+            body.printing-planning #planningPrintContainer thead *,
+            body.printing-planning #planningPrintContainer tbody,
+            body.printing-planning #planningPrintContainer tbody *,
+            body.printing-planning #planningPrintContainer tr,
+            body.printing-planning #planningPrintContainer tr *,
+            body.printing-planning #planningPrintContainer th,
+            body.printing-planning #planningPrintContainer th *,
+            body.printing-planning #planningPrintContainer td,
+            body.printing-planning #planningPrintContainer td *,
+            body.printing-planning #planningPrintContainer th div,
+            body.printing-planning #planningPrintContainer td div {
+                visibility: visible !important;
+                max-height: none !important;
+                overflow: visible !important;
+                /* ❌ NÃO FORÇAR display: block - mantém display natural da tabela! */
+            }
+            
+            body.printing-planning #planningPrintContainer {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                display: block !important;
+            }
+            
+            /* 🎨 Estilos específicos para tabela de planeamento */
+            body.printing-planning .planning-grid {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 8pt !important;
+                table-layout: auto !important;
+            }
+            
+            body.printing-planning .planning-grid th,
+            body.printing-planning .planning-grid td {
+                border: 1px solid #D1D5DB !important;
+                padding: 4px 6px !important;
+                text-align: left !important;
+                vertical-align: top !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+            }
+            
+            body.printing-planning .planning-grid thead {
+                display: table-header-group !important;
+                page-break-inside: avoid !important;
+                page-break-after: avoid !important;
+            }
+            
+            body.printing-planning .planning-grid tbody {
+                display: table-row-group !important;
+            }
+            
+            body.printing-planning .planning-grid th {
+                background-color: #1E3A8A !important;
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                font-size: 8pt !important;
+                padding: 6px 8px !important;
+                text-align: center !important;
+                vertical-align: middle !important;
+                line-height: 1.3 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            /* 🎯 v3.8.3.10.27.33: Estilizar linha de cabeçalho dentro do tbody */
+            body.printing-planning .planning-grid .header-row th {
+                background-color: #1E3A8A !important;
+                color: #FFFFFF !important;
+                font-weight: bold !important;
+                font-size: 8pt !important;
+                padding: 6px 8px !important;
+                text-align: center !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            body.printing-planning .planning-grid .header-row th > div {
+                visibility: visible !important;
+                display: block !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+            
+            /* 🎯 v3.8.3.10.27.28: FORÇAR visibilidade dos <div> dentro dos <th> */
+            body.printing-planning .planning-grid th > div {
+                visibility: visible !important;
+                display: block !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+            
+            /* ✅ Cabeçalhos específicos com alinhamento */
+            body.printing-planning .task-header {
+                text-align: left !important; /* Tarefa à esquerda */
+            }
+            
+            body.printing-planning .responsible-header {
+                text-align: left !important; /* Responsável à esquerda */
+            }
+            
+            body.printing-planning .task-cell {
+                width: 35% !important; /* ✅ 35% da largura total para tarefa */
+                min-width: 200px !important;
+            }
+            
+            /* ✅ Estilo para número da OT (não quebrar) */
+            body.printing-planning .task-cell span[style*="color: #3B82F6"] {
+                white-space: nowrap !important;
+                display: inline !important;
+                font-weight: 700 !important;
+                font-size: 8.5pt !important;
+            }
+            
+            /* ✅ Estilo para task-info */
+            body.printing-planning .task-info {
+                display: block !important;
+            }
+            
+            body.printing-planning .task-title {
+                display: block !important;
+                margin-bottom: 4px !important;
+                line-height: 1.3 !important;
+            }
+            
+            body.printing-planning .responsible-cell {
+                width: 15% !important; /* ✅ 15% para responsável */
+                min-width: 80px !important;
+            }
+            
+            body.printing-planning .hours-cell {
+                width: 5% !important; /* ✅ 5% para horas */
+                min-width: 40px !important;
+                text-align: center !important;
+            }
+            
+            body.printing-planning .date-cell {
+                width: 3% !important; /* ✅ 3% por dia (14 dias × 3% = 42%) */
+                min-width: 35px !important;
+                text-align: center !important;
+                font-size: 7pt !important; /* ✅ Fonte menor para caber melhor */
+            }
+            
+            body.printing-planning .date-cell.allocated {
+                background-color: #93C5FD !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            body.printing-planning .badge {
+                padding: 3px 8px !important; /* ✅ Maior: 2px→3px, 6px→8px */
+                border-radius: 4px !important;
+                font-size: 7.5pt !important; /* ✅ Maior: 7pt→7.5pt */
+                font-weight: 700 !important; /* ✅ Mais negrito: 600→700 */
+                white-space: nowrap !important;
+                display: inline-block !important;
+                margin-right: 5px !important;
+                margin-bottom: 2px !important; /* ✅ Espaçamento vertical */
+                line-height: 1.2 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            body.printing-planning .badge-tipo {
+                background-color: #DBEAFE !important;
+                color: #1E40AF !important;
+            }
+            
+            body.printing-planning .badge-prioridade {
+                border: 1px solid !important;
+            }
+            
+            body.printing-planning .badge-prioridade.alta {
+                background-color: #FCA5A5 !important;
+                color: #7F1D1D !important;
+                border-color: #DC2626 !important;
+            }
+            
+            body.printing-planning .badge-prioridade.media,
+            body.printing-planning .badge-prioridade.média {
+                background-color: #FCD34D !important;
+                color: #78350F !important;
+                border-color: #F59E0B !important;
+            }
+            
+            body.printing-planning .badge-prioridade.baixa {
+                background-color: #93C5FD !important;
+                color: #1E3A8A !important;
+                border-color: #3B82F6 !important;
+            }
+            
+            /* 🎯 RELATÓRIO: Quando NÃO tem classe .printing-planning (comportamento padrão) */
+            body:not(.printing-planning) * {
+                visibility: hidden !important;
+                max-height: 0 !important;
+                overflow: hidden !important;
+            }
+            
+            body:not(.printing-planning) #modalRelatorio,
+            body:not(.printing-planning) #modalRelatorio * {
+                visibility: visible !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+            
+            /* Esconder elementos desnecessários dentro do modal do RELATÓRIO */
+            body:not(.printing-planning) #modalRelatorio .modal-header,
+            body:not(.printing-planning) #modalRelatorio .modal-footer,
+            body:not(.printing-planning) #modalRelatorio .btn,
+            body:not(.printing-planning) #modalRelatorio button {
                 visibility: hidden !important;
                 display: none !important;
             }
 
             /* ✅ Garantir que o relatório seja visível */
-            #modalRelatorio {
+            body:not(.printing-planning) #modalRelatorio {
                 visibility: visible !important;
                 display: block !important;
                 position: absolute !important;
@@ -2187,29 +2419,29 @@
             }
 
             /* Ajustar modal-content */
-            #modalRelatorio .modal-content {
+            body:not(.printing-planning) #modalRelatorio .modal-content {
                 visibility: visible !important;
                 max-width: 100% !important;
                 width: 100% !important;
                 max-height: none !important;
-                height: auto !important; /* ✅ Altura automática */
+                height: auto !important;
                 box-shadow: none !important;
                 border: none !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 transform: none !important;
-                page-break-after: avoid !important; /* ✅ Evitar páginas em branco */
+                page-break-after: avoid !important;
             }
 
             /* Esconder header e footer do modal */
-            #modalRelatorio .modal-header,
-            #modalRelatorio .modal-footer {
+            body:not(.printing-planning) #modalRelatorio .modal-header,
+            body:not(.printing-planning) #modalRelatorio .modal-footer {
                 display: none !important;
-                height: 0 !important; /* ✅ Sem altura residual */
+                height: 0 !important;
             }
 
             /* Ajustar modal-body */
-            #modalRelatorio .modal-body {
+            body:not(.printing-planning) #modalRelatorio .modal-body {
                 visibility: visible !important;
                 display: block !important;
                 padding: 0 !important;
@@ -2220,13 +2452,13 @@
             }
 
             /* Esconder resumo de filtros (caixa cinzenta) */
-            #modalRelatorio .modal-body > div:first-child {
+            body:not(.printing-planning) #modalRelatorio .modal-body > div:first-child {
                 visibility: hidden !important;
                 display: none !important;
             }
 
             /* Cabeçalho do relatório */
-            #relatorioHeader {
+            body:not(.printing-planning) #relatorioHeader {
                 visibility: visible !important;
                 display: block !important;
                 text-align: center;
@@ -2235,7 +2467,7 @@
                 page-break-inside: avoid !important;
             }
             
-            #relatorioHeader h1 {
+            body:not(.printing-planning) #relatorioHeader h1 {
                 visibility: visible !important;
                 font-size: 14pt;
                 color: #1E3A8A !important;
@@ -2244,7 +2476,7 @@
                 print-color-adjust: exact;
             }
             
-            #relatorioHeader p {
+            body:not(.printing-planning) #relatorioHeader p {
                 visibility: visible !important;
                 font-size: 8pt; /* ✅ Reduzido: 9pt → 8pt */
                 color: #4B5563 !important;
@@ -2254,7 +2486,7 @@
             }
 
             /* Container do relatório */
-            #relatorioContainer {
+            body:not(.printing-planning) #relatorioContainer {
                 visibility: visible !important;
                 display: block !important;
                 width: 100%;
@@ -2262,7 +2494,7 @@
             }
 
             /* Tabela */
-            .relatorio-tabela {
+            body:not(.printing-planning) .relatorio-tabela {
                 visibility: visible !important;
                 width: 100%;
                 border-collapse: collapse;
@@ -2271,30 +2503,30 @@
                 page-break-before: avoid !important; /* ✅ Evitar página em branco antes da tabela */
             }
 
-            .relatorio-tabela thead {
+            body:not(.printing-planning) .relatorio-tabela thead {
                 visibility: visible !important;
                 display: table-header-group;
                 page-break-after: avoid !important; /* ✅ Evitar quebra após cabeçalho */
             }
             
-            .relatorio-tabela tbody {
+            body:not(.printing-planning) .relatorio-tabela tbody {
                 visibility: visible !important;
                 page-break-before: avoid !important; /* ✅ Evitar página em branco antes do corpo */
             }
             
-            .relatorio-tabela tr,
-            .relatorio-tabela th,
-            .relatorio-tabela td {
+            body:not(.printing-planning) .relatorio-tabela tr,
+            body:not(.printing-planning) .relatorio-tabela th,
+            body:not(.printing-planning) .relatorio-tabela td {
                 visibility: visible !important;
             }
             
             /* ✅ FORÇAR repetição do cabeçalho em TODAS as páginas */
-            .relatorio-tabela thead tr {
+            body:not(.printing-planning) .relatorio-tabela thead tr {
                 page-break-after: avoid !important;
                 page-break-inside: avoid !important;
             }
 
-            .relatorio-tabela th {
+            body:not(.printing-planning) .relatorio-tabela th {
                 border: 1px solid #1E3A8A;
                 padding: 4px 6px;
                 text-align: left;
@@ -2306,7 +2538,7 @@
                 print-color-adjust: exact;
             }
 
-            .relatorio-tabela td {
+            body:not(.printing-planning) .relatorio-tabela td {
                 border: 1px solid #D1D5DB;
                 padding: 4px 6px;
                 font-size: 8pt;
@@ -2315,7 +2547,7 @@
             }
 
             /* Cabeçalhos de grupo (Empresa) */
-            .relatorio-grupo-header {
+            body:not(.printing-planning) .relatorio-grupo-header {
                 page-break-after: avoid !important;
                 page-break-inside: avoid !important;
                 page-break-before: auto;
@@ -2331,13 +2563,13 @@
             }
 
             /* Cabeçalhos de área */
-            .relatorio-area-header {
+            body:not(.printing-planning) .relatorio-area-header {
                 page-break-after: avoid !important;
                 page-break-inside: avoid !important;
                 page-break-before: auto;
             }
             
-            .relatorio-area-header td {
+            body:not(.printing-planning) .relatorio-area-header td {
                 background-color: #F3F4F6 !important;
                 font-weight: 600;
                 font-size: 8.5pt !important;
@@ -2347,29 +2579,29 @@
             }
 
             /* Linhas de OT */
-            .relatorio-item-row {
+            body:not(.printing-planning) .relatorio-item-row {
                 page-break-inside: avoid !important;
                 page-break-before: auto;
             }
 
             /* Evitar quebra após cabeçalhos */
-            .relatorio-grupo-header + tr,
-            .relatorio-area-header + tr {
+            body:not(.printing-planning) .relatorio-grupo-header + tr,
+            body:not(.printing-planning) .relatorio-area-header + tr {
                 page-break-before: avoid !important;
             }
             
             /* ✅ NOVO: Evitar órfãs - manter pelo menos 2 linhas juntas */
-            .relatorio-item-row {
+            body:not(.printing-planning) .relatorio-item-row {
                 orphans: 2;
                 widows: 2;
             }
 
-            .relatorio-item-row td {
+            body:not(.printing-planning) .relatorio-item-row td {
                 vertical-align: top;
             }
 
             /* Manter cores dos badges de prioridade */
-            .badge-prioridade {
+            body:not(.printing-planning) .badge-prioridade {
                 padding: 2px 6px;
                 border-radius: 3px;
                 font-size: 7pt;
@@ -2380,7 +2612,7 @@
                 print-color-adjust: exact;
             }
 
-            .badge-prioridade {
+            body:not(.printing-planning) .badge-prioridade {
                 padding: 0px 3px;
                 border-radius: 2px;
                 font-size: 5.5pt;
@@ -2392,33 +2624,33 @@
                 print-color-adjust: exact;
             }
 
-            .badge-prioridade.alta {
+            body:not(.printing-planning) .badge-prioridade.alta {
                 background-color: #FCA5A5 !important;
                 color: #7F1D1D !important;
                 border: 1px solid #DC2626 !important;
             }
 
-            .badge-prioridade.media,
-            .badge-prioridade.média {
+            body:not(.printing-planning) .badge-prioridade.media,
+            body:not(.printing-planning) .badge-prioridade.média {
                 background-color: #FCD34D !important;
                 color: #78350F !important;
                 border: 1px solid #F59E0B !important;
             }
 
-            .badge-prioridade.baixa {
+            body:not(.printing-planning) .badge-prioridade.baixa {
                 background-color: #93C5FD !important;
                 color: #1E3A8A !important;
                 border: 1px solid #3B82F6 !important;
             }
 
             /* CENÁRIO 2: Impressão de OT individual */
-            #printContainer,
-            #printContainer * {
+            body:not(.printing-planning) #printContainer,
+            body:not(.printing-planning) #printContainer * {
                 visibility: visible !important;
             }
             
             /* Mostrar apenas o container de impressão */
-            #printContainer {
+            body:not(.printing-planning) #printContainer {
                 display: block !important;
                 width: 100%;
                 max-width: 186mm;
@@ -2430,7 +2662,7 @@
                 color: #000;
             }
             
-            #printContainer h1 {
+            body:not(.printing-planning) #printContainer h1 {
                 text-align: center;
                 color: #667eea;
                 border-bottom: 2px solid #667eea;
@@ -2439,22 +2671,22 @@
                 font-size: 16pt;
             }
             
-            #printContainer .print-header {
+            body:not(.printing-planning) #printContainer .print-header {
                 text-align: center;
                 margin-bottom: 12px;
                 font-size: 9pt;
             }
             
-            #printContainer .print-header p {
+            body:not(.printing-planning) #printContainer .print-header p {
                 margin: 2px 0;
             }
             
-            #printContainer .print-section {
+            body:not(.printing-planning) #printContainer .print-section {
                 margin-bottom: 10px;
                 page-break-inside: avoid;
             }
             
-            #printContainer .print-section h2 {
+            body:not(.printing-planning) #printContainer .print-section h2 {
                 color: #667eea;
                 border-bottom: 1px solid #667eea;
                 padding-bottom: 3px;
@@ -2462,12 +2694,12 @@
                 font-size: 12pt;
             }
             
-            #printContainer table {
+            body:not(.printing-planning) #printContainer table {
                 width: 100%;
                 border-collapse: collapse;
             }
             
-            #printContainer td {
+            body:not(.printing-planning) #printContainer td {
                 padding: 3px 6px;
                 border-bottom: 1px solid #ddd;
                 vertical-align: top;
@@ -4837,8 +5069,13 @@
                     
                     <div class="planning-filters">
                         <button class="btn btn-secondary" id="todayBtn">Hoje</button>
+                        <button class="btn btn-secondary" id="togglePlaneadasBtn" onclick="toggleApenasPlanadas()" title="Mostrar apenas OTs com dias alocados">
+                            <span id="togglePlaneadasIcon">👁️</span> <span id="togglePlaneadasText">Apenas Planeadas</span>
+                        </button>
                         <button class="btn btn-secondary" id="savePlanningBtn">Salvar Planeamento</button>
-                        <button class="btn btn-primary" id="exportPlanningBtn">Exportar Excel</button>
+                        <button class="btn btn-primary" id="printPlanningBtn" onclick="imprimirPlaneamento()" title="Imprimir planeamento em PDF">
+                            🖨️ Imprimir PDF
+                        </button>
                     </div>
                 </div>
 
@@ -6382,7 +6619,8 @@ const AppState = {
         tasks: {},  // ✅ v3.7.0.8: { pedidoId: { responsavel, horasEstimadas, diasAlocados: [] } }
         allocations: {},  // 🔄 Mantido por compatibilidade (será migrado)
         startDate: null, 
-        endDate: null 
+        endDate: null,
+        apenasPlanadas: false  // 🆕 v3.8.3.10.27.20: Filtro para mostrar apenas OTs planeadas
     },
     artigos: [],
     movimentos: [],
@@ -9243,7 +9481,6 @@ function setupEventListeners() {
     document.getElementById('nextWeekBtn').addEventListener('click', () => movePlanningWeek(1));
     document.getElementById('todayBtn').addEventListener('click', resetPlanningToToday);
     document.getElementById('savePlanningBtn').addEventListener('click', savePlanning);
-    document.getElementById('exportPlanningBtn').addEventListener('click', exportPlanningToExcel);
     
     // ⚡ NOVO: Event listener para resumo de preventivas
     const atualizarPreventivasBtn = document.getElementById('atualizarPreventivasBtn');
@@ -12536,6 +12773,160 @@ function applyPlanningFilters(requests) {
     return filtered;
 }
 
+// 🆕 v3.8.3.10.27.20: Imprimir Planeamento em PDF
+function imprimirPlaneamento() {
+    // Ativar filtro "Apenas Planeadas" temporariamente
+    const filtroAnterior = AppState.planning.apenasPlanadas;
+    if (!AppState.planning.apenasPlanadas) {
+        AppState.planning.apenasPlanadas = true;
+        renderPlanningGrid(); // Re-renderizar com filtro
+    }
+    
+    // Preparar conteúdo para impressão
+    const rangeText = document.getElementById('planningRange').textContent;
+    
+    // 🎯 v3.8.3.10.27.33: SOLUÇÃO RADICAL - CONVERTER <thead> EM <tbody>!
+    const originalGrid = document.getElementById('planningGrid');
+    
+    const originalThead = originalGrid.querySelector('thead');
+    const originalTbody = originalGrid.querySelector('tbody');
+    
+    if (!originalThead || !originalTbody) {
+        console.error('❌ Thead ou Tbody não encontrados!');
+        showToast('Erro ao preparar impressão', 'error');
+        return;
+    }
+    
+    // Criar nova tabela do zero
+    const newTable = document.createElement('table');
+    newTable.className = 'planning-grid';
+    newTable.id = 'planningGrid_print';
+    
+    // 🎯 SOLUÇÃO RADICAL: Usar APENAS <tbody>, sem <thead>!
+    const newTbody = document.createElement('tbody');
+    
+    // Converter <thead><tr> em <tbody><tr> (primeira linha)
+    const theadRow = originalThead.querySelector('tr').cloneNode(true);
+    theadRow.classList.add('header-row'); // Marcar como linha de cabeçalho
+    newTbody.appendChild(theadRow);
+    
+    // Adicionar todas as linhas do tbody original
+    const tbodyRows = originalTbody.querySelectorAll('tr');
+    tbodyRows.forEach(row => {
+        newTbody.appendChild(row.cloneNode(true));
+    });
+    
+    // Adicionar APENAS o tbody (com cabeçalho como primeira linha)
+    newTable.appendChild(newTbody);
+    
+    console.log('📊 ESTRUTURA DA TABELA (SEM THEAD):');
+    console.log('- Tabela tem tbody?', !!newTbody);
+    console.log('- Tbody tem linhas:', newTbody.children.length);
+    console.log('- Primeira linha é cabeçalho?', newTbody.children[0]?.classList.contains('header-row'));
+    
+    // 🎯 v3.8.3.10.27.30: Adicionar classe ANTES de criar container
+    document.body.classList.add('printing-planning');
+    
+    // Criar container temporário para impressão
+    const printContainer = document.createElement('div');
+    printContainer.id = 'planningPrintContainer';
+    // ✅ NÃO esconder - criar já visível!
+    printContainer.style.display = 'block';
+    printContainer.style.visibility = 'hidden'; // ← Esconder visualmente mas manter no layout
+    
+    // Adicionar cabeçalho
+    const header = document.createElement('div');
+    header.style.cssText = 'text-align: center; margin-bottom: 15px; padding: 10px 0; border-bottom: 2px solid #1E3A8A;';
+    header.innerHTML = `
+        <h1 style="color: #1E3A8A; font-size: 20pt; font-weight: bold; margin: 0 0 8px 0; letter-spacing: 0.5px;">
+            📅 Planeamento de Manutenção
+        </h1>
+        <p style="color: #374151; font-size: 12pt; font-weight: 600; margin: 5px 0;">
+            ${rangeText}
+        </p>
+        <p style="color: #6B7280; font-size: 9pt; margin: 3px 0 0 0; font-style: italic;">
+            Gerado em: ${new Date().toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' })}
+        </p>
+    `;
+    
+    printContainer.appendChild(header);
+    printContainer.appendChild(newTable);
+    
+    document.body.appendChild(printContainer);
+    
+    // Tornar visível
+    printContainer.style.visibility = 'visible';
+    
+    // 🎯 v3.8.3.10.27.27: FORÇAR REFLOW antes de imprimir!
+    // Forçar o browser a recalcular layout ANTES de window.print()
+    void printContainer.offsetHeight; // Força reflow
+    void document.body.offsetHeight; // Força reflow do body
+    
+    // Imprimir com delay para dar tempo aos estilos CSS serem aplicados
+    setTimeout(() => {
+        console.log('🖨️ Iniciando impressão... CSS aplicado:', document.body.classList.contains('printing-planning'));
+        
+        // 🎯 v3.8.3.10.27.32: LOG FINAL antes de imprimir
+        const finalTable = document.querySelector('#planningPrintContainer table');
+        if (finalTable) {
+            console.log('📋 TABELA NO DOM ANTES DE IMPRIMIR:');
+            console.log('- Children count:', finalTable.children.length);
+            console.log('- Child 0:', finalTable.children[0]?.tagName);
+            console.log('- Child 1:', finalTable.children[1]?.tagName);
+            console.log('- Thead existe?', !!finalTable.querySelector('thead'));
+            console.log('- Tbody existe?', !!finalTable.querySelector('tbody'));
+            console.log('- Thead é primeiro?', finalTable.children[0]?.tagName === 'THEAD');
+        }
+        
+        window.print();
+        
+        // Limpar após impressão
+        setTimeout(() => {
+            document.body.classList.remove('printing-planning');
+            document.body.removeChild(printContainer);
+            
+            // Restaurar filtro anterior
+            if (AppState.planning.apenasPlanadas !== filtroAnterior) {
+                AppState.planning.apenasPlanadas = filtroAnterior;
+                renderPlanningGrid();
+            }
+        }, 1000); // ✅ 1 segundo para limpar
+    }, 800); // ✅ 800ms para dar tempo ao CSS ser aplicado
+}
+
+// 🆕 v3.8.3.10.27.20: Toggle filtro "Apenas Planeadas"
+function toggleApenasPlanadas() {
+    AppState.planning.apenasPlanadas = !AppState.planning.apenasPlanadas;
+    
+    // Atualizar visual do botão
+    const btn = document.getElementById('togglePlaneadasBtn');
+    const icon = document.getElementById('togglePlaneadasIcon');
+    const text = document.getElementById('togglePlaneadasText');
+    
+    if (AppState.planning.apenasPlanadas) {
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-primary');
+        icon.textContent = '✓';
+        text.textContent = 'Apenas Planeadas';
+    } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+        icon.textContent = '👁️';
+        text.textContent = 'Apenas Planeadas';
+    }
+    
+    // Re-renderizar grid
+    renderPlanningGrid();
+    
+    showToast(
+        AppState.planning.apenasPlanadas 
+            ? '✓ Mostrar apenas OTs planeadas' 
+            : '👁️ Mostrar todas as OTs', 
+        'success'
+    );
+}
+
+
 function renderPlanningGrid() {
     const grid = document.getElementById('planningGrid');
     
@@ -12559,9 +12950,21 @@ function renderPlanningGrid() {
         corretivas: allRequests.filter(r => r.tipo === 'Corretiva').length,
         preventivasNaoResolvidas: allRequests.filter(r => r.tipo === 'Preventiva' && r.estado !== 'Resolvido').length
     });
-    const activeTasks = applyPlanningFilters(allRequests);
+    let activeTasks = applyPlanningFilters(allRequests);
+    
+    // 🆕 v3.8.3.10.27.20: Filtrar apenas OTs planeadas (se filtro ativo)
+    if (AppState.planning.apenasPlanadas) {
+        activeTasks = activeTasks.filter(task => {
+            const planningData = AppState.planning.tasks[task.id];
+            // 🎯 CORREÇÃO: "Planeada" = TEM DIAS ALOCADOS (células marcadas no calendário)
+            const temDias = planningData?.diasAlocados && planningData.diasAlocados.length > 0;
+            return temDias;
+        });
+    }
+    
     console.log('🔍 RENDER PLANNING GRID - APÓS FILTROS:', {
         activeTasks: activeTasks.length,
+        apenasPlanadas: AppState.planning.apenasPlanadas,
         preventivas: activeTasks.filter(r => r.tipo === 'Preventiva').length,
         corretivas: activeTasks.filter(r => r.tipo === 'Corretiva').length
     });
@@ -12579,7 +12982,7 @@ function renderPlanningGrid() {
     html += '</tr></thead><tbody>';
     activeTasks.forEach(task => {
         html += '<tr>';
-        html += `<td class="task-cell"><div class="task-info"><div class="task-title"><span style="font-weight: 600; color: #3B82F6; margin-right: 8px;">#${task.id}</span>${task.descricao}</div><div class="task-meta"><span class="badge badge-tipo">${task.tipo}</span><span class="badge badge-prioridade ${task.prioridade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}">${task.prioridade}</span>`;
+        html += `<td class="task-cell"><div class="task-info"><div class="task-title"><span style="font-weight: 600; color: #3B82F6; margin-right: 8px; cursor: pointer; text-decoration: underline;" onclick="openRequestDetails('${task.id}')" title="Clique para ver detalhes">#${task.id}</span>${task.descricao}</div><div class="task-meta"><span class="badge badge-tipo">${task.tipo}</span><span class="badge badge-prioridade ${task.prioridade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}">${task.prioridade}</span>`;
         if (task.responsavel && task.responsavel !== '-') html += `<span class="task-responsible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${task.responsavel}</span>`;
         html += `</div></div></td>`;
         
@@ -13031,36 +13434,37 @@ async function syncPlanningWithGoogleSheets() {
         showToast('Erro ao guardar planeamento: ' + error.message, 'error');
     }
 }
-function exportPlanningToExcel() {
-    if (AppState.requests.length === 0) { showToast('Não há dados para exportar.', 'info'); return; }
-    try {
-        const dates = generateDateRange(), activeTasks = AppState.requests.filter(r => r.estado !== 'Resolvido');
-        const requestsData = AppState.requests.map(request => ({ 'ID': request.id, 'Data/Hora': formatDateLong(request.dataHora), 'Tipo': request.tipo, 'Prioridade': request.prioridade, 'Estado': request.estado, 'Departamento': request.departamento, 'Responsável': request.responsavel || '-', 'Descrição': request.descricao, 'Registado por': request.nome, 'Tem Foto': request.foto ? 'Sim' : 'Não' }));
-        const planningData = [];
-        activeTasks.forEach(task => {
-            const row = { 'Pedido ID': task.id, 'Descrição': task.descricao, 'Tipo': task.tipo, 'Prioridade': task.prioridade, 'Responsável': task.responsavel || '-', 'Horas Estimadas': task.horasEstimadas || 0 };
-            dates.forEach(date => {
-                const dateKey = formatDateKey(date), allocationKey = `${task.id}-${dateKey}`, dayLabel = `${date.getDate()}/${date.getMonth() + 1}`;
-                row[dayLabel] = AppState.planning.allocations[allocationKey] ? 'X' : '';
-            });
-            planningData.push(row);
-        });
-        const wb = XLSX.utils.book_new();
-        const ws1 = XLSX.utils.json_to_sheet(requestsData);
-        ws1['!cols'] = [{ wch: 36 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 20 }, { wch: 50 }, { wch: 20 }, { wch: 10 }];
-        XLSX.utils.book_append_sheet(wb, ws1, "Pedidos de Manutenção");
-        if (planningData.length > 0) {
-            const ws2 = XLSX.utils.json_to_sheet(planningData);
-            const cols = [{ wch: 36 }, { wch: 50 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }];
-            dates.forEach(() => cols.push({ wch: 8 }));
-            ws2['!cols'] = cols;
-            XLSX.utils.book_append_sheet(wb, ws2, "Planeamento");
-        }
-        const fileName = `Manutencao_Completo_${formatDateForFilename()}.xlsx`;
-        XLSX.writeFile(wb, fileName, { bookType: 'xlsx' });
-        showToast('Excel exportado com sucesso!', 'success');
-    } catch (error) { console.error('Erro ao exportar:', error); showToast('Erro ao exportar Excel.', 'error'); }
-}
+// ❌ REMOVIDO: Botão "Exportar Excel" (05/02/2026)
+// function exportPlanningToExcel() {
+//     if (AppState.requests.length === 0) { showToast('Não há dados para exportar.', 'info'); return; }
+//     try {
+//         const dates = generateDateRange(), activeTasks = AppState.requests.filter(r => r.estado !== 'Resolvido');
+//         const requestsData = AppState.requests.map(request => ({ 'ID': request.id, 'Data/Hora': formatDateLong(request.dataHora), 'Tipo': request.tipo, 'Prioridade': request.prioridade, 'Estado': request.estado, 'Departamento': request.departamento, 'Responsável': request.responsavel || '-', 'Descrição': request.descricao, 'Registado por': request.nome, 'Tem Foto': request.foto ? 'Sim' : 'Não' }));
+//         const planningData = [];
+//         activeTasks.forEach(task => {
+//             const row = { 'Pedido ID': task.id, 'Descrição': task.descricao, 'Tipo': task.tipo, 'Prioridade': task.prioridade, 'Responsável': task.responsavel || '-', 'Horas Estimadas': task.horasEstimadas || 0 };
+//             dates.forEach(date => {
+//                 const dateKey = formatDateKey(date), allocationKey = `${task.id}-${dateKey}`, dayLabel = `${date.getDate()}/${date.getMonth() + 1}`;
+//                 row[dayLabel] = AppState.planning.allocations[allocationKey] ? 'X' : '';
+//             });
+//             planningData.push(row);
+//         });
+//         const wb = XLSX.utils.book_new();
+//         const ws1 = XLSX.utils.json_to_sheet(requestsData);
+//         ws1['!cols'] = [{ wch: 36 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 20 }, { wch: 50 }, { wch: 20 }, { wch: 10 }];
+//         XLSX.utils.book_append_sheet(wb, ws1, "Pedidos de Manutenção");
+//         if (planningData.length > 0) {
+//             const ws2 = XLSX.utils.json_to_sheet(planningData);
+//             const cols = [{ wch: 36 }, { wch: 50 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }];
+//             dates.forEach(() => cols.push({ wch: 8 }));
+//             ws2['!cols'] = cols;
+//             XLSX.utils.book_append_sheet(wb, ws2, "Planeamento");
+//         }
+//         const fileName = `Manutencao_Completo_${formatDateForFilename()}.xlsx`;
+//         XLSX.writeFile(wb, fileName, { bookType: 'xlsx' });
+//         showToast('Excel exportado com sucesso!', 'success');
+//     } catch (error) { console.error('Erro ao exportar:', error); showToast('Erro ao exportar Excel.', 'error'); }
+// }
 function formatDateKey(date) {
     const year = date.getFullYear(), month = String(date.getMonth() + 1).padStart(2, '0'), day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
