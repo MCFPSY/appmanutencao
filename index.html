@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.28 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.37 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-05
     
-    🎯 v3.8.3.10.27.28: VERSÃO ESTÁVEL - RELATÓRIO OK ✅
+    🎯 v3.8.3.10.27.37: FILTROS PADRÃO OTIMIZADOS ✅
     ────────────────────────────────────────────────────────────────────────────
     ✅ DESCOBERTA: Estrutura DOM está PERFEITA (thead primeiro, tbody segundo)
     ✅ PROBLEMA: Motor de impressão do browser REORGANIZA durante renderização
@@ -2070,11 +2070,16 @@
 
         .relatorio-tabela thead th {
             padding: 12px 8px;
-            text-align: left;
+            text-align: center; /* 🎯 Centralizado */
             border-right: 1px solid rgba(255,255,255,0.2);
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+        
+        /* 🎯 DESCRIÇÃO alinhada à esquerda */
+        .relatorio-tabela thead th:last-child {
+            text-align: left;
         }
 
         .relatorio-tabela thead th:last-child {
@@ -4290,6 +4295,7 @@
             <h1>
                 <img src="/appmanutencao/icons/android-chrome-192x192.png" alt="Logo" class="header-icon" id="headerLogo">
                 Manutenção
+                <span style="font-size: 10px; color: #888; margin-left: 8px; font-weight: normal;">v3.8.3.10.27.37</span>
             </h1>
             <div class="header-actions">
                 <!-- 📚 BOTÃO DE TESTE REMOVIDO - Usava função antiga -->
@@ -4620,11 +4626,11 @@
                                     <span style="color: #e74c3c; font-weight: 600;">⚠️ Atrasadas</span>
                                 </label>
                                 <label class="checkbox-label">
-                                    <input type="checkbox" value="Corretiva" class="filter-tipo">
+                                    <input type="checkbox" value="Corretiva" class="filter-tipo" checked>
                                     <span>Corretiva</span>
                                 </label>
                                 <label class="checkbox-label">
-                                    <input type="checkbox" value="Melhoria" class="filter-tipo">
+                                    <input type="checkbox" value="Melhoria" class="filter-tipo" checked>
                                     <span>Melhoria</span>
                                 </label>
                             </div>
@@ -6613,7 +6619,17 @@ const AppState = {
     filteredRequests: [],
     sortOrder: 'desc',
     groupMode: false,
-    currentFilters: { tipo: [], prioridade: [], estado: ['Novo', 'Em curso'], empresa: [], tipoIntervencao: [], urgente: [], paragemProducao: [], exigeCompra: [] },
+    // 🎯 v3.8.3.10.27.37: Filtros padrão - Preventivas (Para breve + Atrasadas) + Corretiva + Melhoria
+    currentFilters: { 
+        tipo: ['Para breve', 'Atrasadas', 'Corretiva', 'Melhoria'], 
+        prioridade: [], 
+        estado: ['Novo', 'Em curso'], 
+        empresa: [], 
+        tipoIntervencao: [], 
+        urgente: [], 
+        paragemProducao: [], 
+        exigeCompra: [] 
+    },
     isOnline: navigator.onLine,
     planning: { 
         tasks: {},  // ✅ v3.7.0.8: { pedidoId: { responsavel, horasEstimadas, diasAlocados: [] } }
@@ -10519,17 +10535,19 @@ function gerarRelatorio(ots) {
     
     let html = '<table class="relatorio-tabela">';
     
-    // Cabeçalho da tabela - 7 COLUNAS (como no PDF)
+    // Cabeçalho da tabela - 8 COLUNAS (+ PLANEADO)
+    // 🎯 Larguras otimizadas: +15% para DESCRIÇÃO (roubado de ÁREA/COMP/OT)
     html += `
         <thead>
             <tr>
-                <th style="width: 8%;">EMPRESA</th>
-                <th style="width: 15%;">ÁREA/EQUIP.</th>
-                <th style="width: 15%;">COMPONENTE</th>
-                <th style="width: 10%;">OT</th>
-                <th style="width: 10%;">PRIORIDADE</th>
-                <th style="width: 12%;">RESPONSÁVEL</th>
-                <th style="width: 30%;">DESCRIÇÃO</th>
+                <th style="width: 7%;">EMPRESA</th>
+                <th style="width: 10%;">ÁREA/EQUIP.</th>
+                <th style="width: 10%;">COMPONENTE</th>
+                <th style="width: 6%;">OT</th>
+                <th style="width: 8%;">PRIORIDADE</th>
+                <th style="width: 10%;">RESPONSÁVEL</th>
+                <th style="width: 7%;">PLANEADO</th>
+                <th style="width: 42%;">DESCRIÇÃO</th>
             </tr>
         </thead>
         <tbody>
@@ -10542,7 +10560,7 @@ function gerarRelatorio(ots) {
         // 📊 CABEÇALHO DE EMPRESA (como no PDF)
         html += `
             <tr class="relatorio-grupo-header">
-                <td colspan="7" style="background-color: #E8E8E8; font-weight: bold; padding: 8px;">
+                <td colspan="8" style="background-color: #E8E8E8; font-weight: bold; padding: 8px;">
                     📊 ${empresa} (${contarOTsEmpresa(areas)} OTs)
                 </td>
             </tr>
@@ -10555,7 +10573,7 @@ function gerarRelatorio(ots) {
             // 🔧 CABEÇALHO DE ÁREA (como no PDF)
             html += `
                 <tr class="relatorio-area-header">
-                    <td colspan="7" style="background-color: #F3F4F6; font-weight: 600; padding: 6px;">
+                    <td colspan="8" style="background-color: #F3F4F6; font-weight: 600; padding: 6px;">
                         🔧 ${area} (${contarOTsArea(componentes)} OTs)
                     </td>
                 </tr>
@@ -10586,16 +10604,24 @@ function gerarRelatorio(ots) {
                         prioridadeDisplay = 'Média';
                     }
                     
-                    // Linha da OT (7 colunas)
+                    // 🎯 Verificar se está planeado
+                    const planningData = AppState.planning.tasks[ot.id];
+                    const diasAlocados = planningData?.diasAlocados || [];
+                    const estáPlaneado = diasAlocados.length > 0;
+                    const planeadoDisplay = estáPlaneado ? '✅ Sim' : '❌ Não';
+                    
+                    // Linha da OT (8 colunas) - 🎯 TODAS CENTRALIZADAS exceto DESCRIÇÃO
+                    // 🎯 EMPRESA, ÁREA e COMPONENTE em TODAS as linhas (não só idx=0)
                     html += `
                         <tr class="relatorio-item-row">
-                            <td>${idx === 0 ? empresa : ''}</td>
-                            <td>${idx === 0 ? area : ''}</td>
-                            <td>${idx === 0 ? componente : ''}</td>
-                            <td style="font-family: monospace; font-weight: 600;">${ot.id}</td>
-                            <td style="text-transform: uppercase;">${prioridadeDisplay}</td>
-                            <td>${responsavel}</td>
-                            <td>${ot.descricao || ''}</td>
+                            <td style="text-align: center;">${empresa}</td>
+                            <td style="text-align: center;">${area}</td>
+                            <td style="text-align: center;">${componente}</td>
+                            <td style="text-align: center; font-family: monospace; font-weight: 600;">${ot.id}</td>
+                            <td style="text-align: center; text-transform: uppercase;">${prioridadeDisplay}</td>
+                            <td style="text-align: center;">${responsavel}</td>
+                            <td style="text-align: center; font-weight: 600;">${planeadoDisplay}</td>
+                            <td style="text-align: left;">${ot.descricao || ''}</td>
                         </tr>
                     `;
                 });
@@ -12005,6 +12031,16 @@ function cleanOldDataFromLocalStorage() {
         const now = Date.now();
         const oneDayMs = 24 * 60 * 60 * 1000;
         
+        // 🎯 LOG DE DIAGNÓSTICO
+        console.log('========================================');
+        console.log('📦 APP MANUTENÇÃO MCF - v3.8.3.10.27.37');
+        console.log('📅 Data:', new Date().toLocaleString('pt-PT'));
+        console.log('👤 Utilizador:', AppState.user?.username || 'NÃO AUTENTICADO');
+        console.log('🔧 Pode Editar Planeamento:', AppState.user?.podeEditarPlaneamento ? 'SIM ✅' : 'NÃO ❌');
+        console.log('📊 Total OTs:', AppState.requests?.length || 0);
+        console.log('📅 Total Alocações:', Object.keys(AppState.planning?.allocations || {}).length);
+        console.log('========================================');
+        
         // Só limpar se passou mais de 1 dia
         if (!lastCleanup || (now - parseInt(lastCleanup)) > oneDayMs) {
             console.log('🧺 Limpeza automática de dados antigos...');
@@ -13037,6 +13073,17 @@ function renderPlanningGrid() {
     });
     html += '</tbody>';
     grid.innerHTML = html;
+    
+    // 🎯 LOG DE DIAGNÓSTICO: Células azuis
+    const totalCells = document.querySelectorAll('.date-cell').length;
+    const allocatedCells = document.querySelectorAll('.date-cell.allocated').length;
+    console.log('🔵 CÉLULAS RENDERIZADAS:', {
+        totalCells,
+        allocatedCells,
+        percentAllocated: totalCells > 0 ? Math.round((allocatedCells / totalCells) * 100) + '%' : '0%',
+        allocations: Object.keys(AppState.planning.allocations).length,
+        exemplo: Object.keys(AppState.planning.allocations).slice(0, 3)
+    });
 }
 // ✅ v3.7.0.8: Alternar alocação de dia + guardar em diasAlocados
 function toggleAllocation(taskId, dateKey) {
@@ -13165,9 +13212,38 @@ async function savePlanning() {
         return;
     }
     
+    // 🎯 v3.8.3.10.27.36: VALIDAÇÃO ANTES DE GUARDAR
+    const totalTasks = Object.keys(AppState.planning.tasks || {}).length;
+    const totalAllocations = Object.keys(AppState.planning.allocations || {}).length;
+    
+    console.log('======================================');
+    console.log('💾 GUARDANDO PLANEAMENTO');
+    console.log('👤 Utilizador:', AppState.currentUser.username);
+    console.log('📊 Total de tasks:', totalTasks);
+    console.log('📊 Total de alocações:', totalAllocations);
+    console.log('======================================');
+    
+    if (totalTasks === 0 && totalAllocations === 0) {
+        showToast('⚠️ Nenhum dado para guardar. Aloque dias primeiro!', 'warning');
+        return;
+    }
+    
+    // Guardar localmente
     savePlanningToStorage();
-    if (AppState.isOnline) await syncPlanningWithGoogleSheets();  // ✅ v3.7.0.8: AWAIT para garantir sync
-    showToast('Planeamento salvo com sucesso!', 'success');
+    
+    // Sincronizar com Supabase
+    if (AppState.isOnline) {
+        try {
+            await syncPlanningWithGoogleSheets();
+            console.log('✅ Sincronização com Supabase: SUCESSO');
+            showToast('🎉 Planeamento salvo e sincronizado!', 'success');
+        } catch (error) {
+            console.error('❌ Erro na sincronização:', error);
+            showToast('⚠️ Salvo localmente, mas erro ao sincronizar: ' + error.message, 'warning');
+        }
+    } else {
+        showToast('💾 Planeamento salvo localmente (offline)', 'info');
+    }
 }
 function savePlanningToStorage() { localStorage.setItem(CONFIG.STORAGE_KEYS.PLANNING, JSON.stringify(AppState.planning)); }
 // ✅ v3.7.0.8: Carregar planeamento do Supabase
@@ -13208,6 +13284,12 @@ async function loadPlanningFromSupabase() {
         });
         
         console.log(`✅ ${planningData.length} tasks carregados do planeamento`);
+        console.log('🎯 LOAD COMPLETO:', {
+            usuario: AppState.currentUser?.username,
+            tasks: Object.keys(AppState.planning.tasks).length,
+            alocacoes: Object.keys(AppState.planning.allocations).length,
+            timestamp: new Date().toISOString()
+        });
         savePlanningToStorage();  // Guardar localmente
         
     } catch (error) {
@@ -13371,7 +13453,10 @@ async function syncPlanningWithGoogleSheets() {
         if (tasksToSync.length === 0) {
             console.warn('⚠️ Nenhum task para sincronizar!');
             console.warn('⚠️ Verifica se definiste responsável, horas ou marcaste dias');
-            return;  // ✅ NÃO mostrar toast de erro, apenas return
+            console.warn('📊 AppState.planning.tasks:', Object.keys(AppState.planning.tasks).length);
+            console.warn('📊 AppState.planning.allocations:', Object.keys(AppState.planning.allocations).length);
+            // 🎯 v3.8.3.10.27.36: LANÇAR ERRO em vez de return silencioso
+            throw new Error('Nenhum task válido para sincronizar. Verifique se alocou dias.');
         }
         
         // Limpar planeamentos antigos que já não existem
@@ -13422,11 +13507,17 @@ async function syncPlanningWithGoogleSheets() {
         }
         
         console.log(`✅ ${tasksToSync.length} tasks sincronizados com Supabase`);
+        console.log('🎯 SYNC COMPLETO:', {
+            usuario: AppState.currentUser?.username,
+            tasks: tasksToSync.length,
+            timestamp: new Date().toISOString()
+        });
         
         // 🆕 v3.7.6.9: Salvar mudanças no localStorage após atualizar responsáveis
         saveToLocalStorage();
         
-        showToast('Planeamento guardado com sucesso!', 'success');
+        // 🎯 v3.8.3.10.27.36: NÃO mostrar toast aqui (já mostrado em savePlanning)
+        // showToast('Planeamento guardado com sucesso!', 'success');
         
     } catch (error) {
         console.error('❌ Erro ao sincronizar planeamento:', error);
