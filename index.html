@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.52 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.53 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-11
     
+    🎯 v3.8.3.10.27.53: FIX - Campos de Revisão aparecem corretamente (Tipo Intervenção oculto) ✅
     🎯 v3.8.3.10.27.52: FIX - Campo Tipo de Revisão não é mais obrigatório quando não é Revisão ✅
     ────────────────────────────────────────────────────────────────────────────
     ✅ DESCOBERTA: Estrutura DOM está PERFEITA (thead primeiro, tbody segundo)
@@ -5033,7 +5034,7 @@
                         </div>
 
                         <!-- 3. Tipo de Intervenção -->
-                        <div class="form-group">
+                        <div class="form-group" id="tipoIntervencaoGroup">
                             <label class="form-label" for="tipoIntervencao">Tipo de Intervenção *</label>
                             <select class="form-input" id="tipoIntervencao" name="tipoIntervencao" required>
                                 <option value="">Selecione o tipo *</option>
