@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.53 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.54 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-11
     
+    🎯 v3.8.3.10.27.54: FIX CRÍTICO - Revisões + Multiselect INLINE (mesmo fix do Filtro Excel) ✅
     🎯 v3.8.3.10.27.53: FIX - Campos de Revisão aparecem corretamente (Tipo Intervenção oculto) ✅
     🎯 v3.8.3.10.27.52: FIX - Campo Tipo de Revisão não é mais obrigatório quando não é Revisão ✅
     ────────────────────────────────────────────────────────────────────────────
@@ -4408,8 +4409,6 @@
     <!-- 🆕 v3.8.3.10.27.41: Choices.js para multiselect -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/styles/choices.min.css">
     <script src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
-    <!-- 🆕 v3.8.3.10.27.42: Módulo de Revisões e Multiselect -->
-    <script src="revisoes-multiselect.js"></script>
     
     <!-- 🆕 v3.8.3.10.27.51: Filtro Excel (INLINE para garantir carregamento) -->
     <style>
@@ -4811,6 +4810,453 @@
     }
 
     console.log('📦 FiltroExcel (INLINE) carregado');
+    </script>
+    
+    <!-- 🆕 v3.8.3.10.27.54: Revisões + Multiselect (INLINE para garantir carregamento) -->
+    <script>
+    // ================================================================
+    // 🚀 REVISÕES + MULTISELECT (INLINE)
+    // v3.8.3.10.27.54
+    // ================================================================
+    
+    // ================================================================
+    // CONFIGURAÇÃO
+    // ================================================================
+    
+    const EQUIPAMENTOS_REVISAO = {
+        'MCF': ['Empilhadores', 'High-Lifts', 'Pás Carregadoras'],
+        'PSY': ['Empilhadores']
+    };
+    
+    const CHOICES_CONFIG = {
+        removeItemButton: true,
+        searchEnabled: true,
+        searchPlaceholderValue: 'Pesquisar...',
+        noResultsText: 'Nenhum resultado',
+        noChoicesText: 'Sem opções',
+        itemSelectText: '',
+        loadingText: 'A carregar...',
+        maxItemCount: -1,
+        placeholder: true,
+        shouldSort: false,
+        silent: true
+    };
+    
+    // ================================================================
+    // GLOBAL: Instâncias Choices.js
+    // ================================================================
+    
+    window.choicesInstances = {};
+    
+    // ================================================================
+    // INICIALIZAR MULTISELECT
+    // ================================================================
+    
+    function initializeMultiselect() {
+        console.log('🎯 Inicializando multiselect...');
+        
+        try {
+            // Tab OT's - Filtros
+            initMultiselectOTs();
+            
+            // Tab Planeamento - Filtros
+            initMultiselectPlaneamento();
+            
+            console.log('✅ Multiselect inicializado');
+        } catch (error) {
+            console.error('❌ Erro ao inicializar multiselect:', error);
+        }
+    }
+    
+    function initMultiselectOTs() {
+        // Filtro Empresa
+        const filterEmpresa = document.querySelector('.filter-empresa');
+        if (filterEmpresa && typeof Choices !== 'undefined') {
+            window.choicesInstances.filterEmpresa = new Choices(filterEmpresa, {
+                ...CHOICES_CONFIG,
+                placeholderValue: 'Todas as empresas'
+            });
+            
+            filterEmpresa.addEventListener('change', () => {
+                updateFiltersFromChoices();
+                renderRequestsList();
+            });
+        }
+        
+        // Filtro Tipo
+        const filterTipo = document.querySelector('.filter-tipo');
+        if (filterTipo && typeof Choices !== 'undefined') {
+            window.choicesInstances.filterTipo = new Choices(filterTipo, {
+                ...CHOICES_CONFIG,
+                placeholderValue: 'Todos os tipos'
+            });
+            
+            filterTipo.addEventListener('change', () => {
+                updateFiltersFromChoices();
+                renderRequestsList();
+            });
+        }
+        
+        // Filtro Estado
+        const filterEstado = document.querySelector('.filter-estado');
+        if (filterEstado && typeof Choices !== 'undefined') {
+            window.choicesInstances.filterEstado = new Choices(filterEstado, {
+                ...CHOICES_CONFIG,
+                placeholderValue: 'Todos os estados'
+            });
+            
+            filterEstado.addEventListener('change', () => {
+                updateFiltersFromChoices();
+                renderRequestsList();
+            });
+        }
+        
+        // Filtro Responsável
+        const filterResponsavel = document.getElementById('filterResponsavel');
+        if (filterResponsavel && typeof Choices !== 'undefined') {
+            window.choicesInstances.filterResponsavel = new Choices(filterResponsavel, {
+                ...CHOICES_CONFIG,
+                placeholderValue: 'Todos os responsáveis'
+            });
+            
+            filterResponsavel.addEventListener('change', () => {
+                updateFiltersFromChoices();
+                renderRequestsList();
+            });
+        }
+    }
+    
+    function initMultiselectPlaneamento() {
+        // Filtro Estado (Planeamento)
+        const planningFilterEstado = document.querySelectorAll('.planning-filter-estado');
+        planningFilterEstado.forEach((el, index) => {
+            if (el && typeof Choices !== 'undefined') {
+                window.choicesInstances[`planningEstado${index}`] = new Choices(el, {
+                    ...CHOICES_CONFIG,
+                    placeholderValue: 'Todos os estados'
+                });
+                
+                el.addEventListener('change', () => {
+                    renderPlanningGrid();
+                });
+            }
+        });
+    }
+    
+    function updateFiltersFromChoices() {
+        // Atualizar AppState.currentFilters com valores dos multiselect
+        
+        // Empresa
+        if (window.choicesInstances.filterEmpresa) {
+            const values = window.choicesInstances.filterEmpresa.getValue(true);
+            AppState.currentFilters.empresa = Array.isArray(values) ? values : (values ? [values] : []);
+        }
+        
+        // Tipo
+        if (window.choicesInstances.filterTipo) {
+            const values = window.choicesInstances.filterTipo.getValue(true);
+            AppState.currentFilters.tipo = Array.isArray(values) ? values : (values ? [values] : []);
+        }
+        
+        // Estado
+        if (window.choicesInstances.filterEstado) {
+            const values = window.choicesInstances.filterEstado.getValue(true);
+            AppState.currentFilters.estado = Array.isArray(values) ? values : (values ? [values] : []);
+        }
+        
+        // Responsável
+        if (window.choicesInstances.filterResponsavel) {
+            const values = window.choicesInstances.filterResponsavel.getValue(true);
+            AppState.currentFilters.responsavel = Array.isArray(values) ? values : (values ? [values] : []);
+        }
+        
+        console.log('🔄 Filtros atualizados:', AppState.currentFilters);
+    }
+    
+    // ================================================================
+    // REVISÕES: Inicializar campos
+    // ================================================================
+    
+    function initializeRevisao() {
+        console.log('🔧 Inicializando campos de Revisão...');
+        
+        const tipoSelect = document.getElementById('tipo');
+        const empresaSelect = document.getElementById('empresa');
+        const camposRevisao = document.getElementById('camposRevisao');
+        const camposPreventiva = document.getElementById('camposPreventiva');
+        
+        if (!tipoSelect) {
+            console.warn('⚠️ Elemento #tipo não encontrado');
+            return;
+        }
+        
+        // Event listener: Tipo mudou
+        tipoSelect.addEventListener('change', function() {
+            const tipo = this.value;
+            const empresa = empresaSelect ? empresaSelect.value : '';
+            
+            console.log('🔄 Tipo mudou:', tipo);
+            
+            // Referências adicionais
+            const componenteGroup = document.getElementById('componenteGroup');
+            const tipoIntervencaoGroup = document.getElementById('tipoIntervencaoGroup');
+            const checkboxesGroup = document.getElementById('checkboxesGroup');
+            
+            if (tipo === 'Revisão') {
+                console.log('✅ Modo Revisão ATIVADO - ocultando campos de Corretiva/Melhoria');
+                
+                // Mostrar campos de revisão
+                if (camposRevisao) {
+                    camposRevisao.style.display = 'block';
+                    console.log('  ✅ camposRevisao: visível');
+                }
+                if (camposPreventiva) {
+                    camposPreventiva.style.display = 'none';
+                    console.log('  ✅ camposPreventiva: oculto');
+                }
+                
+                // Componente VISÍVEL para Revisões
+                if (componenteGroup) {
+                    componenteGroup.style.display = 'block';
+                    document.getElementById('componente').required = true;
+                    console.log('  ✅ componenteGroup: visível');
+                }
+                
+                // Esconder Tipo de Intervenção para Revisões
+                if (tipoIntervencaoGroup) {
+                    tipoIntervencaoGroup.style.display = 'none';
+                    document.getElementById('tipoIntervencao').required = false;
+                    console.log('  ✅ tipoIntervencaoGroup: OCULTO');
+                }
+                
+                // Esconder checkboxes (Urgente, Paragem, Exige Compra)
+                if (checkboxesGroup) {
+                    checkboxesGroup.style.display = 'none';
+                    console.log('  ✅ checkboxesGroup: OCULTO');
+                }
+                
+                // Filtrar equipamentos
+                filterEquipamentosRevisao(empresa);
+                
+            } else if (tipo === 'Preventiva') {
+                // Mostrar campos de preventiva
+                if (camposPreventiva) {
+                    camposPreventiva.style.display = 'block';
+                }
+                if (camposRevisao) {
+                    camposRevisao.style.display = 'none';
+                }
+                
+                // Restaurar Componente
+                if (componenteGroup) {
+                    componenteGroup.style.display = 'block';
+                    document.getElementById('componente').required = true;
+                }
+                
+                // Restaurar Tipo de Intervenção
+                if (tipoIntervencaoGroup) {
+                    tipoIntervencaoGroup.style.display = 'block';
+                    document.getElementById('tipoIntervencao').required = true;
+                }
+                
+                // Restaurar checkboxes
+                if (checkboxesGroup) {
+                    checkboxesGroup.style.display = 'block';
+                }
+                
+            } else {
+                // Esconder ambos
+                if (camposRevisao) {
+                    camposRevisao.style.display = 'none';
+                    
+                    // Limpar campos de Revisão quando não é Revisão
+                    const tipoRevisaoSelect = document.getElementById('tipoRevisao');
+                    const numeroHorasInput = document.getElementById('numeroHoras');
+                    if (tipoRevisaoSelect) tipoRevisaoSelect.value = '';
+                    if (numeroHorasInput) numeroHorasInput.value = '';
+                }
+                if (camposPreventiva) {
+                    camposPreventiva.style.display = 'none';
+                }
+                
+                // Restaurar Componente
+                if (componenteGroup) {
+                    componenteGroup.style.display = 'block';
+                    document.getElementById('componente').required = true;
+                }
+                
+                // Restaurar Tipo de Intervenção
+                if (tipoIntervencaoGroup) {
+                    tipoIntervencaoGroup.style.display = 'block';
+                    document.getElementById('tipoIntervencao').required = true;
+                }
+                
+                // Restaurar checkboxes
+                if (checkboxesGroup) {
+                    checkboxesGroup.style.display = 'block';
+                }
+            }
+        });
+        
+        // Event listener: Empresa mudou (se Tipo=Revisão)
+        if (empresaSelect) {
+            empresaSelect.addEventListener('change', function() {
+                const tipo = tipoSelect.value;
+                const empresa = this.value;
+                
+                if (tipo === 'Revisão') {
+                    filterEquipamentosRevisao(empresa);
+                }
+            });
+        }
+        
+        // 🆕 v3.8.3.10.27.54: Aplicar lógica inicial ao carregar a página
+        // Se "Revisão" já estiver selecionada ao carregar, ocultar campos corretos
+        const tipoInicial = tipoSelect.value;
+        if (tipoInicial === 'Revisão') {
+            console.log('🔄 Aplicando lógica inicial para Revisão');
+            
+            if (camposRevisao) camposRevisao.style.display = 'block';
+            if (camposPreventiva) camposPreventiva.style.display = 'none';
+            
+            const componenteGroup = document.getElementById('componenteGroup');
+            const tipoIntervencaoGroup = document.getElementById('tipoIntervencaoGroup');
+            const checkboxesGroup = document.getElementById('checkboxesGroup');
+            
+            if (componenteGroup) {
+                componenteGroup.style.display = 'block';
+                const componenteField = document.getElementById('componente');
+                if (componenteField) componenteField.required = true;
+            }
+            
+            if (tipoIntervencaoGroup) {
+                tipoIntervencaoGroup.style.display = 'none';
+                const tipoIntervencaoField = document.getElementById('tipoIntervencao');
+                if (tipoIntervencaoField) tipoIntervencaoField.required = false;
+                console.log('  ✅ tipoIntervencaoGroup: OCULTO (inicial)');
+            }
+            
+            if (checkboxesGroup) {
+                checkboxesGroup.style.display = 'none';
+                console.log('  ✅ checkboxesGroup: OCULTO (inicial)');
+            }
+            
+            const empresa = empresaSelect ? empresaSelect.value : '';
+            if (empresa) {
+                filterEquipamentosRevisao(empresa);
+            }
+        }
+        
+        console.log('✅ Revisão inicializada');
+    }
+    
+    function filterEquipamentosRevisao(empresa) {
+        const areaSelect = document.getElementById('areaEquipamento');
+        
+        if (!areaSelect || !empresa) {
+            console.warn('⚠️ Empresa ou área não encontrada');
+            return;
+        }
+        
+        const equipamentosPermitidos = EQUIPAMENTOS_REVISAO[empresa] || [];
+        
+        console.log(`🔧 Filtrando equipamentos para ${empresa}:`, equipamentosPermitidos);
+        
+        // Limpar opções existentes
+        areaSelect.innerHTML = '<option value="">Selecione o equipamento</option>';
+        
+        // Adicionar apenas equipamentos permitidos
+        equipamentosPermitidos.forEach(equip => {
+            const option = document.createElement('option');
+            option.value = equip;
+            option.textContent = equip;
+            areaSelect.appendChild(option);
+        });
+        
+        // Habilitar dropdown
+        areaSelect.disabled = false;
+    }
+    
+    // ================================================================
+    // REVISÕES: Validar formulário
+    // ================================================================
+    
+    function validateRevisao(data) {
+        const { tipo, empresa, areaEquipamento, dataPrimeiraIntervencao, frequencia, tiposRevisao } = data;
+        
+        if (tipo !== 'Revisão') {
+            return true; // Não é revisão, skip validação
+        }
+        
+        // 1. Empresa obrigatória
+        if (!empresa) {
+            showToast('❌ Empresa é obrigatória para revisões', 'error');
+            return false;
+        }
+        
+        // 2. Equipamento deve ser permitido
+        const equipamentosPermitidos = EQUIPAMENTOS_REVISAO[empresa] || [];
+        if (!equipamentosPermitidos.includes(areaEquipamento)) {
+            showToast(`❌ Equipamento "${areaEquipamento}" não permitido para revisões ${empresa}`, 'error');
+            return false;
+        }
+        
+        // 3. Data 1ª Intervenção obrigatória
+        if (!dataPrimeiraIntervencao) {
+            showToast('❌ Data 1ª Intervenção é obrigatória para revisões', 'error');
+            return false;
+        }
+        
+        // 4. Frequência obrigatória
+        if (!frequencia) {
+            showToast('❌ Frequência é obrigatória para revisões', 'error');
+            return false;
+        }
+        
+        // 5. Tipo de Revisão obrigatório
+        if (!tiposRevisao || tiposRevisao.length === 0 || !tiposRevisao[0]) {
+            showToast('❌ Selecione o tipo de revisão', 'error');
+            return false;
+        }
+        
+        console.log('✅ Revisão validada com sucesso');
+        return true;
+    }
+    
+    // ================================================================
+    // REVISÕES: Coletar dados do formulário
+    // ================================================================
+    
+    function getRevisaoData() {
+        const numeroHoras = document.getElementById('numeroHoras')?.value || null;
+        const dataPrimeiraIntervencao = document.getElementById('dataPrimeiraIntervencaoRevisao')?.value || null;
+        const frequencia = document.getElementById('frequenciaRevisao')?.value || null;
+        
+        // Tipo de Revisão (dropdown simples)
+        const tipoRevisaoSelect = document.getElementById('tipoRevisao');
+        const tipoRevisao = tipoRevisaoSelect?.value || null;
+        const tiposRevisao = tipoRevisao ? [tipoRevisao] : []; // Converter para array (BD espera array)
+        
+        return {
+            numeroHoras: numeroHoras ? parseInt(numeroHoras) : null,
+            dataPrimeiraIntervencao,
+            frequencia: frequencia || null,  // String (Semanal, Mensal, etc.)
+            tiposRevisao
+        };
+    }
+    
+    // ================================================================
+    // EXPORT FUNCTIONS (para uso global)
+    // ================================================================
+    
+    window.initializeMultiselect = initializeMultiselect;
+    window.initializeRevisao = initializeRevisao;
+    window.validateRevisao = validateRevisao;
+    window.getRevisaoData = getRevisaoData;
+    window.filterEquipamentosRevisao = filterEquipamentosRevisao;
+    window.EQUIPAMENTOS_REVISAO = EQUIPAMENTOS_REVISAO;
+    
+    console.log('📦 Revisões + Multiselect (INLINE) carregado v3.8.3.10.27.54');
     </script>
 </head>
 <body class="app-loading">
