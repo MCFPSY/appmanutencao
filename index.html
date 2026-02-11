@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.49 (Worker: v3.8.3.10.27.10)
-    📅 Data: 2026-02-10
+    📦 Versão: v3.8.3.10.27.50 (Worker: v3.8.3.10.27.10)
+    📅 Data: 2026-02-11
     
-    🎯 v3.8.3.10.27.49: Removido versão do cabeçalho ✅
+    🎯 v3.8.3.10.27.50: FIX - Filtro Excel Planeamento inicializa quando aba é aberta ✅
     ────────────────────────────────────────────────────────────────────────────
     ✅ DESCOBERTA: Estrutura DOM está PERFEITA (thead primeiro, tbody segundo)
     ✅ PROBLEMA: Motor de impressão do browser REORGANIZA durante renderização
@@ -10072,7 +10072,34 @@ function handleTabChange(e) {
         console.warn('Erro ao guardar aba:', e);
     }
     
-    if (tab === 'planeamento') renderPlanningGrid();
+    if (tab === 'planeamento') {
+        renderPlanningGrid();
+        // ✅ v3.8.3.10.27.50: Inicializar Filtro Excel de Equipamento para Planeamento
+        setTimeout(() => {
+            const planningBtn = document.getElementById('planningFilterEquipamentoBtn');
+            if (planningBtn && !window.filtroEquipamentoPlanning) {
+                console.log('🔧 Inicializando Filtro Excel para Planeamento...');
+                const areaMap = {};
+                AppState.equipamentos.forEach(e => {
+                    if (!areaMap[e.area]) areaMap[e.area] = 0;
+                    areaMap[e.area]++;
+                });
+                const areas = Object.keys(areaMap).sort();
+                
+                window.filtroEquipamentoPlanning = new FiltroExcel({
+                    id: 'equipamento-planning',
+                    targetInputId: 'planningFilterEquipamentoBtn',
+                    options: areas,
+                    selectedOptions: areas,
+                    placeholder: 'Todos os equipamentos',
+                    onApply: (selected) => {
+                        AppState.filtroEquipamentoPlanningSelecionados = selected;
+                        renderWeekView();
+                    }
+                });
+            }
+        }, 100);
+    }
     
     // ✅ NOVO: Renderizar alertas de stock mínimo ao abrir tab Stock
     if (tab === 'stock') {
@@ -10157,6 +10184,34 @@ function restoreActiveTab() {
                 // 📚 Carregar manuais ao restaurar tab Manuais
                 if (activeTab === 'manuais') {
                     setTimeout(() => carregarManuais(), 100);
+                }
+                
+                // ✅ v3.8.3.10.27.50: Inicializar Filtro Excel ao restaurar Planeamento
+                if (activeTab === 'planeamento') {
+                    setTimeout(() => {
+                        const planningBtn = document.getElementById('planningFilterEquipamentoBtn');
+                        if (planningBtn && !window.filtroEquipamentoPlanning) {
+                            console.log('🔧 Inicializando Filtro Excel para Planeamento (restore)...');
+                            const areaMap = {};
+                            AppState.equipamentos.forEach(e => {
+                                if (!areaMap[e.area]) areaMap[e.area] = 0;
+                                areaMap[e.area]++;
+                            });
+                            const areas = Object.keys(areaMap).sort();
+                            
+                            window.filtroEquipamentoPlanning = new FiltroExcel({
+                                id: 'equipamento-planning',
+                                targetInputId: 'planningFilterEquipamentoBtn',
+                                options: areas,
+                                selectedOptions: areas,
+                                placeholder: 'Todos os equipamentos',
+                                onApply: (selected) => {
+                                    AppState.filtroEquipamentoPlanningSelecionados = selected;
+                                    renderWeekView();
+                                }
+                            });
+                        }
+                    }, 100);
                 }
                 
                 console.log('✅ Aba restaurada:', activeTab);
@@ -10721,22 +10776,27 @@ function populateEquipamentoFilter() {
     }
     
     // Criar Filtro Excel para Planeamento
-    if (!window.filtroEquipamentoPlanning) {
-        window.filtroEquipamentoPlanning = new FiltroExcel({
-            id: 'equipamento-planning',
-            targetInputId: 'planningFilterEquipamentoBtn',
-            options: areas,
-            selectedOptions: areas, // Tudo selecionado por padrão
-            placeholder: 'Todos os equipamentos',
-            onApply: (selected) => {
-                // Atualizar filtro de planeamento
-                AppState.filtroEquipamentoPlanningSelecionados = selected;
-                renderWeekView();
-            }
-        });
+    const planningBtn = document.getElementById('planningFilterEquipamentoBtn');
+    if (planningBtn) {
+        if (!window.filtroEquipamentoPlanning) {
+            window.filtroEquipamentoPlanning = new FiltroExcel({
+                id: 'equipamento-planning',
+                targetInputId: 'planningFilterEquipamentoBtn',
+                options: areas,
+                selectedOptions: areas, // Tudo selecionado por padrão
+                placeholder: 'Todos os equipamentos',
+                onApply: (selected) => {
+                    // Atualizar filtro de planeamento
+                    AppState.filtroEquipamentoPlanningSelecionados = selected;
+                    renderWeekView();
+                }
+            });
+        } else {
+            window.filtroEquipamentoPlanning.updateOptions(areas);
+            window.filtroEquipamentoPlanning.selectAll();
+        }
     } else {
-        window.filtroEquipamentoPlanning.updateOptions(areas);
-        window.filtroEquipamentoPlanning.selectAll();
+        console.warn('⚠️ Botão de filtro de Planeamento ainda não existe (será criado quando abrir a aba)');
     }
     
     console.log('⚡ Filtros Excel de Equipamento criados com', areas.length, 'áreas');
@@ -17664,4 +17724,3 @@ document.head.appendChild(styleAnimations);
     </script>
 </body>
 </html>
-
