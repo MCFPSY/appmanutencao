@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.37 (Worker: v3.8.3.10.27.10)
-    📅 Data: 2026-02-05
+    📦 Versão: v3.8.3.10.27.49 (Worker: v3.8.3.10.27.10)
+    📅 Data: 2026-02-10
     
-    🎯 v3.8.3.10.27.37: FILTROS PADRÃO OTIMIZADOS ✅
+    🎯 v3.8.3.10.27.49: Removido versão do cabeçalho ✅
     ────────────────────────────────────────────────────────────────────────────
     ✅ DESCOBERTA: Estrutura DOM está PERFEITA (thead primeiro, tbody segundo)
     ✅ PROBLEMA: Motor de impressão do browser REORGANIZA durante renderização
@@ -4265,6 +4265,122 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+        
+        /* ===================================
+           🆕 v3.8.3.10.27.41: Choices.js Multiselect Custom Styles
+           =================================== */
+        
+        /* Container principal */
+        .choices {
+            margin-bottom: 0;
+            font-size: 0.9375rem;
+        }
+        
+        .choices__inner {
+            background: var(--color-white);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: 8px 12px;
+            min-height: 44px;
+            font-family: var(--font-family);
+        }
+        
+        .choices__inner:focus,
+        .choices[data-type*="select-multiple"] .choices__inner:focus {
+            border-color: var(--color-blue);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+        
+        /* Items selecionados */
+        .choices__list--multiple .choices__item {
+            background-color: var(--color-blue);
+            border: none;
+            border-radius: 16px;
+            padding: 4px 12px;
+            margin: 2px 4px 2px 0;
+            font-size: 0.875rem;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .choices__list--multiple .choices__item.is-highlighted {
+            background-color: var(--color-blue-dark);
+        }
+        
+        /* Botão remover item */
+        .choices__button {
+            border-left: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0 0 0 8px;
+            margin-left: 8px;
+            background: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .choices__button:hover {
+            opacity: 1;
+        }
+        
+        /* Dropdown */
+        .choices__list--dropdown {
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            margin-top: 4px;
+            box-shadow: var(--shadow-md);
+            z-index: 100;
+        }
+        
+        .choices__list--dropdown .choices__item {
+            padding: 10px 12px;
+            font-size: 0.9375rem;
+            transition: background 0.2s;
+        }
+        
+        .choices__list--dropdown .choices__item--selectable {
+            padding-right: 40px;
+        }
+        
+        .choices__list--dropdown .choices__item--selectable.is-highlighted {
+            background-color: var(--color-background);
+        }
+        
+        .choices__list--dropdown .choices__item--selectable:hover {
+            background-color: #F0F0F0;
+        }
+        
+        /* Placeholder */
+        .choices__placeholder {
+            opacity: 0.5;
+        }
+        
+        /* Input de pesquisa */
+        .choices__input {
+            background-color: transparent;
+            border: none;
+            padding: 4px;
+            font-size: 0.9375rem;
+            font-family: var(--font-family);
+        }
+        
+        .choices__input:focus {
+            outline: none;
+        }
+        
+        /* Estado disabled */
+        .choices.is-disabled .choices__inner {
+            background-color: var(--color-background);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .choices__list--multiple .choices__item {
+                font-size: 0.8125rem;
+                padding: 3px 10px;
+            }
+        }
     </style>
     
     <!-- PDF.js para processar manuais -->
@@ -4287,6 +4403,15 @@
             console.warn('⚠️ Tesseract.js não carregou (OCR desabilitado)');
         }
     </script>
+    
+    <!-- 🆕 v3.8.3.10.27.41: Choices.js para multiselect -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/styles/choices.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
+    <!-- 🆕 v3.8.3.10.27.42: Módulo de Revisões e Multiselect -->
+    <script src="revisoes-multiselect.js"></script>
+    <!-- 🆕 v3.8.3.10.27.46: Filtro Excel -->
+    <link rel="stylesheet" href="filtro-excel.css">
+    <script src="filtro-excel.js"></script>
 </head>
 <body class="app-loading">
     <!-- Header -->
@@ -4295,7 +4420,6 @@
             <h1>
                 <img src="/appmanutencao/icons/android-chrome-192x192.png" alt="Logo" class="header-icon" id="headerLogo">
                 Manutenção
-                <span style="font-size: 10px; color: #888; margin-left: 8px; font-weight: normal;">v3.8.3.10.27.37</span>
             </h1>
             <div class="header-actions">
                 <!-- 📚 BOTÃO DE TESTE REMOVIDO - Usava função antiga -->
@@ -4385,7 +4509,7 @@
                 </svg>
                 Análise
             </button>
-            <button class="tab-btn" data-tab="autonomas">
+            <button class="tab-btn" data-tab="documentos">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                     <polyline points="14 2 14 8 20 8"/>
@@ -4393,14 +4517,7 @@
                     <line x1="16" y1="17" x2="8" y2="17"/>
                     <polyline points="10 9 9 9 8 9"/>
                 </svg>
-                Autónomas MCF
-            </button>
-            <button class="tab-btn" data-tab="manuais" id="tabManuaisBtn" style="display: none;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                </svg>
-                Manuais
+                Documentos
             </button>
         </nav>
 
@@ -4429,6 +4546,7 @@
                                 <option value="Preventiva">Preventiva</option>
                                 <option value="Corretiva">Corretiva</option>
                                 <option value="Melhoria">Melhoria</option>
+                                <option value="Revisão">Revisão</option>
                             </select>
                         </div>
 
@@ -4459,6 +4577,62 @@
                             <small class="form-hint">Data da primeira intervenção programada</small>
                         </div>
 
+                        <!-- 🆕 v3.8.3.10.27.42: CAMPOS DE REVISÃO (apenas para Revisões) -->
+                        <div id="camposRevisao" style="display: none;">
+                            <!-- Data 1ª Intervenção -->
+                            <div class="form-group">
+                                <label class="form-label" for="dataPrimeiraIntervencaoRevisao">Data 1ª Intervenção *</label>
+                                <input 
+                                    type="date" 
+                                    class="form-input" 
+                                    id="dataPrimeiraIntervencaoRevisao" 
+                                    name="dataPrimeiraIntervencaoRevisao"
+                                >
+                                <small class="form-hint">Data da primeira intervenção programada</small>
+                            </div>
+
+                            <!-- Frequência -->
+                            <div class="form-group">
+                                <label class="form-label" for="frequenciaRevisao">Frequência *</label>
+                                <select class="form-input" id="frequenciaRevisao" name="frequenciaRevisao">
+                                    <option value="">Selecione a frequência</option>
+                                    <option value="Semanal">Semanal</option>
+                                    <option value="Quinzenal">Quinzenal</option>
+                                    <option value="Mensal">Mensal</option>
+                                    <option value="Trimestral">Trimestral</option>
+                                    <option value="Semestral">Semestral</option>
+                                    <option value="Anual">Anual</option>
+                                    <option value="2 anos">2 anos</option>
+                                </select>
+                            </div>
+
+                            <!-- Número de Horas -->
+                            <div class="form-group">
+                                <label class="form-label" for="numeroHoras">Número de Horas</label>
+                                <input 
+                                    type="number" 
+                                    class="form-input" 
+                                    id="numeroHoras" 
+                                    name="numeroHoras"
+                                    min="0"
+                                    step="1"
+                                    placeholder="Ex: 500"
+                                >
+                                <small class="form-hint">Número de horas de funcionamento do equipamento (opcional)</small>
+                            </div>
+
+                            <!-- Tipo de Revisão -->
+                            <div class="form-group">
+                                <label class="form-label" for="tipoRevisao">Tipo de Revisão *</label>
+                                <select class="form-input" id="tipoRevisao" name="tipoRevisao" required>
+                                    <option value="">Selecione o tipo</option>
+                                    <option value="geral">Revisão Geral</option>
+                                    <option value="filtros_oleos">Revisão Filtros + Óleos</option>
+                                    <option value="oleo_caixa">Revisão Óleo Caixa</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <!-- 3. Tipo de Intervenção -->
                         <div class="form-group">
                             <label class="form-label" for="tipoIntervencao">Tipo de Intervenção *</label>
@@ -4473,7 +4647,7 @@
                         </div>
 
                         <!-- 4. Checkboxes: Urgente, Paragem Produção e Exige Compra -->
-                        <div class="form-group">
+                        <div class="form-group" id="checkboxesGroup">
                             <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 12px;">
                                 <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                                     <input type="checkbox" id="urgente" name="urgente" value="true" style="width: 18px; height: 18px; cursor: pointer;">
@@ -4534,7 +4708,7 @@
                         </div>
 
                         <!-- 7. Componente (desabilitado até escolher Área) -->
-                        <div class="form-group">
+                        <div class="form-group" id="componenteGroup">
                             <label class="form-label" for="componente">Componente *</label>
                             <select class="form-input" id="componente" name="componente" required disabled>
                                 <option value="">Escolha primeiro a área/equipamento</option>
@@ -4633,6 +4807,10 @@
                                     <input type="checkbox" value="Melhoria" class="filter-tipo" checked>
                                     <span>Melhoria</span>
                                 </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Revisão" class="filter-tipo" checked>
+                                    <span>Revisão</span>
+                                </label>
                             </div>
                         </div>
 
@@ -4686,13 +4864,12 @@
                             </div>
                         </div>
 
-                        <!-- ⚡ NOVO: Filtro de Equipamento -->
+                        <!-- ⚡ NOVO: Filtro de Equipamento (Excel Style) -->
                         <div class="filter-group">
                             <label class="filter-label">🔧 Área/Equipamento</label>
-                            <select id="filterEquipamento" class="form-input" style="width: 100%; margin-top: 8px;">
-                                <option value="">Todos os equipamentos</option>
-                                <!-- Populado dinamicamente via JavaScript -->
-                            </select>
+                            <button id="filterEquipamentoBtn" class="filtro-excel-trigger" type="button" style="margin-top: 8px;">
+                                📋 Todos os equipamentos
+                            </button>
                         </div>
                         
                         <!-- ✅ v3.7.0.9: NOVO Filtro de Responsável -->
@@ -4955,6 +5132,10 @@
                                     <input type="checkbox" value="Melhoria" class="planning-filter-tipo" checked>
                                     <span>Melhoria</span>
                                 </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="Revisão" class="planning-filter-tipo" checked>
+                                    <span>Revisão</span>
+                                </label>
                             </div>
                         </div>
 
@@ -5014,10 +5195,9 @@
 
                         <div class="filter-group">
                             <label class="filter-label">🔧 Área/Equipamento</label>
-                            <select id="planningFilterEquipamento" class="form-input" style="width: 100%; margin-top: 8px;">
-                                <option value="">Todos os equipamentos</option>
-                                <!-- Populado dinamicamente -->
-                            </select>
+                            <button id="planningFilterEquipamentoBtn" class="filtro-excel-trigger" type="button" style="margin-top: 8px;">
+                                📋 Todos os equipamentos
+                            </button>
                         </div>
                         
                         <div class="filter-group">
@@ -5118,13 +5298,117 @@
         </section>
 
         <!-- 📚 TAB MANUAIS -->
-        <section class="tab-content" id="tab-manuais">
+        <!-- ❌ TAB MANUAIS REMOVIDA (merged para tab-documentos) v3.8.3.10.27.38 -->
+        <!-- 📚 DOCUMENTOS Tab (merge de Autónomas + Manuais) v3.8.3.10.27.38 -->
+        <section class="tab-content" id="tab-documentos">
             <div class="container">
-                
-                <!-- CARD 1: UPLOAD DE MANUAL -->
                 <div class="card">
-                    <h2 class="card-title">📚 Gestão de Manuais de Instrução</h2>
-                    <p class="card-description">Upload e processamento de manuais para consulta pelo Chatbot IA</p>
+                    <h2 class="card-title">🔧 Manutenções Autónomas MCF</h2>
+                    <p class="card-description">Selecione uma máquina para visualizar os procedimentos de manutenção.</p>
+                    
+                    <!-- Seletor de Máquina -->
+                    <div class="form-group">
+                        <label class="form-label" for="machineSelect">Máquina</label>
+                        <select class="form-input" id="machineSelect">
+                            <option value="">Selecione uma máquina</option>
+                            <option value="crivo">Crivo de excêntrico</option>
+                            <option value="destrocador">Destroçador</option>
+                            <option value="l01-dupla">L01 - Dupla</option>
+                            <option value="l01-multiserra">L01 - Multiserra</option>
+                            <option value="l01-paletizadora">L01 - Paletizadora</option>
+                            <option value="l01-retestadeira">L01 - Retestadeira</option>
+                            <option value="l01-tracador">L01 - Traçador</option>
+                            <option value="l02-charriot">L02 - Charriot</option>
+                            <option value="l02-retestadeira">L02 - Retestadeira</option>
+                            <option value="l03-alinhadeira">L03 - Alinhadeira</option>
+                            <option value="l03-paletizadora">L03 - Paletizadora</option>
+                            <option value="l03-retestadeira">L03 - Retestadeira</option>
+                            <option value="tinas">Tinas impregnante</option>
+                        </select>
+                    </div>
+
+                    <!-- Ações PDF -->
+                    <div class="pdf-actions" id="pdfActions" style="display: none;">
+                        <button class="btn btn-secondary" id="downloadPdfBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                            </svg>
+                            Download
+                        </button>
+                        <button class="btn btn-secondary" id="printPdfBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                                <rect x="6" y="14" width="12" height="8"/>
+                            </svg>
+                            Imprimir
+                        </button>
+                        <!-- ❌ v3.8.3.10.27.38: Botão "Abrir no Google Drive" REMOVIDO (migração para Supabase) -->
+                    </div>
+                </div>
+
+                <!-- Visualizador PDF -->
+                <div class="card pdf-viewer-container" id="pdfViewerContainer" style="display: none;">
+                    <div class="pdf-viewer-header">
+                        <h3 id="pdfTitle">Procedimento de Manutenção</h3>
+                        <button class="btn-icon" id="closePdfBtn" title="Fechar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="pdf-viewer">
+                        <iframe id="pdfIframe" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="pdfEmptyState" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <h3>Selecione uma Máquina</h3>
+                    <p>Escolha uma máquina acima para visualizar os standards de manutenção MCF</p>
+                </div>
+                
+                <!-- ───────────────────────────────────────────────────────────── -->
+                <!-- SECÇÃO 2: MANUAIS DISPONÍVEIS -->
+                <!-- ───────────────────────────────────────────────────────────── -->
+                
+                <div class="card" style="margin-top: var(--spacing-xl);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
+                        <div>
+                            <h2 class="card-title" style="margin: 0;">📖 Manuais Disponíveis</h2>
+                            <p class="card-description" style="margin-top: 8px;">Consulte os manuais de instrução dos equipamentos</p>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="carregarManuais()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" 
+                                 style="width: 16px; height: 16px; margin-right: 4px;">
+                                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                            </svg>
+                            Atualizar
+                        </button>
+                    </div>
+                    
+                    <!-- Lista de Manuais -->
+                    <div id="manuaisLista">
+                        <div class="loading-spinner">A carregar manuais...</div>
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div id="manuaisEmptyState" class="empty-state-small" style="display: none;">
+                        <p>📚 Nenhum manual carregado ainda. Faça upload do primeiro manual abaixo!</p>
+                    </div>
+                </div>
+                
+                <!-- ───────────────────────────────────────────────────────────── -->
+                <!-- SECÇÃO 3: UPLOAD DE NOVO MANUAL -->
+                <!-- ───────────────────────────────────────────────────────────── -->
+                
+                <div class="card" style="margin-top: var(--spacing-xl);">
+                    <h2 class="card-title">📤 Upload de Novo Manual</h2>
+                    <p class="card-description">Adicione novos manuais de instrução para consulta pelo Chatbot IA</p>
                     
                     <form id="uploadManualForm" class="maintenance-form">
                         <!-- Equipamento -->
@@ -5184,113 +5468,6 @@
                             <div id="uploadProgressBar" style="width: 0%; height: 100%; background: var(--color-blue); transition: width 0.3s;"></div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- CARD 2: LISTA DE MANUAIS -->
-                <div class="card" style="margin-top: var(--spacing-lg);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
-                        <h2 class="card-title" style="margin: 0;">📖 Manuais Disponíveis</h2>
-                        <button class="btn btn-secondary btn-sm" onclick="carregarManuais()">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" 
-                                 style="width: 16px; height: 16px; margin-right: 4px;">
-                                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                            </svg>
-                            Atualizar
-                        </button>
-                    </div>
-                    
-                    <!-- Lista de Manuais -->
-                    <div id="manuaisLista">
-                        <div class="loading-spinner">A carregar manuais...</div>
-                    </div>
-                    
-                    <!-- Empty State -->
-                    <div id="manuaisEmptyState" class="empty-state-small" style="display: none;">
-                        <p>📚 Nenhum manual carregado ainda. Faça upload do primeiro manual acima!</p>
-                    </div>
-                </div>
-                
-            </div>
-        </section>
-
-        <!-- Autónomas MCF Tab -->
-        <section class="tab-content" id="tab-autonomas">
-            <div class="container">
-                <div class="card">
-                    <h2 class="card-title">Autónomas MCF</h2>
-                    <p class="card-description">Selecione uma máquina para visualizar os standards de manutenção MCF.</p>
-                    
-                    <!-- Seletor de Máquina -->
-                    <div class="form-group">
-                        <label class="form-label" for="machineSelect">Máquina</label>
-                        <select class="form-input" id="machineSelect">
-                            <option value="">Selecione uma máquina</option>
-                            <option value="crivo">Crivo de excêntrico</option>
-                            <option value="destrocador">Destroçador</option>
-                            <option value="l01-dupla">L01 - Dupla</option>
-                            <option value="l01-multiserra">L01 - Multiserra</option>
-                            <option value="l01-paletizadora">L01 - Paletizadora</option>
-                            <option value="l01-retestadeira">L01 - Retestadeira</option>
-                            <option value="l01-tracador">L01 - Traçador</option>
-                            <option value="l02-charriot">L02 - Charriot</option>
-                            <option value="l02-retestadeira">L02 - Retestadeira</option>
-                            <option value="l03-alinhadeira">L03 - Alinhadeira</option>
-                            <option value="l03-paletizadora">L03 - Paletizadora</option>
-                            <option value="l03-retestadeira">L03 - Retestadeira</option>
-                            <option value="tinas">Tinas impregnante</option>
-                        </select>
-                    </div>
-
-                    <!-- Ações PDF -->
-                    <div class="pdf-actions" id="pdfActions" style="display: none;">
-                        <button class="btn btn-secondary" id="downloadPdfBtn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-                            </svg>
-                            Download
-                        </button>
-                        <button class="btn btn-secondary" id="printPdfBtn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-                                <rect x="6" y="14" width="12" height="8"/>
-                            </svg>
-                            Imprimir
-                        </button>
-                        <button class="btn btn-primary" id="openOneDriveBtn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                                <polyline points="15 3 21 3 21 9"/>
-                                <line x1="10" y1="14" x2="21" y2="3"/>
-                            </svg>
-                            Abrir no Google Drive
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Visualizador PDF -->
-                <div class="card pdf-viewer-container" id="pdfViewerContainer" style="display: none;">
-                    <div class="pdf-viewer-header">
-                        <h3 id="pdfTitle">Procedimento de Manutenção</h3>
-                        <button class="btn-icon" id="closePdfBtn" title="Fechar">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="18" y1="6" x2="6" y2="18"/>
-                                <line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="pdf-viewer">
-                        <iframe id="pdfIframe" frameborder="0" allowfullscreen></iframe>
-                    </div>
-                </div>
-
-                <!-- Empty State -->
-                <div id="pdfEmptyState" class="empty-state">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                    <h3>Selecione uma Máquina</h3>
-                    <p>Escolha uma máquina acima para visualizar os standards de manutenção MCF</p>
                 </div>
             </div>
         </section>
@@ -6161,6 +6338,63 @@ async function uploadManualPDF(manualId, file) {
     }
 }
 
+// 🚀 v3.8.3.10.27.38: Upload de PDF de Autónoma para Supabase Storage
+async function uploadAutonomaPDF(filePath, file) {
+    try {
+        console.log('📄 Upload autónoma:', file.name, (file.size / 1024 / 1024).toFixed(2) + ' MB');
+        
+        // 🔧 Normalizar nome do ficheiro (remover acentos, espaços, caracteres especiais)
+        const normalizedPath = filePath
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+            .replace(/\s+/g, '-')             // Substitui espaços por hífens
+            .toLowerCase();                   // Minúsculas
+        
+        console.log('📝 Path normalizado:', normalizedPath);
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // URL do Supabase Storage (bucket: manuais, path: autonomas/nome.pdf)
+        const url = `${SUPABASE_CONFIG.URL}/storage/v1/object/manuais/${normalizedPath}`;
+        
+        console.log('🔗 URL de upload:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'apikey': SUPABASE_CONFIG.ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Erro upload:', response.status, errorText);
+            console.error('❌ URL tentada:', url);
+            
+            // Tentar parsear erro JSON
+            try {
+                const errorJson = JSON.parse(errorText);
+                console.error('❌ Detalhes:', errorJson);
+                throw new Error(errorJson.message || `Erro ${response.status}: ${errorText}`);
+            } catch (parseError) {
+                throw new Error(`Erro ${response.status}: ${errorText}`);
+            }
+        }
+        
+        // URL público
+        const publicUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${normalizedPath}`;
+        console.log('✅ PDF autónoma enviado:', publicUrl);
+        return publicUrl;
+        
+    } catch (error) {
+        console.error('❌ Erro ao fazer upload de autónoma:', error);
+        throw error;
+    }
+}
+
 // 🆕 v3.8.3.10.27: HISTÓRICO DE EXECUÇÕES PREVENTIVAS
 // ============================================
 
@@ -6337,6 +6571,7 @@ window.SupabaseAPI = {
     addConteudoManual,
     getConteudoManual,
     uploadManualPDF,
+    uploadAutonomaPDF,  // 🚀 v3.8.3.10.27.38: Upload de autónomas
     // 🆕 v3.8.3.10.27: Execuções preventivas
     addExecucaoPreventiva,
     getExecucoesPreventiva,
@@ -6379,19 +6614,72 @@ const CONFIG = {
     PLANNING_WEEKS: 2,
     INCLUDE_WEEKENDS: true,
     MACHINES: {
-        'crivo': { name: 'Crivo de excêntrico', url: 'https://drive.google.com/file/d/1cONotpIDkqzWx7vuKp7nj1xc2qON2uTT/view', embedUrl: 'https://drive.google.com/file/d/1cONotpIDkqzWx7vuKp7nj1xc2qON2uTT/preview' },
-        'destrocador': { name: 'Destroçador', url: 'https://drive.google.com/file/d/17CrN8UxtaD5bmDknHSl7GyhnT5kDxEln/view', embedUrl: 'https://drive.google.com/file/d/17CrN8UxtaD5bmDknHSl7GyhnT5kDxEln/preview' },
-        'l01-dupla': { name: 'L01 - Dupla', url: 'https://drive.google.com/file/d/1ekrMpI3U0928ZPP0bemW18bL0rm0PwdT/view', embedUrl: 'https://drive.google.com/file/d/1ekrMpI3U0928ZPP0bemW18bL0rm0PwdT/preview' },
-        'l01-multiserra': { name: 'L01 - Multiserra', url: 'https://drive.google.com/file/d/1Fm3KuVQA1DW17NeAMpMiX6biJRoxE5Yv/view', embedUrl: 'https://drive.google.com/file/d/1Fm3KuVQA1DW17NeAMpMiX6biJRoxE5Yv/preview' },
-        'l01-paletizadora': { name: 'L01 - Paletizadora', url: 'https://drive.google.com/file/d/1XGzzWrVY7y2N7Qjc9pTfjcCbtZoIrpFJ/view', embedUrl: 'https://drive.google.com/file/d/1XGzzWrVY7y2N7Qjc9pTfjcCbtZoIrpFJ/preview' },
-        'l01-retestadeira': { name: 'L01 - Retestadeira', url: 'https://drive.google.com/file/d/1yhMPDhdVLbnNyipXW4YcurPuYApd1kzv/view', embedUrl: 'https://drive.google.com/file/d/1yhMPDhdVLbnNyipXW4YcurPuYApd1kzv/preview' },
-        'l01-tracador': { name: 'L01 - Traçador', url: 'https://drive.google.com/file/d/1_z76x5wlAed80dL2cnoiiaN0EaOqK87J/view', embedUrl: 'https://drive.google.com/file/d/1_z76x5wlAed80dL2cnoiiaN0EaOqK87J/preview' },
-        'l02-charriot': { name: 'L02 - Charriot', url: 'https://drive.google.com/file/d/1ms0jVeOePed49KqniSLDlUPEmrPdbYgr/view', embedUrl: 'https://drive.google.com/file/d/1ms0jVeOePed49KqniSLDlUPEmrPdbYgr/preview' },
-        'l02-retestadeira': { name: 'L02 - Retestadeira', url: 'https://drive.google.com/file/d/1NvggjN6HKYpo1wF4qZfZcXnlPD-uaWUm/view', embedUrl: 'https://drive.google.com/file/d/1NvggjN6HKYpo1wF4qZfZcXnlPD-uaWUm/preview' },
-        'l03-alinhadeira': { name: 'L03 - Alinhadeira', url: 'https://drive.google.com/file/d/1M0tepr43OZ1AGhtLDBqh2Q9cK3W01lmh/view', embedUrl: 'https://drive.google.com/file/d/1M0tepr43OZ1AGhtLDBqh2Q9cK3W01lmh/preview' },
-        'l03-paletizadora': { name: 'L03 - Paletizadora', url: 'https://drive.google.com/file/d/14BuEGLBx_JXMWVCeUGKbr_t_L-6fe6mY/view', embedUrl: 'https://drive.google.com/file/d/14BuEGLBx_JXMWVCeUGKbr_t_L-6fe6mY/preview' },
-        'l03-retestadeira': { name: 'L03 - Retestadeira', url: 'https://drive.google.com/file/d/1X4L2M8KInJMRUaGheGjLcRKHV0vbqUuv/view', embedUrl: 'https://drive.google.com/file/d/1X4L2M8KInJMRUaGheGjLcRKHV0vbqUuv/preview' },
-        'tinas': { name: 'Tinas impregnante', url: 'https://drive.google.com/file/d/16dwf9DGaiGrNI2xF1LfoRw1wVA1nZQP-/view', embedUrl: 'https://drive.google.com/file/d/16dwf9DGaiGrNI2xF1LfoRw1wVA1nZQP-/preview' }
+        // 🚀 v3.8.3.10.27.40: URLs migradas para Supabase Storage (autonomas/)
+        'crivo': { 
+            name: 'Crivo de excêntrico', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/crivo-de-excentrico.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/crivo-de-excentrico.pdf' 
+        },
+        'destrocador': { 
+            name: 'Destroçador', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/destrocador.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/destrocador.pdf' 
+        },
+        'l01-dupla': { 
+            name: 'L01 - Dupla', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---dupla.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---dupla.pdf' 
+        },
+        'l01-multiserra': { 
+            name: 'L01 - Multiserra', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---multiserra.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---multiserra.pdf' 
+        },
+        'l01-paletizadora': { 
+            name: 'L01 - Paletizadora', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---paletizadora.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---paletizadora.pdf' 
+        },
+        'l01-retestadeira': { 
+            name: 'L01 - Retestadeira', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---retestadeira.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---retestadeira.pdf' 
+        },
+        'l01-tracador': { 
+            name: 'L01 - Traçador', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---tracador.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---tracador.pdf' 
+        },
+        'l02-charriot': { 
+            name: 'L02 - Charriot', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l02---charriot.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l02---charriot.pdf' 
+        },
+        'l02-retestadeira': { 
+            name: 'L02 - Retestadeira', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l02---retestadeira.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l02---retestadeira.pdf' 
+        },
+        'l03-alinhadeira': { 
+            name: 'L03 - Alinhadeira', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---alinhadeira.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---alinhadeira.pdf' 
+        },
+        'l03-paletizadora': { 
+            name: 'L03 - Paletizadora', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---paletizadora.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---paletizadora.pdf' 
+        },
+        'l03-retestadeira': { 
+            name: 'L03 - Retestadeira', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---retestadeira.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---retestadeira.pdf' 
+        },
+        'tinas': { 
+            name: 'Tinas impregnante', 
+            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/tinas-impregnante.pdf', 
+            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/tinas-impregnante.pdf' 
+        }
     },
     
     // ❌ REMOVIDO v3.7.0.9: Migrado para Supabase (tabela lista_equipamentos)
@@ -6643,7 +6931,9 @@ const AppState = {
     utilizadores: [],  // ✅ NOVO: Lista de utilizadores para dropdown
     equipamentos: [],  // ✅ v3.7.0.9: Lista de equipamentos do Supabase
     artigoSelecionado: null,
-    currentUser: null  // { username, nomeCompleto, departamento, role, podeEditarPlaneamento, token }
+    currentUser: null,  // { username, nomeCompleto, departamento, role, podeEditarPlaneamento, token }
+    filtroEquipamentoSelecionados: [],  // 🆕 v3.8.3.10.27.46: Equipamentos selecionados (Lista de OTs)
+    filtroEquipamentoPlanningSelecionados: []  // 🆕 v3.8.3.10.27.46: Equipamentos selecionados (Planeamento)
 };
 
 // ✅ v3.6.8: App migrado para SUPABASE
@@ -6844,8 +7134,11 @@ async function loadDataFromSupabase() {
             componente: p.Componente || '',     // ✅ Corrigido: era component
             urgente: p.Urgente === 'TRUE' || p.Urgente === true,
             paragemProducao: p['Paragem Produção'] === 'TRUE' || p['Paragem Produção'] === true,
+            exigeCompra: p['Exige Compra'] === 'TRUE' || p['Exige Compra'] === true,  // 🆕 v3.8.3.10.6
             responsavel: p.Responsável || '',   // ✅ ADICIONADO v3.6.21 (display)
             responsavelUsername: p.responsavel_username || '',  // 🆕 v3.7.7.0: FK
+            segundoResponsavel: p.segundo_responsavel || '',  // 🆕 v3.8.3.10.27.46: 2º Responsável
+            segundoResponsavelUsername: p.segundo_responsavel_username || '',  // 🆕 v3.8.3.10.27.46: FK
             criadoPorUsername: p.criado_por_username || '',     // 🆕 v3.7.7.0: FK
             horasEstimadas: parseFloat(p['Horas Estimadas']) || 0,  // ✅ ADICIONADO v3.6.21
             fechadoPor: p['Fechado Por'] || '',  // 🆕 v3.7.6.9: Quem fechou (display)
@@ -6854,7 +7147,9 @@ async function loadDataFromSupabase() {
             fotoFecho: p.foto_fecho || '',  // 🆕 v3.8.3.5: Foto de fecho
             ultimaExecucao: p.ultima_execucao || null,  // 🆕 v3.8.3.10.27: Última execução (preventivas)
             proximaExecucao: p.proxima_execucao || null,  // 🆕 v3.8.3.10.27: Próxima execução (preventivas)
-            totalExecucoes: parseInt(p.total_execucoes) || 0  // 🆕 v3.8.3.10.27: Total de execuções (preventivas)
+            totalExecucoes: parseInt(p.total_execucoes) || 0,  // 🆕 v3.8.3.10.27: Total de execuções (preventivas)
+            numeroHoras: p.numero_horas ? parseInt(p.numero_horas) : null,  // 🆕 v3.8.3.10.27.45: Número de horas (revisões)
+            tiposRevisao: p.tipos_revisao || []  // 🆕 v3.8.3.10.27.45: Tipos de revisão selecionados
         }));
         
         // ✅ Ordenar por data (mais recentes primeiro) - ordem no JavaScript
@@ -7304,6 +7599,14 @@ async function initializeApp() {
     await initializePlanning();  // ✅ v3.7.0.8: AWAIT para carregar planeamento do Supabase
     initializeAutonomousMaintenance();
     initializeStockModule();
+    
+    // 🆕 v3.8.3.10.27.42: Inicializar Revisões e Multiselect
+    if (typeof window.initializeRevisao === 'function') {
+        window.initializeRevisao();
+    }
+    if (typeof window.initializeMultiselect === 'function') {
+        window.initializeMultiselect();
+    }
     
     // 📚 Carregar manuais em background (para chatbot)
     carregarManuaisBackground();
@@ -9113,6 +9416,14 @@ async function processarManual(equipamento, titulo, descricao, file) {
 }
 
 // ============================================
+// 🚀 v3.8.3.10.27.38: UPLOAD EM BATCH DE PDFs
+// ============================================
+
+/**
+ * Upload em batch de PDFs de Manutenções Autónomas para o Supabase Storage
+ * Usado para migrar os 13 PDFs do OneDrive para o Supabase
+ */
+// ============================================
 // 🆕 v3.7.6.10: FUNÇÃO GERAR EMBEDDINGS
 // ============================================
 
@@ -9902,11 +10213,36 @@ async function handleFormSubmit(e) {
             return;
         }
         
+        // 🆕 v3.8.3.10.27.42: Coletar dados de Revisão (se aplicável)
+        let revisaoData = {};
+        if (tipoValue === 'Revisão' && typeof window.getRevisaoData === 'function') {
+            revisaoData = window.getRevisaoData();
+            console.log('🔧 Dados de Revisão coletados:', revisaoData);
+            
+            // Validar dados de Revisão
+            if (typeof window.validateRevisao === 'function') {
+                const isValid = window.validateRevisao({
+                    tipo: tipoValue,
+                    empresa: document.getElementById('empresa').value,
+                    areaEquipamento: document.getElementById('areaEquipamento').value,
+                    dataPrimeiraIntervencao: revisaoData.dataPrimeiraIntervencao,
+                    frequencia: revisaoData.frequencia,
+                    tiposRevisao: revisaoData.tiposRevisao
+                });
+                
+                if (!isValid) {
+                    submitBtn.classList.remove('loading');
+                    submitBtn.disabled = false;
+                    return;  // Bloquear submit se validação falhar
+                }
+            }
+        }
+        
         const formData = {
             id: pedidoId,
             tipo: tipoValue,
-            frequencia: document.getElementById('frequencia').value || '-',  // ✅ NOVO campo
-            dataPrimeiraIntervencao: document.getElementById('dataPrimeiraIntervencao').value || '',  // ✅ v3.7.0.8: Data 1ª Intervenção
+            frequencia: tipoValue === 'Revisão' ? (revisaoData.frequencia || null) : (document.getElementById('frequencia').value || '-'),  // ✅ NOVO campo
+            dataPrimeiraIntervencao: tipoValue === 'Revisão' ? (revisaoData.dataPrimeiraIntervencao || '') : (document.getElementById('dataPrimeiraIntervencao').value || ''),  // ✅ v3.7.0.8: Data 1ª Intervenção
             prioridade: prioridadeValue || '-',  // 🆕 "-" se não houver prioridade (Preventivas)
             empresa: document.getElementById('empresa').value,
             tipoIntervencao: document.getElementById('tipoIntervencao').value || '-',
@@ -9921,7 +10257,10 @@ async function handleFormSubmit(e) {
             nome: document.getElementById('nome').value,
             criadoPorUsername: AppState.currentUser ? AppState.currentUser.username : '',  // 🆕 v3.7.7.0: FK para utilizadores
             dataHora: new Date().toISOString(),
-            estado: 'Novo'
+            estado: 'Novo',
+            // 🆕 v3.8.3.10.27.42: Campos de Revisão
+            numeroHoras: revisaoData.numeroHoras || null,
+            tiposRevisao: revisaoData.tiposRevisao || null
         };
         
         localStorage.setItem(CONFIG.STORAGE_KEYS.USER_NAME, formData.nome);
@@ -10148,7 +10487,9 @@ function renderRequestCard(request) {
                     <span class="badge" style="background: #2c3e50; color: white; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;">🆔 ${request.id}</span>
                     <span class="badge badge-tipo">${tipo}</span>
                     ${tipo === 'Preventiva' && frequencia !== '-' ? `<span class="badge" style="background: #4CAF50; color: white; font-size: 11px;">⏱️ ${frequencia}</span>` : ''}
-                    ${tipo !== 'Preventiva' ? `<span class="badge badge-prioridade ${prioridadeClass}">${prioridade}</span>` : ''}
+                    ${tipo === 'Revisão' && frequencia !== '-' ? `<span class="badge" style="background: #8B5CF6; color: white; font-size: 11px;">⏱️ ${frequencia}</span>` : ''}
+                    ${tipo === 'Revisão' && request.numeroHoras ? `<span class="badge" style="background: #F59E0B; color: white; font-size: 11px;">⏰ ${request.numeroHoras}h</span>` : ''}
+                    ${tipo !== 'Preventiva' && tipo !== 'Revisão' ? `<span class="badge badge-prioridade ${prioridadeClass}">${prioridade}</span>` : ''}
                     <span class="badge badge-estado ${estadoClass}">${estado}</span>
                     ${areaEquipamento && areaEquipamento !== '-' ? `<span class="badge" style="background: #667eea; color: white; font-size: 11px;">🔧 ${areaEquipamento}</span>` : ''}
                     ${componente && componente !== '-' ? `<span class="badge" style="background: #9b59b6; color: white; font-size: 11px;">⚙️ ${componente}</span>` : ''}
@@ -10192,10 +10533,10 @@ function applyFilters() {
         const empresaPedido = request.empresa || 'MCF';
         const passaEmpresa = AppState.currentFilters.empresa.length === 0 || AppState.currentFilters.empresa.includes(empresaPedido);
         
-        // ⚡ v3.6.15: Filtro de Equipamento CORRIGIDO
-        const filterEquipamento = document.getElementById('filterEquipamento')?.value || '';
+        // ⚡ v3.8.3.10.27.46: Filtro de Equipamento (Filtro Excel)
+        const equipamentosSelecionados = AppState.filtroEquipamentoSelecionados || [];
         const areaEquipamentoPedido = (request.areaEquipamento || '').trim();
-        const passaEquipamento = !filterEquipamento || areaEquipamentoPedido === filterEquipamento;
+        const passaEquipamento = equipamentosSelecionados.length === 0 || equipamentosSelecionados.includes(areaEquipamentoPedido);
         
         // ✅ Filtro de Responsável (do PLANEAMENTO)
         const filterResponsavel = document.getElementById('filterResponsavel')?.value || '';
@@ -10348,13 +10689,9 @@ function handleFilterChange(e) {
 
 // ⚡ EQUIPAMENTOS - Popular filtro de equipamento
 function populateEquipamentoFilter() {
-    const select = document.getElementById('filterEquipamento');
-    if (!select) return;
+    // ✅ v3.8.3.10.27.46: Criar Filtros Excel para Equipamento
     
-    // Limpar opções existentes (exceto a primeira "Todos")
-    select.innerHTML = '<option value="">Todos os equipamentos</option>';
-    
-    // ✅ v3.7.0.9: Obter áreas únicas do Supabase com contagem
+    // Obter áreas únicas do Supabase
     const areaMap = {};
     AppState.equipamentos.forEach(e => {
         if (!areaMap[e.area]) areaMap[e.area] = 0;
@@ -10363,15 +10700,46 @@ function populateEquipamentoFilter() {
     
     const areas = Object.keys(areaMap).sort();
     
-    areas.forEach(area => {
-        const componentesCount = areaMap[area];
-        const option = document.createElement('option');
-        option.value = area;
-        option.textContent = `${area} (${componentesCount})`;
-        select.appendChild(option);
-    });
+    // Criar Filtro Excel para Lista de OTs
+    if (!window.filtroEquipamentoLista) {
+        window.filtroEquipamentoLista = new FiltroExcel({
+            id: 'equipamento-lista',
+            targetInputId: 'filterEquipamentoBtn',
+            options: areas,
+            selectedOptions: areas, // Tudo selecionado por padrão
+            placeholder: 'Todos os equipamentos',
+            onApply: (selected) => {
+                // Atualizar AppState e re-renderizar lista
+                AppState.filtroEquipamentoSelecionados = selected;
+                applyFilters();
+                renderRequestsList();
+            }
+        });
+    } else {
+        window.filtroEquipamentoLista.updateOptions(areas);
+        window.filtroEquipamentoLista.selectAll();
+    }
     
-    console.log('⚡ Filtro de Equipamento populado com', areas.length, 'áreas');
+    // Criar Filtro Excel para Planeamento
+    if (!window.filtroEquipamentoPlanning) {
+        window.filtroEquipamentoPlanning = new FiltroExcel({
+            id: 'equipamento-planning',
+            targetInputId: 'planningFilterEquipamentoBtn',
+            options: areas,
+            selectedOptions: areas, // Tudo selecionado por padrão
+            placeholder: 'Todos os equipamentos',
+            onApply: (selected) => {
+                // Atualizar filtro de planeamento
+                AppState.filtroEquipamentoPlanningSelecionados = selected;
+                renderWeekView();
+            }
+        });
+    } else {
+        window.filtroEquipamentoPlanning.updateOptions(areas);
+        window.filtroEquipamentoPlanning.selectAll();
+    }
+    
+    console.log('⚡ Filtros Excel de Equipamento criados com', areas.length, 'áreas');
 }
 
 // 🆕 v3.8.3.10.27.11: Funções do Relatório de OTs (CORRIGIDO - respeita checkboxes)
@@ -10595,6 +10963,13 @@ function gerarRelatorio(ots) {
                 otsDoComponente.forEach((ot, idx) => {
                     const task = AppState.planning.tasks[ot.id];
                     const responsavel = task?.responsavel || ot.responsavel || '';
+                    const segundoResponsavel = task?.segundoResponsavel || ot.segundoResponsavel || '';
+                    
+                    // 🆕 v3.8.3.10.27.46: Formatar responsáveis (1º | 2º)
+                    let responsavelDisplay = responsavel;
+                    if (segundoResponsavel) {
+                        responsavelDisplay = `${responsavel} | ${segundoResponsavel}`;
+                    }
                     
                     // Prioridade
                     let prioridadeDisplay = ot.prioridade || '';
@@ -10619,7 +10994,7 @@ function gerarRelatorio(ots) {
                             <td style="text-align: center;">${componente}</td>
                             <td style="text-align: center; font-family: monospace; font-weight: 600;">${ot.id}</td>
                             <td style="text-align: center; text-transform: uppercase;">${prioridadeDisplay}</td>
-                            <td style="text-align: center;">${responsavel}</td>
+                            <td style="text-align: center;">${responsavelDisplay}</td>
                             <td style="text-align: center; font-weight: 600;">${planeadoDisplay}</td>
                             <td style="text-align: left;">${ot.descricao || ''}</td>
                         </tr>
@@ -11784,7 +12159,11 @@ async function sendToGoogleSheets(data) {
             'Horas Estimadas': data.horasEstimadas || 0,  // ✅ ADICIONADO
             criado_por_username: AppState.currentUser?.username || null,  // 🆕 v3.7.7.0: FK
             responsavel_username: data.responsavelUsername || null,  // 🆕 v3.8.1.2: FK
-            fechado_por_username: null  // 🆕 v3.8.1.2: Preenchido quando fechar
+            segundo_responsavel: data.segundoResponsavel || null,  // 🆕 v3.8.3.10.27.46: 2º Responsável
+            segundo_responsavel_username: data.segundoResponsavelUsername || null,  // 🆕 v3.8.3.10.27.46: FK
+            fechado_por_username: null,  // 🆕 v3.8.1.2: Preenchido quando fechar
+            numero_horas: data.numeroHoras || null,  // 🆕 v3.8.3.10.27.42: Revisões
+            tipos_revisao: data.tiposRevisao || null  // 🆕 v3.8.3.10.27.42: Revisões
         };
         
         console.log('🔥 DEBUG: Dados enviados para Supabase:', JSON.stringify(supabaseData, null, 2));
@@ -11803,6 +12182,14 @@ async function sendToGoogleSheets(data) {
 async function updateInGoogleSheets(data) {
     try {
         console.log('📤 Preparando atualização no Supabase para pedido:', data.id);
+        
+        // 🆕 v3.8.3.10.27.46: Buscar 2º Responsável do planeamento
+        const planningData = AppState.planning.tasks[data.id];
+        if (planningData && planningData.segundoResponsavel) {
+            data.segundoResponsavel = planningData.segundoResponsavel;
+            // TODO: Se quiser, pode buscar o username na lista de utilizadores
+            data.segundoResponsavelUsername = planningData.segundoResponsavel; // Por agora, usar o nome
+        }
         
         // Converter formato da app → formato Supabase
         const supabaseData = {
@@ -11824,9 +12211,13 @@ async function updateInGoogleSheets(data) {
             'Paragem Produção': data.paragemProducao ? 'TRUE' : 'FALSE',
             'Responsável': data.responsavel || '',  // ✅ ADICIONADO (display)
             responsavel_username: data.responsavelUsername || null,  // 🆕 v3.7.7.0: FK
+            segundo_responsavel: data.segundoResponsavel || null,  // 🆕 v3.8.3.10.27.46: 2º Responsável
+            segundo_responsavel_username: data.segundoResponsavelUsername || null,  // 🆕 v3.8.3.10.27.46: FK
             'Horas Estimadas': data.horasEstimadas || 0,  // ✅ ADICIONADO
             'Fechado Por': data.fechadoPor || '',  // 🆕 v3.7.6.9: Quem fechou (display)
-            fechado_por_username: data.fechadoPorUsername || null  // 🆕 v3.7.7.0: FK
+            fechado_por_username: data.fechadoPorUsername || null,  // 🆕 v3.7.7.0: FK
+            numero_horas: data.numeroHoras || null,  // 🆕 v3.8.3.10.27.42: Revisões
+            tipos_revisao: data.tiposRevisao || null  // 🆕 v3.8.3.10.27.42: Revisões
         };
         
         console.log('📊 [SUPABASE] Dados a enviar:', {
@@ -12033,7 +12424,7 @@ function cleanOldDataFromLocalStorage() {
         
         // 🎯 LOG DE DIAGNÓSTICO
         console.log('========================================');
-        console.log('📦 APP MANUTENÇÃO MCF - v3.8.3.10.27.37');
+        console.log('📦 APP MANUTENÇÃO MCF - v3.8.3.10.27.40');
         console.log('📅 Data:', new Date().toLocaleString('pt-PT'));
         console.log('👤 Utilizador:', AppState.user?.username || 'NÃO AUTENTICADO');
         console.log('🔧 Pode Editar Planeamento:', AppState.user?.podeEditarPlaneamento ? 'SIM ✅' : 'NÃO ❌');
@@ -12713,9 +13104,12 @@ function applyPlanningFilters(requests) {
         const equipamentoPedido = request.areaEquipamento || '';
         const passaEquipamento = !filters.equipamento || equipamentoPedido === filters.equipamento;
         
-        // Responsável (do planeamento)
+        // Responsável (do planeamento) - 🆕 v3.8.3.10.27.46: Incluir 2º Responsável
         const responsavelPedido = AppState.planning.tasks[request.id]?.responsavel || '';
-        const passaResponsavel = !filters.responsavel || responsavelPedido === filters.responsavel;
+        const segundoResponsavelPedido = AppState.planning.tasks[request.id]?.segundoResponsavel || '';
+        const passaResponsavel = !filters.responsavel || 
+                                 responsavelPedido === filters.responsavel || 
+                                 segundoResponsavelPedido === filters.responsavel;
         
         // Tipo de Intervenção
         const passaTipoIntervencao = filters.tipoIntervencao.length === 0 || filters.tipoIntervencao.includes(request.tipoIntervencao);
@@ -13008,7 +13402,7 @@ function renderPlanningGrid() {
         grid.innerHTML = `<tr><td colspan="${dates.length + 1}" style="text-align: center; padding: var(--spacing-xl);"><p>Não há ordens de trabalho ativas para planear.</p><p style="color: var(--color-text-secondary); font-size: 0.875rem;">Crie novas ordens na tab "Nova Ordem"</p></td></tr>`;
         return;
     }
-    let html = '<thead><tr><th class="task-header">Ordem / Tarefa</th><th class="responsible-header">Responsável</th><th class="hours-header">Horas</th>';
+    let html = '<thead><tr><th class="task-header">Ordem / Tarefa</th><th class="responsible-header">Responsável</th><th class="responsible-header">2º Responsável</th><th class="hours-header">Horas</th>';
     dates.forEach(date => {
         const isWeekend = date.getDay() === 0 || date.getDay() === 6, weekendClass = isWeekend ? 'weekend' : '';
         const dayName = date.toLocaleDateString('pt-PT', { weekday: 'short' }), dayNum = date.getDate();
@@ -13023,8 +13417,9 @@ function renderPlanningGrid() {
         html += `</div></div></td>`;
         
         // ✅ v3.7.0.8: Ler dados do PLANEAMENTO (não da ordem de trabalho)
-        const planningData = AppState.planning.tasks[task.id] || { responsavel: '', horasEstimadas: 0, diasAlocados: [] };
+        const planningData = AppState.planning.tasks[task.id] || { responsavel: '', segundoResponsavel: '', horasEstimadas: 0, diasAlocados: [] };
         const taskResponsavel = planningData.responsavel || task.responsavel || '';  // Fallback: pedido se não tiver no planeamento
+        const taskSegundoResponsavel = planningData.segundoResponsavel || '';  // 🆕 v3.8.3.10.27.46: 2º Responsável
         const taskHours = planningData.horasEstimadas || task.horasEstimadas || '';  // Fallback: pedido se não tiver no planeamento
         
         html += `<td class="responsible-cell">`;
@@ -13058,6 +13453,27 @@ function renderPlanningGrid() {
             });
         }
         html += `</select></td>`;
+        
+        // 🆕 v3.8.3.10.27.46: 2º RESPONSÁVEL
+        html += `<td class="responsible-cell">`;
+        html += `<select class="responsible-select" data-task-id="${task.id}" onchange="updateTaskSecondResponsible('${task.id}', this.value)">`;
+        html += `<option value="">-</option>`;
+        
+        // Reutilizar a mesma lista de utilizadores
+        if (AppState.utilizadores && AppState.utilizadores.length > 0) {
+            const primeiroUser = AppState.utilizadores[0];
+            const nomeCompletoKey = Object.keys(primeiroUser).find(k => k.toLowerCase().replace(/[_\s]/g, '') === 'nomecompleto') || 'nomeCompleto';
+            
+            AppState.utilizadores
+                .sort((a, b) => (a[nomeCompletoKey] || '').localeCompare(b[nomeCompletoKey] || ''))
+                .forEach(user => {
+                    const nomeCompleto = user[nomeCompletoKey];
+                    const selected = taskSegundoResponsavel === nomeCompleto ? 'selected' : '';
+                    html += `<option value="${nomeCompleto}" ${selected}>${nomeCompleto}</option>`;
+                });
+        }
+        html += `</select></td>`;
+        
         html += `<td class="hours-cell"><input type="number" class="hours-input" value="${taskHours}" min="0" step="0.5" placeholder="0" data-task-id="${task.id}" onchange="updateTaskHours('${task.id}', this.value)"></td>`;
         dates.forEach(date => {
             const dateKey = formatDateKey(date), allocationKey = `${task.id}-${dateKey}`;
@@ -13177,6 +13593,7 @@ async function updateTaskResponsible(taskId, responsavel) {
     if (!AppState.planning.tasks[taskId]) {
         AppState.planning.tasks[taskId] = {
             responsavel: '',
+            segundoResponsavel: '',  // 🆕 v3.8.3.10.27.46
             horasEstimadas: 0,
             diasAlocados: []
         };
@@ -13199,6 +13616,49 @@ async function updateTaskResponsible(taskId, responsavel) {
     renderPlanningGrid();
     showToast(`Responsável atualizado: ${responsavel || 'Nenhum'}`, 'success');
 }
+
+// 🆕 v3.8.3.10.27.46: Atualizar 2º responsável NO PLANEAMENTO
+async function updateTaskSecondResponsible(taskId, segundoResponsavel) {
+    // 🔒 VERIFICAR PERMISSÕES
+    if (!AppState.currentUser) {
+        showToast('❌ Sessão expirada. Por favor, faça login novamente.', 'error');
+        return;
+    }
+    
+    const podeEditar = AppState.currentUser.podeEditarPlaneamento || AppState.currentUser.role === 'admin';
+    if (!podeEditar) {
+        showToast('🔒 Sem permissão para editar o planeamento', 'error');
+        return;
+    }
+    
+    // Inicializar objeto do task se não existir
+    if (!AppState.planning.tasks[taskId]) {
+        AppState.planning.tasks[taskId] = {
+            responsavel: '',
+            segundoResponsavel: '',
+            horasEstimadas: 0,
+            diasAlocados: []
+        };
+    }
+    
+    // Atualizar 2º responsável NO PLANEAMENTO
+    AppState.planning.tasks[taskId].segundoResponsavel = segundoResponsavel || '';
+    savePlanningToStorage();
+    
+    // ✅ Sincronizar com Supabase (tabela PLANEAMENTO)
+    if (AppState.isOnline) {
+        try {
+            await syncSingleTask(taskId);
+            console.log('✅ 2º Responsável sincronizado na tabela planeamento');
+        } catch (error) {
+            console.error('❌ Erro ao sincronizar 2º responsável:', error);
+        }
+    }
+    
+    renderPlanningGrid();
+    showToast(`2º Responsável atualizado: ${segundoResponsavel || 'Nenhum'}`, 'success');
+}
+
 async function savePlanning() {
     // 🔒 VERIFICAR PERMISSÕES
     if (!AppState.currentUser) {
@@ -13569,7 +14029,7 @@ function initializeAutonomousMaintenance() {
     const closePdfBtn = document.getElementById('closePdfBtn');
     const downloadPdfBtn = document.getElementById('downloadPdfBtn');
     const printPdfBtn = document.getElementById('printPdfBtn');
-    const openOneDriveBtn = document.getElementById('openOneDriveBtn');
+    // ❌ v3.8.3.10.27.38: openOneDriveBtn REMOVIDO (migração para Supabase)
     
     machineSelect.addEventListener('change', function() {
         const machineKey = this.value;
@@ -13592,7 +14052,7 @@ function initializeAutonomousMaintenance() {
             }
         }
     });
-    openOneDriveBtn.addEventListener('click', function() { if (currentMachine) { window.open(currentMachine.url, '_blank'); showToast('Abrindo no OneDrive...', 'info'); } });
+    // ❌ v3.8.3.10.27.38: Event listener do openOneDriveBtn REMOVIDO (migração para Supabase)
 }
 
 function loadPdfForMachine(machineKey, machine) {
@@ -13608,7 +14068,13 @@ function loadPdfForMachine(machineKey, machine) {
     pdfActions.style.display = 'flex';
     pdfViewerContainer.style.display = 'block';
     pdfTitle.textContent = `Procedimento: ${machine.name}`;
-    pdfIframe.src = machine.embedUrl;
+    
+    // 🚀 v3.8.3.10.27.38: Usar embedUrl se existir (Supabase), senão usar URL antiga (OneDrive)
+    const pdfUrl = machine.embedUrl || machine.url;
+    pdfIframe.src = pdfUrl;
+    
+    console.log(`📄 Carregando PDF: ${machine.name}`, pdfUrl);
+    
     setTimeout(() => { pdfViewer.classList.remove('loading'); }, 2000);
     setTimeout(() => { pdfViewerContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300);
     showToast(`Carregando: ${machine.name}`, 'info');
