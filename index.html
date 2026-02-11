@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.50 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.52 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-11
     
-    🎯 v3.8.3.10.27.50: FIX - Filtro Excel Planeamento inicializa quando aba é aberta ✅
+    🎯 v3.8.3.10.27.52: FIX - Campo Tipo de Revisão não é mais obrigatório quando não é Revisão ✅
     ────────────────────────────────────────────────────────────────────────────
     ✅ DESCOBERTA: Estrutura DOM está PERFEITA (thead primeiro, tbody segundo)
     ✅ PROBLEMA: Motor de impressão do browser REORGANIZA durante renderização
@@ -4409,9 +4409,408 @@
     <script src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
     <!-- 🆕 v3.8.3.10.27.42: Módulo de Revisões e Multiselect -->
     <script src="revisoes-multiselect.js"></script>
-    <!-- 🆕 v3.8.3.10.27.46: Filtro Excel -->
-    <link rel="stylesheet" href="filtro-excel.css">
-    <script src="filtro-excel.js"></script>
+    
+    <!-- 🆕 v3.8.3.10.27.51: Filtro Excel (INLINE para garantir carregamento) -->
+    <style>
+        /* ================================================================
+           FILTRO EXCEL - Estilos
+           v3.8.3.10.27.51 (INLINE)
+           ================================================================ */
+
+        /* Modal Overlay */
+        .filtro-excel-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        /* Modal Content */
+        .filtro-excel-content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header (Pesquisa) */
+        .filtro-excel-header {
+            padding: 16px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .filtro-excel-search {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .filtro-excel-search:focus {
+            border-color: #3B82F6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        /* Body (Lista de checkboxes) */
+        .filtro-excel-body {
+            padding: 12px 16px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .filtro-excel-option {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            cursor: pointer;
+            user-select: none;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .filtro-excel-option:hover {
+            background: #f9fafb;
+            border-radius: 4px;
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+
+        .filtro-excel-option input[type="checkbox"] {
+            margin-right: 10px;
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Footer (Botões) */
+        .filtro-excel-footer {
+            padding: 12px 16px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .filtro-excel-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .filtro-excel-btn-cancel {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .filtro-excel-btn-cancel:hover {
+            background: #e5e7eb;
+        }
+
+        .filtro-excel-btn-ok {
+            background: #3B82F6;
+            color: white;
+        }
+
+        .filtro-excel-btn-ok:hover {
+            background: #2563eb;
+        }
+
+        /* Botão de acionamento do filtro */
+        .filtro-excel-trigger {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            font-size: 14px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .filtro-excel-trigger:hover {
+            border-color: #3B82F6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .filtro-excel-trigger::after {
+            content: '▼';
+            font-size: 10px;
+            color: #9ca3af;
+        }
+
+        /* Scrollbar personalizada */
+        .filtro-excel-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .filtro-excel-body::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        .filtro-excel-body::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .filtro-excel-body::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+    
+    <script>
+    // ================================================================
+    // FILTRO EXCEL - Multiselect com Checkboxes + Pesquisa
+    // v3.8.3.10.27.51 (INLINE)
+    // ================================================================
+
+    /**
+     * Classe para criar filtros estilo Excel com checkboxes + pesquisa
+     */
+    class FiltroExcel {
+        constructor(config) {
+            this.id = config.id;
+            this.targetInputId = config.targetInputId;
+            this.options = config.options || [];
+            this.selectedOptions = config.selectedOptions || [];
+            this.placeholder = config.placeholder || 'Selecione...';
+            this.onApply = config.onApply || (() => {});
+            this.modalId = `filtro-excel-modal-${this.id}`;
+            
+            this.init();
+        }
+        
+        init() {
+            this.createModal();
+            this.attachEventListeners();
+            this.updateButtonText();
+        }
+        
+        createModal() {
+            const modal = document.createElement('div');
+            modal.id = this.modalId;
+            modal.className = 'filtro-excel-modal';
+            modal.style.display = 'none';
+            
+            modal.innerHTML = `
+                <div class="filtro-excel-content">
+                    <div class="filtro-excel-header">
+                        <input 
+                            type="text" 
+                            class="filtro-excel-search" 
+                            placeholder="🔍 Procurar..."
+                        >
+                    </div>
+                    <div class="filtro-excel-body">
+                        <label class="filtro-excel-option">
+                            <input type="checkbox" class="filtro-excel-select-all"> 
+                            <strong>(Selecionar Tudo)</strong>
+                        </label>
+                        <div class="filtro-excel-list"></div>
+                    </div>
+                    <div class="filtro-excel-footer">
+                        <button class="filtro-excel-btn filtro-excel-btn-cancel">Cancelar</button>
+                        <button class="filtro-excel-btn filtro-excel-btn-ok">OK</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            this.renderOptions();
+        }
+        
+        renderOptions(filter = '') {
+            const list = document.querySelector(`#${this.modalId} .filtro-excel-list`);
+            if (!list) return;
+            
+            list.innerHTML = '';
+            
+            const filteredOptions = this.options.filter(opt => 
+                opt.toLowerCase().includes(filter.toLowerCase())
+            );
+            
+            filteredOptions.forEach(option => {
+                const label = document.createElement('label');
+                label.className = 'filtro-excel-option';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = option;
+                checkbox.checked = this.selectedOptions.includes(option);
+                
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(option));
+                
+                list.appendChild(label);
+            });
+            
+            this.updateSelectAllState();
+        }
+        
+        updateSelectAllState() {
+            const selectAllCheckbox = document.querySelector(`#${this.modalId} .filtro-excel-select-all`);
+            if (!selectAllCheckbox) return;
+            
+            const allCheckboxes = document.querySelectorAll(`#${this.modalId} .filtro-excel-list input[type="checkbox"]`);
+            const allChecked = Array.from(allCheckboxes).every(cb => cb.checked);
+            
+            selectAllCheckbox.checked = allChecked && allCheckboxes.length > 0;
+        }
+        
+        attachEventListeners() {
+            const modal = document.getElementById(this.modalId);
+            const targetButton = document.getElementById(this.targetInputId);
+            
+            console.log(`🔧 Anexando listeners para ${this.id}:`, {
+                modalId: this.modalId,
+                targetInputId: this.targetInputId,
+                modal: !!modal,
+                targetButton: !!targetButton
+            });
+            
+            if (targetButton) {
+                targetButton.addEventListener('click', (e) => {
+                    console.log(`🖱️ Botão ${this.targetInputId} clicado!`);
+                    e.stopPropagation();
+                    this.openModal();
+                });
+            } else {
+                console.error(`❌ Botão ${this.targetInputId} não encontrado!`);
+            }
+            
+            const searchInput = modal.querySelector('.filtro-excel-search');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    this.renderOptions(e.target.value);
+                });
+            }
+            
+            const selectAllCheckbox = modal.querySelector('.filtro-excel-select-all');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', (e) => {
+                    const list = modal.querySelector('.filtro-excel-list');
+                    const checkboxes = list.querySelectorAll('input[type="checkbox"]');
+                    checkboxes.forEach(cb => cb.checked = e.target.checked);
+                });
+            }
+            
+            modal.addEventListener('change', (e) => {
+                if (e.target.type === 'checkbox' && !e.target.classList.contains('filtro-excel-select-all')) {
+                    this.updateSelectAllState();
+                }
+            });
+            
+            const btnOk = modal.querySelector('.filtro-excel-btn-ok');
+            if (btnOk) {
+                btnOk.addEventListener('click', () => {
+                    this.apply();
+                });
+            }
+            
+            const btnCancel = modal.querySelector('.filtro-excel-btn-cancel');
+            if (btnCancel) {
+                btnCancel.addEventListener('click', () => {
+                    this.closeModal();
+                });
+            }
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeModal();
+                }
+            });
+        }
+        
+        openModal() {
+            const modal = document.getElementById(this.modalId);
+            if (modal) {
+                modal.style.display = 'flex';
+                
+                const searchInput = modal.querySelector('.filtro-excel-search');
+                if (searchInput) {
+                    searchInput.value = '';
+                }
+                
+                this.renderOptions();
+            }
+        }
+        
+        closeModal() {
+            const modal = document.getElementById(this.modalId);
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+        
+        apply() {
+            const modal = document.getElementById(this.modalId);
+            const checkboxes = modal.querySelectorAll('.filtro-excel-list input[type="checkbox"]:checked');
+            
+            this.selectedOptions = Array.from(checkboxes).map(cb => cb.value);
+            
+            this.updateButtonText();
+            this.closeModal();
+            
+            this.onApply(this.selectedOptions);
+        }
+        
+        updateButtonText() {
+            const button = document.getElementById(this.targetInputId);
+            if (!button) return;
+            
+            if (this.selectedOptions.length === 0) {
+                button.textContent = `📋 ${this.placeholder}`;
+            } else if (this.selectedOptions.length === this.options.length) {
+                button.textContent = `📋 Todos (${this.options.length})`;
+            } else {
+                button.textContent = `📋 ${this.selectedOptions.length} selecionados`;
+            }
+        }
+        
+        updateOptions(newOptions) {
+            this.options = newOptions;
+            this.renderOptions();
+        }
+        
+        reset() {
+            this.selectedOptions = [];
+            this.updateButtonText();
+            this.renderOptions();
+        }
+        
+        selectAll() {
+            this.selectedOptions = [...this.options];
+            this.updateButtonText();
+            this.renderOptions();
+        }
+    }
+
+    console.log('📦 FiltroExcel (INLINE) carregado');
+    </script>
 </head>
 <body class="app-loading">
     <!-- Header -->
@@ -4624,7 +5023,7 @@
                             <!-- Tipo de Revisão -->
                             <div class="form-group">
                                 <label class="form-label" for="tipoRevisao">Tipo de Revisão *</label>
-                                <select class="form-input" id="tipoRevisao" name="tipoRevisao" required>
+                                <select class="form-input" id="tipoRevisao" name="tipoRevisao">
                                     <option value="">Selecione o tipo</option>
                                     <option value="geral">Revisão Geral</option>
                                     <option value="filtros_oleos">Revisão Filtros + Óleos</option>
