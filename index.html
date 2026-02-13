@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.57 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.59 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-11
     
+    🎯 v3.8.3.10.27.59: FIX - Fallback hardcoded para High-Lifts componentes ✅
+    🎯 v3.8.3.10.27.58: DEBUG - Logs para diagnóstico High-Lifts componentes em Revisões ✅
     🎯 v3.8.3.10.27.57: FIX - Imprimir PDF respeita filtro "Apenas Planeadas" ✅
     🎯 v3.8.3.10.27.56: FIX CRÍTICO - Event listener Área/Equipamento → Componentes ✅
     🎯 v3.8.3.10.27.55: FIX - High-Lifts componentes + Prioridade oculta em Revisões ✅
@@ -5206,6 +5208,14 @@
         
         // Habilitar dropdown
         areaSelect.disabled = false;
+        
+        // 🆕 v3.8.3.10.27.58: Se já tiver área selecionada, popular componentes
+        const areaAtual = areaSelect.value;
+        if (areaAtual) {
+            console.log('🔧 Área já selecionada em Revisão:', areaAtual);
+            // Disparar evento para popular componentes
+            handleAreaEquipamentoChange({ target: areaSelect });
+        }
     }
     
     // ================================================================
@@ -10899,18 +10909,42 @@ function handleAreaEquipamentoChange(e) {
     // Obter empresa selecionada
     const empresaSelecionada = empresaSelect?.value || null;
     
+    console.log(`🔍 handleAreaEquipamentoChange: área="${areaSelected}", empresa="${empresaSelecionada}"`);
+    console.log(`📊 AppState.equipamentos total:`, AppState.equipamentos.length);
+    
     // ✅ Filtrar por área E empresa
     let componentes = AppState.equipamentos.filter(e => e.area === areaSelected);
+    console.log(`🔍 Componentes para área "${areaSelected}":`, componentes.length);
     
     // Se houver empresa selecionada, filtrar também por ela
     if (empresaSelecionada) {
         componentes = componentes.filter(e => e.empresa === empresaSelecionada);
+        console.log(`🔍 Componentes após filtrar por empresa "${empresaSelecionada}":`, componentes.length);
     }
     
     componentes.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
     
+    // 🆕 v3.8.3.10.27.59: FALLBACK para dados hardcoded se não houver no Supabase
+    if (componentes.length === 0 && CONFIG.EQUIPAMENTOS_OLD && CONFIG.EQUIPAMENTOS_OLD[areaSelected]) {
+        console.warn(`⚠️ Nenhum componente no Supabase para "${areaSelected}". Usando dados hardcoded (fallback).`);
+        const componentesHardcoded = CONFIG.EQUIPAMENTOS_OLD[areaSelected];
+        componentesHardcoded.forEach((comp, index) => {
+            componentes.push({
+                area: areaSelected,
+                componente: comp,
+                empresa: empresaSelecionada || 'MCF',  // Assumir MCF como padrão
+                ordem: index + 1
+            });
+        });
+        console.log(`✅ ${componentes.length} componentes carregados do fallback hardcoded`);
+    }
+    
     // Limpar e popular dropdown de componentes
     componenteSelect.innerHTML = '<option value="">Selecione o componente</option>';
+    
+    if (componentes.length === 0) {
+        console.warn(`⚠️ Nenhum componente encontrado para área="${areaSelected}", empresa="${empresaSelecionada}"`);
+    }
     
     componentes.forEach(equip => {
         const option = document.createElement('option');
@@ -14659,13 +14693,17 @@ async function loadPlanningFromSupabase() {
             return;
         }
         
-        // Converter dados do Supabase → AppState.planning.tasks
-        AppState.planning.tasks = {};
+        // 🔄 v3.8.3.10.27.60: MERGE em vez de substituir
+        // NÃO limpar AppState.planning.tasks - fazer merge!
+        console.log('🔄 Fazendo MERGE de', planningData.length, 'tasks do Supabase com', Object.keys(AppState.planning.tasks).length, 'tasks locais');
+        
+        const tasksAntes = Object.keys(AppState.planning.tasks).length;
         
         planningData.forEach(p => {
             const taskId = p['Pedido ID'];
             const diasAlocados = p['Dias Alocados'] ? JSON.parse(p['Dias Alocados']) : [];
             
+            // ✅ MERGE: Supabase tem prioridade sobre dados locais
             AppState.planning.tasks[taskId] = {
                 responsavel: p['Responsável'] || '',
                 horasEstimadas: parseFloat(p['Horas Estimadas']) || 0,
@@ -14678,6 +14716,9 @@ async function loadPlanningFromSupabase() {
                 AppState.planning.allocations[allocationKey] = true;
             });
         });
+        
+        const tasksDepois = Object.keys(AppState.planning.tasks).length;
+        console.log(`✅ MERGE concluído: ${tasksAntes} local + ${planningData.length} Supabase = ${tasksDepois} total`);
         
         console.log(`✅ ${planningData.length} tasks carregados do planeamento`);
         console.log('🎯 LOAD COMPLETO:', {
@@ -14787,7 +14828,18 @@ async function syncPlanningWithGoogleSheets() {
     
     try {
         console.log('🔄 Sincronizando planeamento completo com Supabase...');
-        console.log('📊 AppState.planning.tasks:', AppState.planning.tasks);
+        console.log('📊 AppState.planning.tasks:', Object.keys(AppState.planning.tasks).length, 'tasks');
+        console.log('📊 AppState.requests:', AppState.requests.length, 'requests');
+        
+        // 🔍 v3.8.3.10.27.60: Log detalhado das tasks antes de sincronizar
+        Object.keys(AppState.planning.tasks).forEach(taskId => {
+            const planningData = AppState.planning.tasks[taskId];
+            console.log(`  📋 ${taskId.substring(0, 8)}:`, {
+                resp: planningData.responsavel || '(vazio)',
+                horas: planningData.horasEstimadas || 0,
+                dias: planningData.diasAlocados?.length || 0
+            });
+        });
         
         // Buscar planeamentos existentes
         const existingPlanning = await window.SupabaseAPI.getPlaneamento();
@@ -14846,13 +14898,28 @@ async function syncPlanningWithGoogleSheets() {
             });
         }
         
+        // 🎯 v3.8.3.10.27.60: NÃO lançar erro - permitir sync mesmo vazio
         if (tasksToSync.length === 0) {
             console.warn('⚠️ Nenhum task para sincronizar!');
             console.warn('⚠️ Verifica se definiste responsável, horas ou marcaste dias');
             console.warn('📊 AppState.planning.tasks:', Object.keys(AppState.planning.tasks).length);
-            console.warn('📊 AppState.planning.allocations:', Object.keys(AppState.planning.allocations).length);
-            // 🎯 v3.8.3.10.27.36: LANÇAR ERRO em vez de return silencioso
-            throw new Error('Nenhum task válido para sincronizar. Verifique se alocou dias.');
+            console.warn('📊 AppState.requests:', AppState.requests.length);
+            
+            // 🔍 DEBUG: Listar todas as tasks em AppState.planning.tasks
+            Object.keys(AppState.planning.tasks).forEach(taskId => {
+                const task = AppState.requests.find(r => r.id === taskId);
+                const planningData = AppState.planning.tasks[taskId];
+                console.log(`  🔍 Task ${taskId.substring(0, 8)}:`, {
+                    encontrado: !!task,
+                    planningData: !!planningData,
+                    responsavel: planningData?.responsavel,
+                    horas: planningData?.horasEstimadas,
+                    dias: planningData?.diasAlocados?.length
+                });
+            });
+            
+            // ⚠️ Continuar sem lançar erro (permite limpar planeamentos antigos)
+            console.log('✅ Continuando sincronização (pode limpar planeamentos antigos)...');
         }
         
         // Limpar planeamentos antigos que já não existem
