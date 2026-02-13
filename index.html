@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.54 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.57 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-11
     
+    🎯 v3.8.3.10.27.57: FIX - Imprimir PDF respeita filtro "Apenas Planeadas" ✅
+    🎯 v3.8.3.10.27.56: FIX CRÍTICO - Event listener Área/Equipamento → Componentes ✅
+    🎯 v3.8.3.10.27.55: FIX - High-Lifts componentes + Prioridade oculta em Revisões ✅
     🎯 v3.8.3.10.27.54: FIX CRÍTICO - Revisões + Multiselect INLINE (mesmo fix do Filtro Excel) ✅
     🎯 v3.8.3.10.27.53: FIX - Campos de Revisão aparecem corretamente (Tipo Intervenção oculto) ✅
     🎯 v3.8.3.10.27.52: FIX - Campo Tipo de Revisão não é mais obrigatório quando não é Revisão ✅
@@ -5001,6 +5004,7 @@
             const componenteGroup = document.getElementById('componenteGroup');
             const tipoIntervencaoGroup = document.getElementById('tipoIntervencaoGroup');
             const checkboxesGroup = document.getElementById('checkboxesGroup');
+            const prioridadeGroup = document.getElementById('prioridadeGroup');
             
             if (tipo === 'Revisão') {
                 console.log('✅ Modo Revisão ATIVADO - ocultando campos de Corretiva/Melhoria');
@@ -5035,6 +5039,15 @@
                     console.log('  ✅ checkboxesGroup: OCULTO');
                 }
                 
+                // 🆕 v3.8.3.10.27.55: Esconder Prioridade para Revisões
+                if (prioridadeGroup) {
+                    prioridadeGroup.style.display = 'none';
+                    // Limpar seleção de prioridade
+                    const prioridadeInputs = document.querySelectorAll('input[name="prioridade"]');
+                    prioridadeInputs.forEach(input => input.checked = false);
+                    console.log('  ✅ prioridadeGroup: OCULTO');
+                }
+                
                 // Filtrar equipamentos
                 filterEquipamentosRevisao(empresa);
                 
@@ -5062,6 +5075,11 @@
                 // Restaurar checkboxes
                 if (checkboxesGroup) {
                     checkboxesGroup.style.display = 'block';
+                }
+                
+                // Restaurar Prioridade
+                if (prioridadeGroup) {
+                    prioridadeGroup.style.display = 'block';
                 }
                 
             } else {
@@ -5094,6 +5112,11 @@
                 // Restaurar checkboxes
                 if (checkboxesGroup) {
                     checkboxesGroup.style.display = 'block';
+                }
+                
+                // Restaurar Prioridade
+                if (prioridadeGroup) {
+                    prioridadeGroup.style.display = 'block';
                 }
             }
         });
@@ -5139,6 +5162,14 @@
             if (checkboxesGroup) {
                 checkboxesGroup.style.display = 'none';
                 console.log('  ✅ checkboxesGroup: OCULTO (inicial)');
+            }
+            
+            const prioridadeGroup = document.getElementById('prioridadeGroup');
+            if (prioridadeGroup) {
+                prioridadeGroup.style.display = 'none';
+                const prioridadeInputs = document.querySelectorAll('input[name="prioridade"]');
+                prioridadeInputs.forEach(input => input.checked = false);
+                console.log('  ✅ prioridadeGroup: OCULTO (inicial)');
             }
             
             const empresa = empresaSelect ? empresaSelect.value : '';
@@ -7671,7 +7702,7 @@ const CONFIG = {
             'Caterpillar 2',
             'Case'
         ],
-        'High-Liflts': [
+        'High-Lifts': [
             'Volvo C',
             'Volvo D',
             'Volvo E'
@@ -10635,6 +10666,13 @@ function setupEventListeners() {
             renderRequestsList();
         });
         // Nota: populateResponsavelFilter() é chamado em initializePlanning()
+    }
+    
+    // 🆕 v3.8.3.10.27.55: Event listener para Área/Equipamento → popular Componentes
+    const areaEquipamentoSelect = document.getElementById('areaEquipamento');
+    if (areaEquipamentoSelect) {
+        areaEquipamentoSelect.addEventListener('change', handleAreaEquipamentoChange);
+        console.log('✅ Event listener de Área/Equipamento anexado');
     }
     
     document.getElementById('clearFilters').addEventListener('click', clearFilters);
@@ -14111,12 +14149,9 @@ function applyPlanningFilters(requests) {
 
 // 🆕 v3.8.3.10.27.20: Imprimir Planeamento em PDF
 function imprimirPlaneamento() {
-    // Ativar filtro "Apenas Planeadas" temporariamente
-    const filtroAnterior = AppState.planning.apenasPlanadas;
-    if (!AppState.planning.apenasPlanadas) {
-        AppState.planning.apenasPlanadas = true;
-        renderPlanningGrid(); // Re-renderizar com filtro
-    }
+    // 🆕 v3.8.3.10.27.57: Respeitar o estado atual do filtro "Apenas Planeadas"
+    // NÃO forçar - imprimir o que está visível atualmente
+    console.log('🖨️ Imprimindo planeamento. Apenas Planeadas:', AppState.planning.apenasPlanadas);
     
     // Preparar conteúdo para impressão
     const rangeText = document.getElementById('planningRange').textContent;
@@ -14220,12 +14255,7 @@ function imprimirPlaneamento() {
         setTimeout(() => {
             document.body.classList.remove('printing-planning');
             document.body.removeChild(printContainer);
-            
-            // Restaurar filtro anterior
-            if (AppState.planning.apenasPlanadas !== filtroAnterior) {
-                AppState.planning.apenasPlanadas = filtroAnterior;
-                renderPlanningGrid();
-            }
+            // 🆕 v3.8.3.10.27.57: Não restaurar filtro - manter o que o utilizador escolheu
         }, 1000); // ✅ 1 segundo para limpar
     }, 800); // ✅ 800ms para dar tempo ao CSS ser aplicado
 }
