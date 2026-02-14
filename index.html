@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.59 (Worker: v3.8.3.10.27.10)
-    📅 Data: 2026-02-11
+    📦 Versão: v3.8.3.10.27.62 (Worker: v3.8.3.10.27.10)
+    📅 Data: 2026-02-14
     
+    🎯 v3.8.3.10.27.62: FEATURE - Reabrir OTs resolvidas ✅
+    🎯 v3.8.3.10.27.61: FIX - Campo Prioridade não bloqueia criação de Revisões ✅
+    🎯 v3.8.3.10.27.60: FIX CRÍTICO - Planeamento sincroniza entre PCs (merge inteligente) ✅
     🎯 v3.8.3.10.27.59: FIX - Fallback hardcoded para High-Lifts componentes ✅
     🎯 v3.8.3.10.27.58: DEBUG - Logs para diagnóstico High-Lifts componentes em Revisões ✅
     🎯 v3.8.3.10.27.57: FIX - Imprimir PDF respeita filtro "Apenas Planeadas" ✅
@@ -11502,6 +11505,7 @@ function renderRequestCard(request) {
                 </div>
                 <div class="request-actions" onclick="event.stopPropagation()">
                     ${estado !== 'Resolvido' ? `<button class="btn-icon" onclick="changeRequestState('${request.id}')" title="Mudar estado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>` : ''}
+                    ${estado === 'Resolvido' ? `<button class="btn-icon" onclick="reopenRequest('${request.id}')" title="Reabrir OT" style="background: #3498db;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg></button>` : ''}
                     <button class="btn-icon" onclick="deleteRequest('${request.id}')" title="Eliminar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                 </div>
             </div>
@@ -13053,6 +13057,66 @@ async function changeRequestState(id) {
         renderRequestsList();
         showToast(`Estado alterado para: ${newState}`, 'success');
     }
+}
+
+// 🆕 v3.8.3.10.27.62: Reabrir OT resolvida
+async function reopenRequest(id) {
+    const request = AppState.requests.find(r => r.id === id);
+    if (!request) {
+        console.error('❌ Ordem de trabalho não encontrada:', id);
+        return;
+    }
+    
+    // Verificar se a OT está realmente resolvida
+    if (request.estado !== 'Resolvido') {
+        showToast('⚠️ Esta OT não está resolvida.', 'warning');
+        return;
+    }
+    
+    // Confirmar reabertura
+    showCustomAlert({
+        title: '🔄 Reabrir Ordem de Trabalho?',
+        message: `Tem a certeza que deseja reabrir a OT #${request.id}?<br><br>A OT voltará ao estado <strong>"Em curso"</strong> e poderá ser trabalhada novamente.`,
+        icon: '🔄',
+        buttonText: 'Sim, Reabrir',
+        secondaryButtonText: 'Cancelar',
+        onConfirm: async () => {
+            try {
+                console.log('🔄 Reabrindo OT:', id);
+                
+                // Guardar informação de quem reabriu
+                if (AppState.currentUser) {
+                    request.reabertoPor = AppState.currentUser.nomeCompleto;
+                    request.reabertoPorUsername = AppState.currentUser.username;
+                    request.dataReabertura = new Date().toISOString();
+                    console.log('✅ Reaberto por:', request.reabertoPor);
+                }
+                
+                // Mudar estado para "Em curso"
+                request.estado = 'Em curso';
+                
+                // Limpar informação de fecho (opcional - comentar se quiser manter histórico)
+                // request.fechadoPor = null;
+                // request.fechadoPorUsername = null;
+                
+                // Salvar alterações
+                saveToLocalStorage();
+                if (AppState.isOnline) {
+                    await updateInGoogleSheets(request);  // 🔥 Nome legacy, usa Supabase
+                }
+                
+                // Atualizar interface
+                renderRequestsList();
+                
+                showToast('✅ OT reaberta com sucesso!', 'success');
+                console.log('✅ OT reaberta:', request);
+                
+            } catch (error) {
+                console.error('❌ Erro ao reabrir OT:', error);
+                showToast('❌ Erro ao reabrir OT: ' + error.message, 'error');
+            }
+        }
+    });
 }
 
 async function deleteRequest(id) {
