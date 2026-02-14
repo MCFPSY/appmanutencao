@@ -5042,12 +5042,16 @@
                 }
                 
                 // 🆕 v3.8.3.10.27.55: Esconder Prioridade para Revisões
+                // 🔧 v3.8.3.10.27.61: Remover required dos radio buttons
                 if (prioridadeGroup) {
                     prioridadeGroup.style.display = 'none';
-                    // Limpar seleção de prioridade
+                    // Limpar seleção de prioridade E remover required
                     const prioridadeInputs = document.querySelectorAll('input[name="prioridade"]');
-                    prioridadeInputs.forEach(input => input.checked = false);
-                    console.log('  ✅ prioridadeGroup: OCULTO');
+                    prioridadeInputs.forEach(input => {
+                        input.checked = false;
+                        input.required = false; // 🔧 Remover obrigatoriedade
+                    });
+                    console.log('  ✅ prioridadeGroup: OCULTO (required removido)');
                 }
                 
                 // Filtrar equipamentos
@@ -5080,8 +5084,14 @@
                 }
                 
                 // Restaurar Prioridade
+                // 🔧 v3.8.3.10.27.61: Restaurar required dos radio buttons
                 if (prioridadeGroup) {
                     prioridadeGroup.style.display = 'block';
+                    // Restaurar required para pelo menos um ser selecionado
+                    const prioridadeInputs = document.querySelectorAll('input[name="prioridade"]');
+                    prioridadeInputs.forEach(input => {
+                        input.required = true; // 🔧 Restaurar obrigatoriedade
+                    });
                 }
                 
             } else {
@@ -5117,8 +5127,14 @@
                 }
                 
                 // Restaurar Prioridade
+                // 🔧 v3.8.3.10.27.61: Restaurar required dos radio buttons
                 if (prioridadeGroup) {
                     prioridadeGroup.style.display = 'block';
+                    // Restaurar required para pelo menos um ser selecionado
+                    const prioridadeInputs = document.querySelectorAll('input[name="prioridade"]');
+                    prioridadeInputs.forEach(input => {
+                        input.required = true; // 🔧 Restaurar obrigatoriedade
+                    });
                 }
             }
         });
@@ -11181,7 +11197,8 @@ async function handleFormSubmit(e) {
         const prioridadeValue = document.querySelector('input[name="prioridade"]:checked')?.value;
         
         // 🆕 Prioridade só é obrigatória para Corretivas e Melhorias
-        if (!prioridadeValue && tipoValue !== 'Preventiva') {
+        // 🔧 v3.8.3.10.27.61: Revisão também não precisa de prioridade
+        if (!prioridadeValue && tipoValue !== 'Preventiva' && tipoValue !== 'Revisão') {
             showToast('❌ Por favor, seleciona uma prioridade!', 'error');
             return;
         }
