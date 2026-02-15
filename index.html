@@ -6853,6 +6853,9 @@
                         </div>
                     </div>
                     <canvas id="chartPedidosPorUtilizador"></canvas>
+                    <div id="chartPedidosPorUtilizadorEmpty" style="display: none; text-align: center; color: #666; padding: 40px;">
+                        Nenhuma ordem de trabalho fechada no período selecionado
+                    </div>
                 </div>
 
                 <!-- 🆕 v3.7.6.9: Gráfico Pie Chart - Tipos de Intervenção -->
@@ -17276,6 +17279,8 @@ function renderizarGraficoEvolucaoBacklog(dados) {
 function renderizarGraficoPedidosPorUtilizador(dados) {
     try {
         const ctx = document.getElementById('chartPedidosPorUtilizador');
+        const emptyMsg = document.getElementById('chartPedidosPorUtilizadorEmpty');
+        
         if (!ctx) {
             console.error('❌ Canvas chartPedidosPorUtilizador não encontrado!');
             return;
@@ -17284,13 +17289,19 @@ function renderizarGraficoPedidosPorUtilizador(dados) {
     // Destruir gráfico anterior se existir
     if (chartPedidosPorUtilizador) {
         chartPedidosPorUtilizador.destroy();
+        chartPedidosPorUtilizador = null;
     }
     
     if (dados.length === 0) {
-        // Mostrar mensagem se não há dados
-        ctx.parentElement.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">Nenhuma ordem de trabalho fechada esta semana</p>';
+        // Ocultar canvas e mostrar mensagem
+        ctx.style.display = 'none';
+        if (emptyMsg) emptyMsg.style.display = 'block';
         return;
     }
+    
+    // Mostrar canvas e ocultar mensagem
+    ctx.style.display = 'block';
+    if (emptyMsg) emptyMsg.style.display = 'none';
     
     chartPedidosPorUtilizador = new Chart(ctx, {
         type: 'bar',
