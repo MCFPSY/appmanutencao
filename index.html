@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.94 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.97 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-15
     
+    🎯 v3.8.3.10.27.97: UI - Títulos limpos ("Corretivas", "Preventivas"...) + 4 donuts fixos numa linha ✅
+    🎯 v3.8.3.10.27.96: FIX - Donut charts agora usam MESMA LÓGICA DO BACKLOG + prioridades por tipo ✅
+    🎯 v3.8.3.10.27.95: FEATURE - Donut charts na Análise de Pedidos (ordens por tipo + prioridades) ✅
     🎯 v3.8.3.10.27.94: FIX - Auto-ativar filtros Preventiva ao carregar (sincroniza checkboxes com AppState) ✅
     🎯 v3.8.3.10.27.83: FEATURE - Botão "📅 Hoje" em Pedidos Fechados por Utilizador ✅
     🎯 v3.8.3.10.27.82: DEBUG - Logs para verificar se standby estão a ser excluídos ✅
@@ -234,7 +237,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Manutenção MCF+PSY">
-    <title>Gestão de manutenção MCF + PSY</title>
+    <title>🏭 APP MANUTENÇÃO MCF + PSY v3.8.3.10.27.97</title>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/appmanutencao/manifest.json">
@@ -4085,6 +4088,107 @@
            TAB ANÁLISE - Gráficos e Chatbot
            =================================== */
         
+        /* 🎯 v3.8.3.10.27.95: Donut Charts Overview */
+        .donut-overview {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 🔧 v3.8.3.10.27.97: Forçar 4 colunas fixas */
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+            padding: var(--spacing-xl);
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: var(--radius-lg);
+        }
+        
+        /* 🔧 v3.8.3.10.27.97: Responsivo - 2 colunas em tablets, 1 em mobile */
+        @media (max-width: 1200px) {
+            .donut-overview {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .donut-overview {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .donut-card {
+            background: var(--color-white);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .donut-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        }
+        
+        .donut-card-title {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-md);
+            font-weight: var(--font-weight-semibold);
+        }
+        
+        .donut-chart-wrapper {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            margin: 0 auto var(--spacing-md) auto;
+        }
+        
+        .donut-chart {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+        
+        .donut-chart-bg {
+            fill: none;
+            stroke: #e0e0e0;
+            stroke-width: 12;
+        }
+        
+        .donut-chart-fill {
+            fill: none;
+            stroke-width: 12;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.6s ease;
+        }
+        
+        .donut-chart-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-primary);
+        }
+        
+        .donut-details {
+            font-size: 0.75rem;
+            color: var(--color-text-secondary);
+            line-height: 1.6;
+            text-align: left;
+            background: var(--color-background);
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-md);
+        }
+        
+        .donut-details-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        
+        .donut-details-item:last-child {
+            margin-bottom: 0;
+        }
+        
         /* Analytics Cards */
         .analytics-cards {
             display: grid;
@@ -6772,6 +6876,81 @@
             <!-- Título -->
             <div class="card">
                 <h2 class="card-title">📊 Análise de Pedidos</h2>
+                
+                <!-- 🎯 v3.8.3.10.27.95: Donut Charts Overview -->
+                <div class="donut-overview">
+                    <!-- Ordens Corretivas -->
+                    <div class="donut-card">
+                        <div class="donut-card-title">Corretivas</div>
+                        <div class="donut-chart-wrapper">
+                            <svg class="donut-chart" viewBox="0 0 100 100">
+                                <circle class="donut-chart-bg" cx="50" cy="50" r="40"></circle>
+                                <circle class="donut-chart-fill" cx="50" cy="50" r="40" 
+                                        id="donutCorretivas" 
+                                        style="stroke: #1e5a7d; stroke-dasharray: 251.2; stroke-dashoffset: 0;">
+                                </circle>
+                            </svg>
+                            <div class="donut-chart-center" id="donutCorretivas-value">0</div>
+                        </div>
+                        <div class="donut-details" id="donutCorretivas-details">
+                            <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 8px;">📌 Prioridade</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ordens Preventivas -->
+                    <div class="donut-card">
+                        <div class="donut-card-title">Preventivas</div>
+                        <div class="donut-chart-wrapper">
+                            <svg class="donut-chart" viewBox="0 0 100 100">
+                                <circle class="donut-chart-bg" cx="50" cy="50" r="40"></circle>
+                                <circle class="donut-chart-fill" cx="50" cy="50" r="40" 
+                                        id="donutPreventivas" 
+                                        style="stroke: #1e5a7d; stroke-dasharray: 251.2; stroke-dashoffset: 0;">
+                                </circle>
+                            </svg>
+                            <div class="donut-chart-center" id="donutPreventivas-value">0</div>
+                        </div>
+                        <div class="donut-details" id="donutPreventivas-details">
+                            <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 8px;">📌 Prioridade</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ordens Melhoria -->
+                    <div class="donut-card">
+                        <div class="donut-card-title">Melhoria</div>
+                        <div class="donut-chart-wrapper">
+                            <svg class="donut-chart" viewBox="0 0 100 100">
+                                <circle class="donut-chart-bg" cx="50" cy="50" r="40"></circle>
+                                <circle class="donut-chart-fill" cx="50" cy="50" r="40" 
+                                        id="donutMelhoria" 
+                                        style="stroke: #1e5a7d; stroke-dasharray: 251.2; stroke-dashoffset: 0;">
+                                </circle>
+                            </svg>
+                            <div class="donut-chart-center" id="donutMelhoria-value">0</div>
+                        </div>
+                        <div class="donut-details" id="donutMelhoria-details">
+                            <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 8px;">📌 Prioridade</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ordens Revisão -->
+                    <div class="donut-card">
+                        <div class="donut-card-title">Revisão</div>
+                        <div class="donut-chart-wrapper">
+                            <svg class="donut-chart" viewBox="0 0 100 100">
+                                <circle class="donut-chart-bg" cx="50" cy="50" r="40"></circle>
+                                <circle class="donut-chart-fill" cx="50" cy="50" r="40" 
+                                        id="donutRevisao" 
+                                        style="stroke: #1e5a7d; stroke-dasharray: 251.2; stroke-dashoffset: 0;">
+                                </circle>
+                            </svg>
+                            <div class="donut-chart-center" id="donutRevisao-value">0</div>
+                        </div>
+                        <div class="donut-details" id="donutRevisao-details">
+                            <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 8px;">📌 Prioridade</div>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Cards de Métricas -->
                 <div class="analytics-cards">
@@ -17589,6 +17768,122 @@ function atualizarCardsMetricas(metricas) {
 }
 
 /**
+ * 🎯 v3.8.3.10.27.95: Atualizar Donut Charts
+ * 🔧 MESMA LÓGICA DO BACKLOG (linha 17132)
+ */
+function atualizarDonutCharts() {
+    console.log('🍩 [DONUT] Atualizando donut charts...');
+    
+    // Obter filtros
+    const empresaFiltro = document.getElementById('analiseEmpresaFilter')?.value || '';
+    
+    // Filtrar pedidos (com a MESMA lógica do backlog)
+    const pedidosFiltrados = empresaFiltro 
+        ? AppState.requests.filter(r => r.empresa === empresaFiltro)
+        : AppState.requests;
+    
+    // 🔧 MESMA LÓGICA DO BACKLOG: Filtrar pedidos válidos
+    const pedidosValidos = pedidosFiltrados.filter(p => {
+        // Excluir resolvidas
+        if (p.estado === 'Resolvido') return false;
+        
+        // Excluir standby (case-insensitive)
+        if (p.estado && p.estado.toLowerCase() === 'standby') return false;
+        
+        // Se for preventiva, verificar se está para breve ou atrasada
+        if (p.tipo === 'Preventiva' && p.dataPrimeiraIntervencao && p.frequencia) {
+            const proximaData = calcularProximaIntervencao(p.dataPrimeiraIntervencao, p.frequencia);
+            if (proximaData) {
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
+                return diasRestantes <= 30;
+            }
+            return false;
+        }
+        
+        // Corretivas, Melhorias, Revisões contam normalmente
+        return true;
+    });
+    
+    // Contar por tipo
+    const corretivas = pedidosValidos.filter(p => p.tipo === 'Corretiva').length;
+    const preventivas = pedidosValidos.filter(p => p.tipo === 'Preventiva').length;
+    const melhorias = pedidosValidos.filter(p => p.tipo === 'Melhoria').length;
+    const revisoes = pedidosValidos.filter(p => p.tipo === 'Revisão').length;
+    
+    // Total de OTs abertas (deve bater com o backlog)
+    const totalAbertos = corretivas + preventivas + melhorias + revisoes;
+    
+    console.log('🍩 [DONUT] Contagens:', { corretivas, preventivas, melhorias, revisoes, totalAbertos });
+    console.log('🍩 [DONUT] Backlog (deve bater):', totalAbertos);
+    
+    // Atualizar cada donut COM suas prioridades específicas
+    atualizarDonut('Corretivas', corretivas, totalAbertos, '#1e5a7d', pedidosValidos);
+    atualizarDonut('Preventivas', preventivas, totalAbertos, '#1e5a7d', pedidosValidos);
+    atualizarDonut('Melhoria', melhorias, totalAbertos, '#1e5a7d', pedidosValidos);
+    atualizarDonut('Revisao', revisoes, totalAbertos, '#1e5a7d', pedidosValidos);
+}
+
+/**
+ * 🎯 v3.8.3.10.27.95: Atualizar um donut individual
+ * ✅ Mostra prioridades específicas de cada tipo
+ */
+function atualizarDonut(tipo, valor, total, cor, pedidosValidos) {
+    const circle = document.getElementById(`donut${tipo}`);
+    const valueEl = document.getElementById(`donut${tipo}-value`);
+    const detailsEl = document.getElementById(`donut${tipo}-details`);
+    
+    if (!circle || !valueEl) return;
+    
+    // Atualizar valor central
+    valueEl.textContent = valor;
+    
+    // Calcular percentagem
+    const percentagem = total > 0 ? (valor / total * 100).toFixed(1) : 0;
+    
+    // Calcular stroke-dashoffset (circunferência = 2 * π * r = 2 * π * 40 = 251.2)
+    const circunferencia = 251.2;
+    const offset = circunferencia - (percentagem / 100 * circunferencia);
+    
+    // Animar o círculo
+    circle.style.strokeDashoffset = offset;
+    circle.style.stroke = cor;
+    
+    // Atualizar detalhes com prioridades específicas deste tipo
+    if (detailsEl && pedidosValidos) {
+        // Filtrar pedidos deste tipo específico
+        const pedidosTipo = pedidosValidos.filter(p => {
+            if (tipo === 'Corretivas') return p.tipo === 'Corretiva';
+            if (tipo === 'Preventivas') return p.tipo === 'Preventiva';
+            if (tipo === 'Melhoria') return p.tipo === 'Melhoria';
+            if (tipo === 'Revisao') return p.tipo === 'Revisão';
+            return false;
+        });
+        
+        // Contar prioridades deste tipo
+        const alta = pedidosTipo.filter(p => p.prioridade === 'Alta').length;
+        const media = pedidosTipo.filter(p => p.prioridade === 'Média').length;
+        const baixa = pedidosTipo.filter(p => p.prioridade === 'Baixa').length;
+        
+        // Montar HTML das prioridades
+        let prioridadesHTML = '<div style=\"font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 8px;\">📌 Prioridade</div>';
+        
+        if (alta > 0 || media > 0 || baixa > 0) {
+            prioridadesHTML += '<div style=\"font-size: 0.75rem; line-height: 1.6; margin-top: 4px;\">';
+            if (alta > 0) prioridadesHTML += `• <strong style=\"color: #d32f2f;\">${alta}x alta</strong><br>`;
+            if (media > 0) prioridadesHTML += `• <strong style=\"color: #f57c00;\">${media}x média</strong><br>`;
+            if (baixa > 0) prioridadesHTML += `• <strong style=\"color: #388e3c;\">${baixa}x baixa</strong>`;
+            prioridadesHTML += '</div>';
+        } else {
+            prioridadesHTML += '<div style=\"font-size: 0.7rem; color: #999; margin-top: 4px;\">Sem prioridades</div>';
+        }
+        
+        detailsEl.innerHTML = prioridadesHTML;
+    }
+}
+
+/**
  * Função principal para atualizar análises
  */
 window.atualizarAnalises = function() {
@@ -17622,6 +17917,9 @@ window.atualizarAnalises = function() {
         
         // Atualizar métricas
         atualizarCardsMetricas(metricas);
+        
+        // 🎯 v3.8.3.10.27.95: Atualizar donut charts
+        atualizarDonutCharts();
         
         showToast('✅ Análises atualizadas!', 'success');
         
