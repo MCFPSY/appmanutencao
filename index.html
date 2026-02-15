@@ -1,10 +1,18 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.97 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.98.7 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-15
     
-    🎯 v3.8.3.10.27.97: UI - Títulos limpos ("Corretivas", "Preventivas"...) + 4 donuts fixos numa linha ✅
+    🎯 v3.8.3.10.27.98.7: UI - Remover emoji tab Ranking + período padrão = Semana ✅
+    🎯 v3.8.3.10.27.98.6: DEBUG - Controlo de acesso Ranking com logs detalhados ✅
+    🎯 v3.8.3.10.27.98.5: FIX - Ranking alinhado com Análise (fechadoPor → responsavel) ✅
+    🎯 v3.8.3.10.27.98.4: FIX - Ranking usa 'nome' como técnico + debug mostra campos disponíveis ✅
+    🎯 v3.8.3.10.27.98.3: FIX - Ranking usa fallback (closed_by → nome → responsavel → utilizador) + debug ✅
+    🎯 v3.8.3.10.27.98.2: FIX - Ranking usando Supabase API (getRankingPrioridades, getRankingTipos) ✅
+    🎯 v3.8.3.10.27.98.1: FIX - Ranking com valores hardcoded + debug + aceitar estado=Resolvido ✅
+    🎯 v3.8.3.10.27.98: FEATURE - Sistema de Ranking de Técnicos (peso×prioridade×tipo) - visível apenas para Gonçalo ✅
+    🎯 v3.8.3.10.27.97: FEATURE - Preventivas/Revisão mostram próximas 3 OTs + datas (em vez de prioridades) ✅
     🎯 v3.8.3.10.27.96: FIX - Donut charts agora usam MESMA LÓGICA DO BACKLOG + prioridades por tipo ✅
     🎯 v3.8.3.10.27.95: FEATURE - Donut charts na Análise de Pedidos (ordens por tipo + prioridades) ✅
     🎯 v3.8.3.10.27.94: FIX - Auto-ativar filtros Preventiva ao carregar (sincroniza checkboxes com AppState) ✅
@@ -4173,10 +4181,14 @@
             font-size: 0.75rem;
             color: var(--color-text-secondary);
             line-height: 1.6;
-            text-align: left;
+            text-align: center; /* 🎯 v3.8.3.10.27.97: Centralizar conteúdo */
             background: var(--color-background);
             padding: var(--spacing-sm);
             border-radius: var(--radius-md);
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* 🎯 v3.8.3.10.27.97: Centralizar horizontalmente */
+            justify-content: center;
         }
         
         .donut-details-item {
@@ -4187,6 +4199,72 @@
         
         .donut-details-item:last-child {
             margin-bottom: 0;
+        }
+        
+        /* 🏆 v3.8.3.10.27.98: Ranking Styles */
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            padding: var(--spacing-md);
+            background: var(--color-background);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-sm);
+            transition: all var(--transition-base);
+        }
+        
+        .ranking-item:hover {
+            background: #f0f4f8;
+            transform: translateX(4px);
+        }
+        
+        .ranking-posicao {
+            font-size: 1.5rem;
+            font-weight: 700;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .ranking-tecnico {
+            flex: 1;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+        
+        .ranking-pontos {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-right: var(--spacing-md);
+        }
+        
+        .ranking-ots {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+        }
+        
+        .ranking-detalhes-ot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--color-background);
+            border-left: 3px solid var(--color-primary);
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .ranking-detalhes-ot:hover {
+            background: #f0f4f8;
+        }
+        
+        .ranking-detalhes-ot-info {
+            flex: 1;
+        }
+        
+        .ranking-detalhes-ot-pontos {
+            font-weight: 700;
+            color: var(--color-primary);
+            font-size: 1.1rem;
         }
         
         /* Analytics Cards */
@@ -5549,6 +5627,12 @@
                     <polyline points="10 9 9 9 8 9"/>
                 </svg>
                 Documentos
+            </button>
+            <button class="tab-btn" data-tab="ranking" id="tab-btn-ranking" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/>
+                </svg>
+                Ranking
             </button>
         </nav>
 
@@ -7112,6 +7196,85 @@
         </div>
     </section>
 
+    <!-- 🏆 Tab Ranking (v3.8.3.10.27.98) -->
+    <section class="tab-content" id="tab-ranking">
+        <div class="container">
+            <!-- Cabeçalho -->
+            <div class="card">
+                <h2 class="card-title">🏆 Ranking de Técnicos</h2>
+                <p class="card-description">Sistema de pontuação baseado em complexidade e prioridade das OTs</p>
+                
+                <!-- Filtros -->
+                <div style="display: flex; gap: var(--spacing-md); align-items: center; margin-top: var(--spacing-lg); flex-wrap: wrap;">
+                    <!-- Tipo de Período -->
+                    <div class="form-group" style="margin: 0; flex: 0 0 auto;">
+                        <label class="form-label" for="rankingTipoPeriodo">Período</label>
+                        <select class="form-input" id="rankingTipoPeriodo" style="width: 150px;">
+                            <option value="semana" selected>Semana</option>
+                            <option value="mes">Mês</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Navegação de Período -->
+                    <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                        <button class="btn btn-secondary btn-sm" id="rankingPeriodoAnterior" title="Período anterior">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                                <polyline points="15 18 9 12 15 6"/>
+                            </svg>
+                        </button>
+                        <div id="rankingPeriodoAtual" style="min-width: 200px; text-align: center; font-weight: 600; color: var(--color-text);">
+                            <!-- Será preenchido dinamicamente -->
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="rankingPeriodoProximo" title="Período seguinte">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Botão Atualizar -->
+                    <button class="btn btn-primary" id="rankingAtualizar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 4px;">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                        </svg>
+                        Atualizar
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Ranking Geral -->
+            <div class="card">
+                <h3 style="margin: 0 0 var(--spacing-lg) 0; font-size: 1.25rem; color: var(--color-text);">
+                    📊 Classificação Geral
+                </h3>
+                
+                <div id="rankingListaGeral">
+                    <div class="loading-spinner">A calcular ranking...</div>
+                </div>
+            </div>
+            
+            <!-- Detalhes por Técnico -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                    <h3 style="margin: 0; font-size: 1.25rem; color: var(--color-text);">
+                        🔍 Detalhes por Técnico
+                    </h3>
+                    <div class="form-group" style="margin: 0;">
+                        <select class="form-input" id="rankingTecnicoSelect" style="width: 250px;">
+                            <option value="">Selecione um técnico...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="rankingDetalhesTecnico">
+                    <div class="empty-state-small">
+                        <p>👆 Selecione um técnico acima para ver os detalhes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>
 
@@ -7350,6 +7513,25 @@ async function getEquipamentos() {
         return result || [];
     } catch (error) {
         console.error('❌ Erro ao buscar equipamentos:', error);
+        return [];
+    }
+}
+
+// 🏆 v3.8.3.10.27.98: RANKING
+async function getRankingPrioridades() {
+    try {
+        return await supabaseFetch('ranking_prioridades?select=*&order=multiplicador.desc');
+    } catch (error) {
+        console.error('❌ Erro ao buscar ranking_prioridades:', error);
+        return [];
+    }
+}
+
+async function getRankingTipos() {
+    try {
+        return await supabaseFetch('ranking_tipos?select=*&order=multiplicador.desc');
+    } catch (error) {
+        console.error('❌ Erro ao buscar ranking_tipos:', error);
         return [];
     }
 }
@@ -7679,6 +7861,9 @@ window.SupabaseAPI = {
     deleteFoto,
     getFotoUrl,
     getEquipamentos,
+    // 🏆 v3.8.3.10.27.98: Ranking
+    getRankingPrioridades,
+    getRankingTipos,
     // Manuais
     getManuais,
     addManual,
@@ -8380,6 +8565,33 @@ function showUserInterface() {
             processarManualBtn.style.display = 'flex';
     
         }
+    }
+    
+    // 🏆 v3.8.3.10.27.98.6: Mostrar tab Ranking APENAS para Gonçalo
+    const isGoncalo = utilizadorNormalizado === 'goncalo';
+    const rankingTabBtn = document.getElementById('tab-btn-ranking');
+    
+    console.log('🔍 [RANKING ACCESS] Username original:', AppState.currentUser?.username);
+    console.log('🔍 [RANKING ACCESS] Username normalizado:', utilizadorNormalizado);
+    console.log('🔍 [RANKING ACCESS] isGoncalo?', isGoncalo);
+    console.log('🔍 [RANKING ACCESS] Comparação:', `"${utilizadorNormalizado}" === "goncalo"`, utilizadorNormalizado === 'goncalo');
+    console.log('🔍 [RANKING ACCESS] Botão encontrado:', !!rankingTabBtn);
+    
+    if (rankingTabBtn) {
+        const displayValue = isGoncalo ? 'flex' : 'none';
+        const displayAntes = rankingTabBtn.style.display;
+        
+        rankingTabBtn.style.display = displayValue;
+        
+        console.log(`🔧 [RANKING ACCESS] Display: "${displayAntes}" → "${displayValue}"`);
+        
+        if (isGoncalo) {
+            console.log('✅ [RANKING ACCESS] Tab Ranking ATIVADO para Gonçalo!');
+        } else {
+            console.log('❌ [RANKING ACCESS] Tab Ranking BLOQUEADO (utilizador não é Gonçalo)');
+        }
+    } else {
+        console.error('❌ [RANKING ACCESS] Botão #tab-btn-ranking NÃO ENCONTRADO no DOM!');
     }
     
     applyUserAutoFill();
@@ -11321,6 +11533,11 @@ function handleTabChange(e) {
     // 📚 Carregar manuais ao abrir tab Manuais
     if (tab === 'manuais') {
         setTimeout(() => carregarManuais(), 100);
+    }
+    
+    // 🏆 v3.8.3.10.27.98: Carregar ranking ao abrir tab Ranking
+    if (tab === 'ranking') {
+        setTimeout(() => atualizarRanking(), 300);
     }
     
     // Re-aplicar auto-preenchimento quando mudar de tab
@@ -17262,7 +17479,8 @@ function processarPedidosPorUtilizador(empresaFiltro = '', dias = 7) {
     // 🆕 v3.7.6.9: Contar por quem FECHOU (não por quem foi alocado)
     const porUtilizador = {};
     pedidosFechados.forEach(p => {
-        // Prioridade 1: Fechado Por | Fallback: Responsável (OTs antigas)
+        // 🔧 v3.8.3.10.27.98.5: MESMA LÓGICA usada no Ranking
+        // Prioridade 1: fechadoPor | Fallback: responsavel (OTs antigas)
         const quemFechou = p.fechadoPor || p.responsavel || 'Sem responsável';
         porUtilizador[quemFechou] = (porUtilizador[quemFechou] || 0) + 1;
     });
@@ -17826,8 +18044,9 @@ function atualizarDonutCharts() {
 }
 
 /**
- * 🎯 v3.8.3.10.27.95: Atualizar um donut individual
- * ✅ Mostra prioridades específicas de cada tipo
+ * 🎯 v3.8.3.10.27.97: Atualizar um donut individual
+ * ✅ Corretivas/Melhoria → Prioridades
+ * ✅ Preventivas/Revisão → Próximas 3 OTs com datas
  */
 function atualizarDonut(tipo, valor, total, cor, pedidosValidos) {
     const circle = document.getElementById(`donut${tipo}`);
@@ -17850,7 +18069,7 @@ function atualizarDonut(tipo, valor, total, cor, pedidosValidos) {
     circle.style.strokeDashoffset = offset;
     circle.style.stroke = cor;
     
-    // Atualizar detalhes com prioridades específicas deste tipo
+    // Atualizar detalhes
     if (detailsEl && pedidosValidos) {
         // Filtrar pedidos deste tipo específico
         const pedidosTipo = pedidosValidos.filter(p => {
@@ -17861,26 +18080,89 @@ function atualizarDonut(tipo, valor, total, cor, pedidosValidos) {
             return false;
         });
         
-        // Contar prioridades deste tipo
-        const alta = pedidosTipo.filter(p => p.prioridade === 'Alta').length;
-        const media = pedidosTipo.filter(p => p.prioridade === 'Média').length;
-        const baixa = pedidosTipo.filter(p => p.prioridade === 'Baixa').length;
-        
-        // Montar HTML das prioridades
-        let prioridadesHTML = '<div style=\"font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 8px;\">📌 Prioridade</div>';
-        
-        if (alta > 0 || media > 0 || baixa > 0) {
-            prioridadesHTML += '<div style=\"font-size: 0.75rem; line-height: 1.6; margin-top: 4px;\">';
-            if (alta > 0) prioridadesHTML += `• <strong style=\"color: #d32f2f;\">${alta}x alta</strong><br>`;
-            if (media > 0) prioridadesHTML += `• <strong style=\"color: #f57c00;\">${media}x média</strong><br>`;
-            if (baixa > 0) prioridadesHTML += `• <strong style=\"color: #388e3c;\">${baixa}x baixa</strong>`;
+        // 🔧 v3.8.3.10.27.97: DISTINGUIR tipos
+        // Corretivas/Melhoria = prioridades | Preventivas/Revisão = próximas 3 OTs
+        if (tipo === 'Corretivas' || tipo === 'Melhoria') {
+            // ✅ MOSTRAR PRIORIDADES
+            const alta = pedidosTipo.filter(p => p.prioridade === 'Alta').length;
+            const media = pedidosTipo.filter(p => p.prioridade === 'Média').length;
+            const baixa = pedidosTipo.filter(p => p.prioridade === 'Baixa').length;
+            
+            let prioridadesHTML = '<div style=\"display: inline-block; text-align: left;\">';
+            prioridadesHTML += '<div style=\"font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 8px; text-align: center;\">📌 Prioridade</div>';
+            
+            if (alta > 0 || media > 0 || baixa > 0) {
+                prioridadesHTML += '<div style=\"font-size: 0.75rem; line-height: 1.6; margin-top: 4px; text-align: left;\">';
+                if (alta > 0) prioridadesHTML += `• <strong style=\"color: #d32f2f;\">${alta}x alta</strong><br>`;
+                if (media > 0) prioridadesHTML += `• <strong style=\"color: #f57c00;\">${media}x média</strong><br>`;
+                if (baixa > 0) prioridadesHTML += `• <strong style=\"color: #388e3c;\">${baixa}x baixa</strong>`;
+                prioridadesHTML += '</div>';
+            } else {
+                prioridadesHTML += '<div style=\"font-size: 0.7rem; color: #999; margin-top: 4px; text-align: center;\">Sem prioridades</div>';
+            }
             prioridadesHTML += '</div>';
-        } else {
-            prioridadesHTML += '<div style=\"font-size: 0.7rem; color: #999; margin-top: 4px;\">Sem prioridades</div>';
+            
+            detailsEl.innerHTML = prioridadesHTML;
+            
+        } else if (tipo === 'Preventivas' || tipo === 'Revisao') {
+            // ✅ MOSTRAR PRÓXIMAS 3 OTs COM DATAS
+            
+            // Ordenar por data de próxima intervenção (mais próxima primeiro)
+            const pedidosOrdenados = pedidosTipo
+                .map(p => {
+                    let dataProxima = null;
+                    
+                    // Para preventivas: calcular próxima intervenção
+                    if (p.dataPrimeiraIntervencao && p.frequencia) {
+                        dataProxima = calcularProximaIntervencao(p.dataPrimeiraIntervencao, p.frequencia);
+                    }
+                    
+                    // Para revisão: usar campo de data se existir
+                    if (!dataProxima && p.proximaManutencao) {
+                        dataProxima = new Date(p.proximaManutencao);
+                    }
+                    
+                    return { ...p, dataProxima };
+                })
+                .filter(p => p.dataProxima) // Só incluir se tiver data
+                .sort((a, b) => a.dataProxima - b.dataProxima) // Ordenar por data
+                .slice(0, 3); // Pegar as 3 primeiras
+            
+            // Montar HTML
+            let proximasHTML = '<div style=\"display: inline-block; text-align: left;\">';
+            proximasHTML += '<div style=\"font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 8px; text-align: center;\">📅 Próximas:</div>';
+            
+            if (pedidosOrdenados.length > 0) {
+                proximasHTML += '<div style=\"font-size: 0.7rem; line-height: 1.8; margin-top: 4px; text-align: left;\">';
+                pedidosOrdenados.forEach(p => {
+                    const dataFormatada = formatarDataPT(p.dataProxima);
+                    const numeroOT = p.numeroOT || p.id.toString().substring(0, 8);
+                    proximasHTML += `• <strong>${numeroOT}</strong> → ${dataFormatada}<br>`;
+                });
+                proximasHTML += '</div>';
+            } else {
+                proximasHTML += '<div style=\"font-size: 0.7rem; color: #999; margin-top: 4px; text-align: center;\">Sem datas agendadas</div>';
+            }
+            proximasHTML += '</div>';
+            
+            detailsEl.innerHTML = proximasHTML;
         }
-        
-        detailsEl.innerHTML = prioridadesHTML;
     }
+}
+
+/**
+ * 🎯 v3.8.3.10.27.97: Formatar data em português (18 Fev 2026)
+ */
+function formatarDataPT(data) {
+    if (!data) return 'Sem data';
+    
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const d = new Date(data);
+    const dia = d.getDate();
+    const mes = meses[d.getMonth()];
+    const ano = d.getFullYear();
+    
+    return `${dia} ${mes} ${ano}`;
 }
 
 /**
@@ -17928,6 +18210,390 @@ window.atualizarAnalises = function() {
         showToast('❌ Erro ao atualizar análises: ' + error.message, 'error');
     }
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🏆 v3.8.3.10.27.98: SISTEMA DE RANKING DE TÉCNICOS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * 🎯 Estado do Ranking
+ */
+const RankingState = {
+    periodoAtual: new Date(),
+    tipoPeriodo: 'semana', // 'semana' ou 'mes' - 🔧 v3.8.3.10.27.98.7: Default = semana
+    rankingPrioridades: [], // Carregado da BD
+    rankingTipos: [],       // Carregado da BD
+    equipamentos: []        // Carregado da BD (com peso_ranking)
+};
+
+/**
+ * 🔧 Carregar configurações de ranking da BD
+ */
+async function carregarConfiguracoesRanking() {
+    try {
+        console.log('🏆 [RANKING] Carregando configurações...');
+        
+        // Carregar multiplicadores de prioridade via Supabase API
+        const prioridades = await window.SupabaseAPI.getRankingPrioridades();
+        RankingState.rankingPrioridades = prioridades || [];
+        
+        // Carregar multiplicadores de tipo via Supabase API
+        const tipos = await window.SupabaseAPI.getRankingTipos();
+        RankingState.rankingTipos = tipos || [];
+        
+        // Carregar equipamentos (já deve estar em AppState)
+        RankingState.equipamentos = AppState.equipamentos || [];
+        
+        console.log('✅ [RANKING] Configurações carregadas:', {
+            prioridades: RankingState.rankingPrioridades.length,
+            tipos: RankingState.rankingTipos.length,
+            equipamentos: RankingState.equipamentos.length
+        });
+        
+        // 🔍 DEBUG: Mostrar dados carregados
+        if (RankingState.rankingPrioridades.length > 0) {
+            console.log('📊 [RANKING] Prioridades:', RankingState.rankingPrioridades);
+        } else {
+            console.error('❌ [RANKING] Nenhuma prioridade carregada!');
+        }
+        
+        if (RankingState.rankingTipos.length > 0) {
+            console.log('📊 [RANKING] Tipos:', RankingState.rankingTipos);
+        } else {
+            console.error('❌ [RANKING] Nenhum tipo carregado!');
+        }
+        
+    } catch (error) {
+        console.error('❌ [RANKING] Erro ao carregar configurações:', error);
+    }
+}
+
+/**
+ * 🎯 Calcular pontos de uma OT
+ */
+function calcularPontosOT(ot) {
+    try {
+        // 1. Buscar peso do equipamento
+        const equipamento = RankingState.equipamentos.find(eq => eq.id === ot.equipamento_id || eq.nome === ot.equipamento);
+        const pesoEquipamento = equipamento?.peso_ranking || 3; // Default: 3
+        
+        // 2. Buscar multiplicador da prioridade
+        const prioridadeConfig = RankingState.rankingPrioridades.find(p => p.prioridade === ot.prioridade);
+        const multPrioridade = prioridadeConfig?.multiplicador || 1.0;
+        
+        // 3. Buscar multiplicador do tipo
+        const tipoConfig = RankingState.rankingTipos.find(t => t.tipo === ot.tipo);
+        const multTipo = tipoConfig?.multiplicador || 1.0;
+        
+        // 4. Calcular pontos
+        const pontos = pesoEquipamento * multPrioridade * multTipo;
+        
+        return pontos;
+        
+    } catch (error) {
+        console.error('❌ [RANKING] Erro ao calcular pontos:', error);
+        return 0;
+    }
+}
+
+/**
+ * 📅 Obter intervalo de datas do período
+ */
+function obterIntervaloPeriodo(data, tipoPeriodo) {
+    const d = new Date(data);
+    
+    if (tipoPeriodo === 'mes') {
+        // Primeiro e último dia do mês
+        const inicio = new Date(d.getFullYear(), d.getMonth(), 1);
+        const fim = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+        return { inicio, fim };
+        
+    } else if (tipoPeriodo === 'semana') {
+        // Domingo a Sábado
+        const diaSemana = d.getDay();
+        const inicio = new Date(d);
+        inicio.setDate(d.getDate() - diaSemana);
+        inicio.setHours(0, 0, 0, 0);
+        
+        const fim = new Date(inicio);
+        fim.setDate(inicio.getDate() + 6);
+        fim.setHours(23, 59, 59);
+        
+        return { inicio, fim };
+    }
+    
+    return { inicio: new Date(0), fim: new Date() };
+}
+
+/**
+ * 📊 Calcular ranking por período
+ */
+function calcularRanking(periodo = null, tipoPeriodo = 'mes') {
+    try {
+        // Usar período atual se não fornecido
+        if (!periodo) {
+            periodo = RankingState.periodoAtual;
+        }
+        
+        // Obter intervalo de datas
+        const { inicio, fim } = obterIntervaloPeriodo(periodo, tipoPeriodo);
+        
+        console.log('🏆 [RANKING] Calculando ranking:', { inicio, fim, tipoPeriodo });
+        
+        // 🔍 DEBUG: Verificar estado das OTs
+        const totalOTs = AppState.requests.length;
+        const otsComClosedBy = AppState.requests.filter(ot => ot.closed_by).length;
+        const otsResolvidas = AppState.requests.filter(ot => ot.estado === 'Resolvido').length;
+        
+        console.log(`🔍 [RANKING DEBUG] Total OTs: ${totalOTs}`);
+        console.log(`🔍 [RANKING DEBUG] OTs com closed_by: ${otsComClosedBy}`);
+        console.log(`🔍 [RANKING DEBUG] OTs estado=Resolvido: ${otsResolvidas}`);
+        
+        // Filtrar OTs resolvidas no período
+        const otsResolvidasPeriodo = AppState.requests.filter(ot => {
+            // Aceitar OTs com closed_by OU estado=Resolvido
+            const temFechamento = ot.closed_by || ot.estado === 'Resolvido';
+            if (!temFechamento) return false;
+            
+            // Usar closed_at, updated_at ou dataHora
+            const dataFechamento = ot.closed_at 
+                ? new Date(ot.closed_at) 
+                : (ot.updated_at ? new Date(ot.updated_at) : new Date(ot.dataHora));
+            
+            const dentroperiodo = dataFechamento >= inicio && dataFechamento <= fim;
+            
+            if (dentroperiodo) {
+                console.log(`✅ OT incluída:`, {
+                    numeroOT: ot.numeroOT || ot.id?.substring(0, 8),
+                    closed_by: ot.closed_by,
+                    estado: ot.estado,
+                    dataFechamento: dataFechamento.toISOString()
+                });
+            }
+            
+            return dentroperiodo;
+        });
+        
+        console.log(`🏆 [RANKING] OTs resolvidas no período: ${otsResolvidasPeriodo.length}`);
+        
+        // Agrupar por técnico e calcular pontos
+        const ranking = {};
+        
+        otsResolvidasPeriodo.forEach(ot => {
+            // 🔧 v3.8.3.10.27.98.5: Alinhar com gráfico "Pedidos Fechados por Utilizador"
+            // Usa MESMA LÓGICA: fechadoPor → responsavel
+            const tecnico = ot.fechadoPor || ot.responsavel || ot.nome || ot.utilizador || 'Desconhecido';
+            
+            // 🔍 DEBUG: Log do primeiro técnico para ver campos disponíveis
+            if (ranking['__debug__'] === undefined) {
+                ranking['__debug__'] = true;
+                console.log(`🔍 [RANKING DEBUG] Campos da OT:`, {
+                    numeroOT: ot.numeroOT || ot.id?.substring(0, 8),
+                    fechadoPor: ot.fechadoPor,
+                    responsavel: ot.responsavel,
+                    nome: ot.nome,
+                    utilizador: ot.utilizador,
+                    tecnicoUsado: tecnico
+                });
+            }
+            
+            if (!ranking[tecnico]) {
+                ranking[tecnico] = {
+                    tecnico: tecnico,
+                    pontos: 0,
+                    num_ots: 0,
+                    ots: []
+                };
+            }
+            
+            const pontos = calcularPontosOT(ot);
+            ranking[tecnico].pontos += pontos;
+            ranking[tecnico].num_ots += 1;
+            ranking[tecnico].ots.push({
+                ...ot,
+                pontos: pontos
+            });
+        });
+        
+        // Remover entrada de debug
+        delete ranking['__debug__'];
+        
+        // Converter para array e ordenar por pontos
+        const rankingArray = Object.values(ranking);
+        rankingArray.sort((a, b) => b.pontos - a.pontos);
+        
+        console.log('✅ [RANKING] Ranking calculado:', rankingArray);
+        
+        return rankingArray;
+        
+    } catch (error) {
+        console.error('❌ [RANKING] Erro ao calcular ranking:', error);
+        return [];
+    }
+}
+
+/**
+ * 🎨 Renderizar ranking geral
+ */
+function renderizarRankingGeral(ranking) {
+    const container = document.getElementById('rankingListaGeral');
+    
+    if (!ranking || ranking.length === 0) {
+        container.innerHTML = '<div class="empty-state-small"><p>📊 Nenhuma OT resolvida neste período</p></div>';
+        return;
+    }
+    
+    // Emojis de medalhas
+    const medalhas = ['🥇', '🥈', '🥉'];
+    
+    let html = '';
+    ranking.forEach((item, index) => {
+        const posicao = index + 1;
+        const emoji = medalhas[index] || `${posicao}º`;
+        
+        html += `
+            <div class="ranking-item">
+                <div class="ranking-posicao">${emoji}</div>
+                <div class="ranking-tecnico">${item.tecnico}</div>
+                <div class="ranking-pontos">${item.pontos.toFixed(1)} pts</div>
+                <div class="ranking-ots">(${item.num_ots} OTs)</div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+/**
+ * 🔍 Renderizar detalhes de um técnico
+ */
+function renderizarDetalhesTecnico(tecnico) {
+    const container = document.getElementById('rankingDetalhesTecnico');
+    
+    if (!tecnico) {
+        container.innerHTML = '<div class="empty-state-small"><p>👆 Selecione um técnico acima para ver os detalhes</p></div>';
+        return;
+    }
+    
+    const ranking = calcularRanking(RankingState.periodoAtual, RankingState.tipoPeriodo);
+    const dadosTecnico = ranking.find(r => r.tecnico === tecnico);
+    
+    if (!dadosTecnico || !dadosTecnico.ots) {
+        container.innerHTML = '<div class="empty-state-small"><p>📊 Nenhuma OT encontrada para este técnico</p></div>';
+        return;
+    }
+    
+    // Ordenar OTs por pontos (maior primeiro)
+    const ots = [...dadosTecnico.ots].sort((a, b) => b.pontos - a.pontos);
+    
+    let html = `
+        <div style="margin-bottom: var(--spacing-lg); padding: var(--spacing-md); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: var(--radius-md); color: white;">
+            <div style="font-size: 1.5rem; font-weight: 700;">${dadosTecnico.pontos.toFixed(1)} pontos</div>
+            <div style="font-size: 0.875rem; opacity: 0.9;">${dadosTecnico.num_ots} OTs resolvidas</div>
+        </div>
+        
+        <h4 style="margin: var(--spacing-md) 0; color: var(--color-text);">📋 OTs Realizadas:</h4>
+    `;
+    
+    ots.forEach(ot => {
+        const equipamento = RankingState.equipamentos.find(eq => eq.id === ot.equipamento_id || eq.nome === ot.equipamento);
+        const nomeEquipamento = equipamento?.nome || ot.equipamento || 'N/A';
+        const numeroOT = ot.numeroOT || ot.id.toString().substring(0, 8);
+        
+        html += `
+            <div class="ranking-detalhes-ot">
+                <div class="ranking-detalhes-ot-info">
+                    <div style="font-weight: 600; color: var(--color-text);">${numeroOT}</div>
+                    <div style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">
+                        ${nomeEquipamento} • ${ot.tipo} • ${ot.prioridade || 'N/A'}
+                    </div>
+                </div>
+                <div class="ranking-detalhes-ot-pontos">${ot.pontos.toFixed(1)} pts</div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+/**
+ * 📅 Formatar período para display
+ */
+function formatarPeriodo(data, tipoPeriodo) {
+    const d = new Date(data);
+    
+    if (tipoPeriodo === 'mes') {
+        const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        return `${meses[d.getMonth()]} ${d.getFullYear()}`;
+        
+    } else if (tipoPeriodo === 'semana') {
+        const { inicio, fim } = obterIntervaloPeriodo(d, 'semana');
+        const diaInicio = inicio.getDate();
+        const mesInicio = inicio.getMonth() + 1;
+        const diaFim = fim.getDate();
+        const mesFim = fim.getMonth() + 1;
+        
+        // Calcular número da semana do ano
+        const primeiroDia = new Date(d.getFullYear(), 0, 1);
+        const diasPassados = Math.floor((inicio - primeiroDia) / (24 * 60 * 60 * 1000));
+        const numeroSemana = Math.ceil((diasPassados + primeiroDia.getDay() + 1) / 7);
+        
+        return `Semana ${numeroSemana} (${diaInicio}/${mesInicio} - ${diaFim}/${mesFim})`;
+    }
+    
+    return 'Período desconhecido';
+}
+
+/**
+ * 🔄 Atualizar display do período
+ */
+function atualizarDisplayPeriodo() {
+    const display = document.getElementById('rankingPeriodoAtual');
+    if (display) {
+        display.textContent = formatarPeriodo(RankingState.periodoAtual, RankingState.tipoPeriodo);
+    }
+}
+
+/**
+ * 🎬 Atualizar ranking completo
+ */
+async function atualizarRanking() {
+    try {
+        console.log('🏆 [RANKING] Atualizando ranking...');
+        
+        // Carregar configurações se ainda não foram carregadas
+        if (RankingState.rankingPrioridades.length === 0) {
+            await carregarConfiguracoesRanking();
+        }
+        
+        // Calcular ranking
+        const ranking = calcularRanking(RankingState.periodoAtual, RankingState.tipoPeriodo);
+        
+        // Renderizar
+        renderizarRankingGeral(ranking);
+        
+        // Atualizar dropdown de técnicos
+        const select = document.getElementById('rankingTecnicoSelect');
+        if (select) {
+            select.innerHTML = '<option value="">Selecione um técnico...</option>';
+            ranking.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.tecnico;
+                option.textContent = `${item.tecnico} (${item.pontos.toFixed(1)} pts)`;
+                select.appendChild(option);
+            });
+        }
+        
+        // Atualizar display do período
+        atualizarDisplayPeriodo();
+        
+        console.log('✅ [RANKING] Ranking atualizado!');
+        
+    } catch (error) {
+        console.error('❌ [RANKING] Erro ao atualizar ranking:', error);
+        showToast('❌ Erro ao atualizar ranking: ' + error.message, 'error');
+    }
+}
 
 /**
  * ✅ Filtrar gráfico por utilizador por período
@@ -19110,6 +19776,61 @@ document.addEventListener('DOMContentLoaded', () => {
     if (empresaFilter) {
         empresaFilter.addEventListener('change', () => window.atualizarAnalises());
     }
+    
+    // 🏆 v3.8.3.10.27.98: Listeners para Ranking
+    const rankingTipoPeriodo = document.getElementById('rankingTipoPeriodo');
+    const rankingPeriodoAnterior = document.getElementById('rankingPeriodoAnterior');
+    const rankingPeriodoProximo = document.getElementById('rankingPeriodoProximo');
+    const rankingAtualizar = document.getElementById('rankingAtualizar');
+    const rankingTecnicoSelect = document.getElementById('rankingTecnicoSelect');
+    
+    if (rankingTipoPeriodo) {
+        rankingTipoPeriodo.addEventListener('change', (e) => {
+            RankingState.tipoPeriodo = e.target.value;
+            RankingState.periodoAtual = new Date(); // Resetar para período atual
+            atualizarRanking();
+        });
+    }
+    
+    if (rankingPeriodoAnterior) {
+        rankingPeriodoAnterior.addEventListener('click', () => {
+            const d = new Date(RankingState.periodoAtual);
+            
+            if (RankingState.tipoPeriodo === 'mes') {
+                d.setMonth(d.getMonth() - 1);
+            } else if (RankingState.tipoPeriodo === 'semana') {
+                d.setDate(d.getDate() - 7);
+            }
+            
+            RankingState.periodoAtual = d;
+            atualizarRanking();
+        });
+    }
+    
+    if (rankingPeriodoProximo) {
+        rankingPeriodoProximo.addEventListener('click', () => {
+            const d = new Date(RankingState.periodoAtual);
+            
+            if (RankingState.tipoPeriodo === 'mes') {
+                d.setMonth(d.getMonth() + 1);
+            } else if (RankingState.tipoPeriodo === 'semana') {
+                d.setDate(d.getDate() + 7);
+            }
+            
+            RankingState.periodoAtual = d;
+            atualizarRanking();
+        });
+    }
+    
+    if (rankingAtualizar) {
+        rankingAtualizar.addEventListener('click', () => atualizarRanking());
+    }
+    
+    if (rankingTecnicoSelect) {
+        rankingTecnicoSelect.addEventListener('change', (e) => {
+            renderizarDetalhesTecnico(e.target.value);
+        });
+    }
 });
 
 // ============================================
@@ -19548,3 +20269,4 @@ window.diagnosticarBacklogCompleto = diagnosticarBacklogCompleto;
     </script>
 </body>
 </html>
+
