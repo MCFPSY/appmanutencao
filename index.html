@@ -1,9 +1,29 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.62 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.83 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-14
     
+    🎯 v3.8.3.10.27.83: FEATURE - Botão "📅 Hoje" em Pedidos Fechados por Utilizador ✅
+    🎯 v3.8.3.10.27.82: DEBUG - Logs para verificar se standby estão a ser excluídos ✅
+    🎯 v3.8.3.10.27.81: FIX - Standby NUNCA aparecem na lista (excluídos sempre) ✅
+    🎯 v3.8.3.10.27.80: FIX CRÍTICO - Preventiva DESMARCADA = 0 preventivas | MARCADA = aplicar sub-filtros ✅
+    🎯 v3.8.3.10.27.79: FIX DEFINITIVO - Checkbox "Preventiva" = TODAS | Sub-filtros = específicas | "Todas" renomeado para "≥30 dias" ✅
+    🎯 v3.8.3.10.27.78: FIX - "Todas" agora faz UNIÃO (OR) com outros filtros preventivas ✅
+    🎯 v3.8.3.10.27.77: FIX CRÍTICO - Preventivas controladas APENAS pelos filtros próprios (ignora checkbox "Preventiva") ✅
+    🎯 v3.8.3.10.27.76: DEBUG - Botão debug filtros preventivas (🔍 roxo no header) ✅
+    🎯 v3.8.3.10.27.75: FIX CRÍTICO - Sincronização em background (não bloqueia UI) ✅
+    🎯 v3.8.3.10.27.74: FIX - Timeout de sincronização + indicador de carregamento ✅
+    🎯 v3.8.3.10.27.73: FIX - "Todas" = botão mestre (ignora "Para breve" e "Atrasadas") - OPÇÃO A ✅
+    🎯 v3.8.3.10.27.72: FIX - Event listeners para TODOS os filtros de preventivas ✅
+    🎯 v3.8.3.10.27.71: FIX CRÍTICO - Filtros iniciais corretos (tipo vs preventivas) ✅
+    🎯 v3.8.3.10.27.70: DEBUG - Comparar tipos: Backlog vs Lista vs Filtros UI ✅
+    🎯 v3.8.3.10.27.69: DEBUG - Logs no cálculo do backlog real ✅
+    🎯 v3.8.3.10.27.68: DEBUG - Diagnóstico melhorado para identificar problema ✅
+    🎯 v3.8.3.10.27.67: FIX - Standby case-insensitive (Standby vs standby) ✅
+    🎯 v3.8.3.10.27.66: FIX CRÍTICO - Backlog exclui "standby" e preventivas longe ✅
+    🎯 v3.8.3.10.27.65: FIX CRÍTICO - Backlog conta TODAS as OTs (ignora filtro empresa) ✅
+    🎯 v3.8.3.10.27.64: FIX SIMPLES - Backlog mostra comparação com Lista Filtrada ✅
     🎯 v3.8.3.10.27.62: FEATURE - Reabrir OTs resolvidas ✅
     🎯 v3.8.3.10.27.61: FIX - Campo Prioridade não bloqueia criação de Revisões ✅
     🎯 v3.8.3.10.27.60: FIX CRÍTICO - Planeamento sincroniza entre PCs (merge inteligente) ✅
@@ -5357,6 +5377,7 @@
                     🚨
                 </button>
                 
+
                 <div id="userInfo" class="user-info" style="display: none;">
                     <span class="user-name"></span>
                     <span class="user-dept"></span>
@@ -5695,7 +5716,7 @@
                                 <!-- 🆕 v3.8.3.10.25: Filtros de preventivas (todas, para breve, atrasadas) -->
                                 <label class="checkbox-label" style="margin-left: 20px;">
                                     <input type="checkbox" id="filterPreventivaTodas" class="filter-preventiva-todas">
-                                    <span style="color: #666; font-size: 0.9em;">Todas</span>
+                                    <span style="color: #666; font-size: 0.9em;">≥30 dias</span>
                                 </label>
                                 <label class="checkbox-label" style="margin-left: 20px;">
                                     <input type="checkbox" id="filterPreventivaBreve" class="filter-preventiva-breve" checked>
@@ -6020,7 +6041,7 @@
                                 <!-- 🆕 v3.8.3.10.25: Filtros de preventivas (todas, para breve, atrasadas) -->
                                 <label class="checkbox-label" style="margin-left: 20px;">
                                     <input type="checkbox" id="planningFilterPreventivaTodas" class="planning-filter-preventiva-todas">
-                                    <span style="color: #666; font-size: 0.9em;">Todas</span>
+                                    <span style="color: #666; font-size: 0.9em;">≥30 dias</span>
                                 </label>
                                 <label class="checkbox-label" style="margin-left: 20px;">
                                     <input type="checkbox" id="planningFilterPreventivaBreve" class="planning-filter-preventiva-breve" checked>
@@ -6786,7 +6807,7 @@
                             </svg>
                         </div>
                         <div class="analytics-card-content">
-                            <div class="analytics-card-label">Backlog Total</div>
+                            <div class="analytics-card-label">Backlog Total <span style="font-size: 11px; color: #666;" id="backlogListaInfo"></span></div>
                             <div class="analytics-card-value" id="backlogTotal">-</div>
                             <div class="analytics-card-trend" id="backlogTrend"></div>
                         </div>
@@ -6818,10 +6839,14 @@
                             <p style="font-size: 12px; color: #666; margin-top: 4px; margin-bottom: 0;">
                                 ℹ️ OTs antigas mostram quem iniciou/foi alocado | OTs novas (após 14/01/2026) mostram quem fechou
                             </p>
+                            <p style="font-size: 11px; color: #3498db; margin-top: 4px; margin-bottom: 0;">
+                                💡 OTs antigas sem data de fecho usam data de criação como aproximação.
+                            </p>
                         </div>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button class="filter-btn" data-period="1" onclick="filtrarPorUtilizadorPeriodo(1)">Último Dia</button>
-                            <button class="filter-btn active" data-period="7" onclick="filtrarPorUtilizadorPeriodo(7)">Última Semana</button>
+                            <button class="filter-btn" data-period="0" onclick="filtrarPorUtilizadorPeriodo(0)">📅 Hoje</button>
+                            <button class="filter-btn active" data-period="thisweek" onclick="filtrarPorUtilizadorPeriodo('thisweek')">📅 Esta Semana</button>
+                            <button class="filter-btn" data-period="lastweek" onclick="filtrarPorUtilizadorPeriodo('lastweek')">📅 Semana Anterior</button>
                             <button class="filter-btn" data-period="30" onclick="filtrarPorUtilizadorPeriodo(30)">Último Mês</button>
                             <button class="filter-btn" data-period="180" onclick="filtrarPorUtilizadorPeriodo(180)">6 Meses</button>
                             <button class="filter-btn" data-period="365" onclick="filtrarPorUtilizadorPeriodo(365)">Último Ano</button>
@@ -7005,10 +7030,13 @@ async function addPedido(pedido) {
 }
 
 async function updatePedido(id, pedido) {
-    return await supabaseFetch(`pedidos?ID=eq.${id}`, {
+    // 🔧 v3.8.3.10.27.92: Retornar closed_at após update
+    const result = await supabaseFetch(`pedidos?ID=eq.${id}&select=closed_at`, {
         method: 'PATCH',
         body: JSON.stringify(pedido)
     });
+    // Supabase retorna array, pegar primeiro elemento
+    return result && result[0] ? result[0] : result;
 }
 
 async function deletePedido(id) {
@@ -7813,9 +7841,9 @@ const AppState = {
     filteredRequests: [],
     sortOrder: 'desc',
     groupMode: false,
-    // 🎯 v3.8.3.10.27.37: Filtros padrão - Preventivas (Para breve + Atrasadas) + Corretiva + Melhoria
+    // 🔧 v3.8.3.10.27.71: FIX CRÍTICO - Filtros padrão corretos (sem "Para breve" e "Atrasadas" em tipo)
     currentFilters: { 
-        tipo: ['Para breve', 'Atrasadas', 'Corretiva', 'Melhoria'], 
+        tipo: ['Corretiva', 'Melhoria', 'Revisão'], 
         prioridade: [], 
         estado: ['Novo', 'Em curso'], 
         empresa: [], 
@@ -8006,6 +8034,18 @@ async function loadDataFromSupabase() {
     try {
         console.log('📥 A carregar dados do Supabase...');
         
+        // ⏱️ v3.8.3.10.27.73: Mostrar indicador de carregamento
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'loading-indicator';
+        loadingDiv.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 999999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                <div style="font-size: 24px; margin-bottom: 10px;">⏳</div>
+                <div style="font-size: 18px; color: #2c3e50;">A carregar dados...</div>
+                <div style="margin-top: 10px; font-size: 14px; color: #7f8c8d;">Aguarde um momento</div>
+            </div>
+        `;
+        document.body.appendChild(loadingDiv);
+        
         // Carregar pedidos
         const pedidos = await window.SupabaseAPI.getPedidos();
         
@@ -8068,9 +8108,17 @@ async function loadDataFromSupabase() {
         // Guardar localmente
         localStorage.setItem(CONFIG.STORAGE_KEYS.REQUESTS, JSON.stringify(AppState.requests));
         
+        // ⏱️ v3.8.3.10.27.74: Remover indicador de carregamento
+        let loadingIndicator = document.getElementById('loading-indicator');
+        if (loadingIndicator) loadingIndicator.remove();
+        
     } catch (error) {
         console.error('❌ Erro ao carregar dados do Supabase:', error);
         showToast('Erro ao carregar dados', 'error');
+        
+        // ⏱️ v3.8.3.10.27.74: Remover indicador de carregamento
+        let loadingIndicator = document.getElementById('loading-indicator');
+        if (loadingIndicator) loadingIndicator.remove();
         
         // Em caso de erro, carregar do localStorage
         const cached = localStorage.getItem(CONFIG.STORAGE_KEYS.REQUESTS);
@@ -8492,11 +8540,20 @@ async function initializeApp() {
     
     loadSavedUserName();
     
-    // 🔥 AGUARDAR sincronização ANTES de restaurar aba
+    // 🔥 v3.8.3.10.27.75: SINCRONIZAÇÃO EM BACKGROUND (não bloqueia)
+    console.log('✅ App carregada com dados locais - sincronização em background...');
+    
+    // Sincronizar em background SEM BLOQUEAR a interface
     if (AppState.isOnline) {
-        console.log('🌐 Online - sincronizando com Supabase...');
-        await syncWithGoogleSheets();  // 🔥 Nome legacy, usa Supabase internamente
-        console.log('✅ Sincronização completa - Pedidos:', AppState.requests?.length || 0);
+        syncWithGoogleSheets()
+            .then(() => {
+                console.log('✅ Sincronização background completa - Pedidos:', AppState.requests?.length || 0);
+                renderRequestsList(); // Atualizar lista após sync
+            })
+            .catch(error => {
+                console.error('❌ Erro na sincronização background:', error);
+                console.warn('⚠️ Usando dados locais...');
+            });
     } else {
         console.warn('📵 Offline - usando apenas localStorage');
     }
@@ -10668,11 +10725,31 @@ function setupEventListeners() {
     
     document.querySelectorAll('.filter-tipo, .filter-prioridade, .filter-estado, .filter-empresa, .filter-tipoIntervencao, .filter-urgente, .filter-paragemProducao, .filter-exigeCompra').forEach(checkbox => checkbox.addEventListener('change', handleFilterChange));
     
-    // 🆕 v3.8.3.10.24: Event listener para filtro "Para breve"
+    // 🔧 v3.8.3.10.27.72: Event listeners para TODOS os filtros de preventivas
+    const filterPreventivaTodas = document.getElementById('filterPreventivaTodas');
     const filterPreventivaBreve = document.getElementById('filterPreventivaBreve');
+    const filterPreventivaAtrasadas = document.getElementById('filterPreventivaAtrasadas');
+    
+    if (filterPreventivaTodas) {
+        filterPreventivaTodas.addEventListener('change', () => {
+            console.log('📋 Filtro "Todas" mudou:', filterPreventivaTodas.checked);
+            applyFilters();
+            renderRequestsList();
+        });
+    }
+    
     if (filterPreventivaBreve) {
         filterPreventivaBreve.addEventListener('change', () => {
             console.log('⚡ Filtro "Para breve" mudou:', filterPreventivaBreve.checked);
+            applyFilters();
+            renderRequestsList();
+        });
+    }
+    
+    if (filterPreventivaAtrasadas) {
+        filterPreventivaAtrasadas.addEventListener('change', () => {
+            console.log('🔴 Filtro "Atrasadas" mudou:', filterPreventivaAtrasadas.checked);
+            applyFilters();
             renderRequestsList();
         });
     }
@@ -11514,13 +11591,40 @@ function renderRequestCard(request) {
 
 function applyFilters() {
     AppState.filteredRequests = AppState.requests.filter(request => {
+        // 🚫 v3.8.3.10.27.82: EXCLUIR STANDBY SEMPRE (com log para debug)
+        if (request.estado && request.estado.toLowerCase() === 'standby') {
+            console.log('🚫 Excluindo standby:', request.id);
+            return false; // ❌ Nunca mostrar standby
+        }
+        
         // ⚡ NORMALIZAR valores para evitar problemas com espaços/maiúsculas
         const estadoPedido = (request.estado || '').trim();
         const tipoPedido = (request.tipo || '').trim();
         const prioridadePedido = (request.prioridade || '').trim();
         
-        // Filtros
-        const passaTipo = AppState.currentFilters.tipo.length === 0 || AppState.currentFilters.tipo.includes(tipoPedido);
+        // 🆕 v3.8.3.10.27.77: FILTROS DE PREVENTIVAS (CONTROLO INDEPENDENTE)
+        const filterPreventivaTodas = document.getElementById('filterPreventivaTodas')?.checked || false;
+        const filterPreventivaBreve = document.getElementById('filterPreventivaBreve')?.checked || false;
+        const filterPreventivaAtrasadas = document.getElementById('filterPreventivaAtrasadas')?.checked || false;
+        
+        // Determinar se algum filtro de preventivas está ativo
+        const algumFiltroPreventivas = filterPreventivaTodas || filterPreventivaBreve || filterPreventivaAtrasadas;
+        
+        // 🎯 v3.8.3.10.27.79: LÓGICA FINAL CORRETA
+        // Se checkbox "Preventiva" MARCADO → mostra TODAS as preventivas (ignora sub-filtros)
+        // Se checkbox "Preventiva" DESMARCADO → usa sub-filtros para mostrar preventivas específicas
+        const preventivaCheckboxMarcado = AppState.currentFilters.tipo.includes('Preventiva');
+        
+        let passaTipo;
+        if (tipoPedido === 'Preventiva') {
+            // Se checkbox "Preventiva" marcado → sempre passa (mostra todas)
+            // Se desmarcado → será filtrado pelos sub-filtros
+            passaTipo = preventivaCheckboxMarcado ? true : true; // Sempre passa, filtro é depois
+        } else {
+            // Outros tipos: verificar se estão nos filtros selecionados
+            passaTipo = AppState.currentFilters.tipo.length === 0 || AppState.currentFilters.tipo.includes(tipoPedido);
+        }
+        
         const passaPrioridade = AppState.currentFilters.prioridade.length === 0 || AppState.currentFilters.prioridade.includes(prioridadePedido);
         const passaEstado = AppState.currentFilters.estado.length === 0 || AppState.currentFilters.estado.includes(estadoPedido);
         
@@ -11552,45 +11656,51 @@ function applyFilters() {
         const passaExigeCompra = AppState.currentFilters.exigeCompra.length === 0 || 
                                 (AppState.currentFilters.exigeCompra.includes('true') && request.exigeCompra === true);
         
-        // 🆕 v3.8.3.10.25: Filtros de preventivas (todas, para breve, atrasadas)
-        const filterPreventivaTodas = document.getElementById('filterPreventivaTodas')?.checked || false;
-        const filterPreventivaBreve = document.getElementById('filterPreventivaBreve')?.checked || false;
-        const filterPreventivaAtrasadas = document.getElementById('filterPreventivaAtrasadas')?.checked || false;
+        // 🎯 v3.8.3.10.27.80: LÓGICA CORRETA - FILTROS DE PREVENTIVAS
         let passaFiltroPreventiva = true;
         
-        // Só aplicar filtros se for preventiva
+        // Aplicar filtros APENAS para preventivas
         if (tipoPedido === 'Preventiva') {
-            // Se NENHUM filtro de preventiva estiver ativo, ocultar todas
-            if (!filterPreventivaTodas && !filterPreventivaBreve && !filterPreventivaAtrasadas) {
-                passaFiltroPreventiva = false;
-            } else if (request.dataPrimeiraIntervencao && request.frequencia) {
-                // Calcular próxima intervenção
-                const proximaData = calcularProximaIntervencao(request.dataPrimeiraIntervencao, request.frequencia);
-                if (proximaData) {
-                    const hoje = new Date();
-                    hoje.setHours(0, 0, 0, 0);
-                    const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
-                    
-                    // Verificar se passa em algum dos filtros ativos
-                    const passaTodas = filterPreventivaTodas;
-                    const passaBreve = filterPreventivaBreve && diasRestantes <= 30;
-                    const passaAtrasadas = filterPreventivaAtrasadas && diasRestantes < 0;
-                    
-                    passaFiltroPreventiva = passaTodas || passaBreve || passaAtrasadas;
+            // 🎯 SE CHECKBOX "PREVENTIVA" DESMARCADO → ESCONDER TODAS
+            if (!preventivaCheckboxMarcado) {
+                passaFiltroPreventiva = false; // ❌ Esconde TODAS as preventivas
+            } else {
+                // 🎯 SE CHECKBOX "PREVENTIVA" MARCADO → APLICAR SUB-FILTROS
+                // Se NENHUM sub-filtro ativo → mostrar todas
+                if (!filterPreventivaTodas && !filterPreventivaBreve && !filterPreventivaAtrasadas) {
+                    passaFiltroPreventiva = true; // Mostra TODAS
+                } else if (request.dataPrimeiraIntervencao && request.frequencia) {
+                    // Calcular próxima intervenção
+                    const proximaData = calcularProximaIntervencao(request.dataPrimeiraIntervencao, request.frequencia);
+                    if (proximaData) {
+                        const hoje = new Date();
+                        hoje.setHours(0, 0, 0, 0);
+                        const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
+                        
+                        // Aplicar sub-filtros (UNIÃO - OR)
+                        const passaLonge = filterPreventivaTodas && diasRestantes > 30;
+                        const passaBreve = filterPreventivaBreve && diasRestantes >= 0 && diasRestantes <= 30;
+                        const passaAtrasadas = filterPreventivaAtrasadas && diasRestantes < 0;
+                        passaFiltroPreventiva = passaLonge || passaBreve || passaAtrasadas;
+                    } else {
+                        // Sem data calculada, só mostrar se "≥30 dias" estiver ativo
+                        passaFiltroPreventiva = filterPreventivaTodas;
+                    }
                 } else {
-                    // Sem data calculada, só mostrar se "Todas" estiver ativo
+                    // Sem data/frequência, só mostrar se "≥30 dias" estiver ativo
                     passaFiltroPreventiva = filterPreventivaTodas;
                 }
-            } else {
-                // Sem data/frequência, só mostrar se "Todas" estiver ativo
-                passaFiltroPreventiva = filterPreventivaTodas;
             }
         }
         
         return passaTipo && passaPrioridade && passaEstado && passaEmpresa && passaEquipamento && passaResponsavel && passaTipoIntervencao && passaUrgente && passaParagem && passaExigeCompra && passaFiltroPreventiva;
     });
     
+    const standbyNaLista = AppState.filteredRequests.filter(r => r.estado && r.estado.toLowerCase() === 'standby');
     console.log(`✅ Filtros aplicados: ${AppState.filteredRequests.length} de ${AppState.requests.length} pedidos`);
+    if (standbyNaLista.length > 0) {
+        console.error(`🚨 ERRO: ${standbyNaLista.length} STANDBY na lista:`, standbyNaLista.map(r => r.id));
+    }
 }
 
 function applySorting() {
@@ -13287,8 +13397,14 @@ async function updateInGoogleSheets(data) {
             'Fechado Por': supabaseData['Fechado Por']
         });
         
-        await window.SupabaseAPI.updatePedido(data.id, supabaseData);
+        const result = await window.SupabaseAPI.updatePedido(data.id, supabaseData);
         console.log('✅ Ordem de trabalho atualizada no Supabase com sucesso!');
+        
+        // 🔧 v3.8.3.10.27.92: Atualizar closed_at localmente após update no Supabase
+        if (result && result.closed_at) {
+            data.closed_at = result.closed_at;
+            console.log('✅ Campo closed_at atualizado localmente:', data.closed_at);
+        }
         
     } catch (error) {
         console.error('❌ Erro ao atualizar Supabase:', error);
@@ -14139,6 +14255,11 @@ function applyPlanningFilters(requests) {
     });
     
     const filtered = requests.filter(request => {
+        // 🚫 v3.8.3.10.27.81: EXCLUIR STANDBY SEMPRE
+        if (request.estado && request.estado.toLowerCase() === 'standby') {
+            return false;
+        }
+        
         // Tipo
         const passaTipo = filters.tipo.length === 0 || filters.tipo.includes(request.tipo);
         
@@ -14182,52 +14303,39 @@ function applyPlanningFilters(requests) {
         // Exige Compra
         const passaExigeCompra = filters.exigeCompra.length === 0 || (filters.exigeCompra.includes('true') && request.exigeCompra);
         
-        // 🆕 v3.8.3.10.27: Filtros de preventivas (todas, para breve, atrasadas)
+        // 🎯 v3.8.3.10.27.79: FILTROS DE PREVENTIVAS (MESMO COMPORTAMENTO DA LISTA)
         const filterPreventivaTodas = document.getElementById('planningFilterPreventivaTodas')?.checked || false;
         const filterPreventivaBreve = document.getElementById('planningFilterPreventivaBreve')?.checked || false;
         const filterPreventivaAtrasadas = document.getElementById('planningFilterPreventivaAtrasadas')?.checked || false;
+        const preventivaCheckboxMarcado = filters.tipo.length === 0 || filters.tipo.includes('Preventiva');
         let passaFiltroPreventiva = true;
         
         // Só aplicar filtros se for preventiva
         if (request.tipo === 'Preventiva') {
-            console.log(`🔧 Processando preventiva ${request.id || request.ID}:`, {
-                id: request.id || request.ID,
-                estado: request.estado,
-                filterPreventivaTodas,
-                filterPreventivaBreve,
-                filterPreventivaAtrasadas,
-                dataPrimeiraIntervencao: request.dataPrimeiraIntervencao || request.data_primeira_intervencao,
-                frequencia: request.frequencia,
-                passaTipo: filters.tipo.length === 0 || filters.tipo.includes(request.tipo)
-            });
-            // ✅ FIX v3.8.3.10.27.6: Se NENHUM filtro está ativo, mostrar TODAS
-            if (!filterPreventivaTodas && !filterPreventivaBreve && !filterPreventivaAtrasadas) {
-                passaFiltroPreventiva = true;  // ✅ MUDOU: mostrar todas quando nenhum filtro ativo
-                console.log(`   → NENHUM sub-filtro ativo, MOSTRAR TODAS`);
-            } else if (request.dataPrimeiraIntervencao && request.frequencia) {
-                // Calcular próxima intervenção
-                const proximaData = calcularProximaIntervencao(request.dataPrimeiraIntervencao, request.frequencia);
-                if (proximaData) {
-                    const hoje = new Date();
-                    hoje.setHours(0, 0, 0, 0);
-                    const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
-                    
-                    // Verificar se passa em algum dos filtros ativos
-                    const passaTodas = filterPreventivaTodas;
-                    const passaBreve = filterPreventivaBreve && diasRestantes <= 30;
-                    const passaAtrasadas = filterPreventivaAtrasadas && diasRestantes < 0;
-                    
-                    passaFiltroPreventiva = passaTodas || passaBreve || passaAtrasadas;
-                    console.log(`   → diasRestantes: ${diasRestantes}, passa: ${passaFiltroPreventiva} (todas:${passaTodas}, breve:${passaBreve}, atrasadas:${passaAtrasadas})`);
-                } else {
-                    // Sem data calculada, só mostrar se "Todas" estiver ativo
-                    passaFiltroPreventiva = filterPreventivaTodas;
-                    console.log(`   → SEM proximaData calculada, passa: ${passaFiltroPreventiva}`);
-                }
+            // 🎯 SE CHECKBOX "PREVENTIVA" DESMARCADO → ESCONDER TODAS
+            if (!preventivaCheckboxMarcado) {
+                passaFiltroPreventiva = false;
             } else {
-                // Sem data/frequência, só mostrar se "Todas" estiver ativo
-                passaFiltroPreventiva = filterPreventivaTodas;
-                console.log(`   → SEM data/frequência, passa: ${passaFiltroPreventiva}`);
+                // 🎯 SE CHECKBOX "PREVENTIVA" MARCADO → APLICAR SUB-FILTROS
+                if (!filterPreventivaTodas && !filterPreventivaBreve && !filterPreventivaAtrasadas) {
+                    passaFiltroPreventiva = true;
+                } else if (request.dataPrimeiraIntervencao && request.frequencia) {
+                    const proximaData = calcularProximaIntervencao(request.dataPrimeiraIntervencao, request.frequencia);
+                    if (proximaData) {
+                        const hoje = new Date();
+                        hoje.setHours(0, 0, 0, 0);
+                        const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
+                        
+                        const passaLonge = filterPreventivaTodas && diasRestantes > 30;
+                        const passaBreve = filterPreventivaBreve && diasRestantes >= 0 && diasRestantes <= 30;
+                        const passaAtrasadas = filterPreventivaAtrasadas && diasRestantes < 0;
+                        passaFiltroPreventiva = passaLonge || passaBreve || passaAtrasadas;
+                    } else {
+                        passaFiltroPreventiva = filterPreventivaTodas;
+                    }
+                } else {
+                    passaFiltroPreventiva = filterPreventivaTodas;
+                }
             }
         }
         
@@ -16591,7 +16699,7 @@ let chartPedidosPorUtilizador = null;  // ✅ v3.7.0.9: NOVO gráfico
 let chartTiposIntervencao = null;  // 🆕 v3.7.6.9: Pie chart tipos de intervenção
 
 // ✅ Período selecionado para gráfico por utilizador (em dias)
-let periodoUtilizadorSelecionado = 7; // Default: última semana
+let periodoUtilizadorSelecionado = 'thisweek'; // 🆕 v3.8.3.10.27.84: Default = Esta Semana (calendário)
 
 // ===================================
 // FUNÇÕES DE PROCESSAMENTO DE DADOS
@@ -16662,17 +16770,27 @@ function processarDadosPorSemana(numSemanas = 12, empresaFiltro = '') {
         ? AppState.requests.filter(r => r.empresa === empresaFiltro)
         : AppState.requests;
     
-    // Contar pedidos por semana
+    // 🔧 v3.8.3.10.27.87: Contar pedidos por semana (criação e fecho)
     pedidosFiltrados.forEach(pedido => {
-        const data = new Date(pedido.dataHora);
-        const ano = data.getFullYear();
-        const semana = getWeekNumber(data);
+        // Contar por data de CRIAÇÃO (abertos)
+        const dataCriacao = new Date(pedido.dataHora);
+        const anoCriacao = dataCriacao.getFullYear();
+        const semanaCriacao = getWeekNumber(dataCriacao);
         
-        const semanaData = semanas.find(s => s.ano === ano && s.semana === semana);
-        if (semanaData) {
-            semanaData.abertos++;
-            if (pedido.estado === 'Resolvido') {
-                semanaData.fechados++;
+        const semanaDataCriacao = semanas.find(s => s.ano === anoCriacao && s.semana === semanaCriacao);
+        if (semanaDataCriacao) {
+            semanaDataCriacao.abertos++;
+        }
+        
+        // Contar por data de FECHO (fechados) - 🔧 v3.8.3.10.27.92: fallback dataHora
+        if (pedido.estado === 'Resolvido') {
+            const dataFecho = pedido.closed_at ? new Date(pedido.closed_at) : new Date(pedido.dataHora);
+            const anoFecho = dataFecho.getFullYear();
+            const semanaFecho = getWeekNumber(dataFecho);
+            
+            const semanaDataFecho = semanas.find(s => s.ano === anoFecho && s.semana === semanaFecho);
+            if (semanaDataFecho) {
+                semanaDataFecho.fechados++;
             }
         }
     });
@@ -16724,10 +16842,25 @@ function processarEvolucaoBacklog(numSemanas = 12, empresaFiltro = '') {
             const criadoAntes = (anoPedido < semanaData.ano) || 
                                (anoPedido === semanaData.ano && semanaPedido <= semanaData.semana);
             
-            // Pedido ainda não está resolvido OU foi resolvido depois desta semana?
-            const naoResolvido = pedido.estado !== 'Resolvido';
+            // 🔧 v3.8.3.10.27.66: Excluir resolvidas E standby (case-insensitive)
+            const naoResolvido = pedido.estado !== 'Resolvido' && 
+                                !(pedido.estado && pedido.estado.toLowerCase() === 'standby');
             
-            return criadoAntes && naoResolvido;
+            // 🔧 v3.8.3.10.27.66: Preventivas só contam se para breve ou atrasadas
+            let contaNoBacklog = true;
+            if (pedido.tipo === 'Preventiva' && pedido.dataPrimeiraIntervencao && pedido.frequencia) {
+                const proximaData = calcularProximaIntervencao(pedido.dataPrimeiraIntervencao, pedido.frequencia);
+                if (proximaData) {
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
+                    contaNoBacklog = diasRestantes <= 30;
+                } else {
+                    contaNoBacklog = false;
+                }
+            }
+            
+            return criadoAntes && naoResolvido && contaNoBacklog;
         }).length;
         
         semanaData.backlog = backlog;
@@ -16757,11 +16890,41 @@ function calcularMetricasSemana(empresaFiltro = '') {
     
     // ✅ v3.8.3.10.27.9: Abertos = TODAS as OTs criadas esta semana (independente do estado)
     const abertos = pedidosEstaSemana.length;
-    // Fechados = OTs que foram FECHADAS esta semana (estado mudou para Resolvido)
-    const fechados = pedidosEstaSemana.filter(p => p.estado === 'Resolvido').length;
+    
+    // 🔧 v3.8.3.10.27.92: Fechados = OTs que foram FECHADAS esta semana (fallback: dataHora)
+    const fechados = pedidosFiltrados.filter(p => {
+        if (p.estado !== 'Resolvido') return false;
+        const dataFecho = p.closed_at ? new Date(p.closed_at) : new Date(p.dataHora);
+        return dataFecho.getFullYear() === anoAtual && getWeekNumber(dataFecho) === semanaAtual;
+    }).length;
     
     // Calcular backlog total atual (todos os pedidos não resolvidos)
-    const backlogTotal = pedidosFiltrados.filter(p => p.estado !== 'Resolvido').length;
+    // 🔧 v3.8.3.10.27.68: 
+    // 1. Excluir estado "standby"
+    // 2. Preventivas só contam se estiverem "para breve" (≤30 dias) ou "atrasadas" (<0 dias)
+    
+    const backlogTotal = AppState.requests.filter(p => {
+        // Excluir resolvidas
+        if (p.estado === 'Resolvido') return false;
+        
+        // Excluir standby (case-insensitive)
+        if (p.estado && p.estado.toLowerCase() === 'standby') return false;
+        
+        // Se for preventiva, verificar se está para breve ou atrasada
+        if (p.tipo === 'Preventiva' && p.dataPrimeiraIntervencao && p.frequencia) {
+            const proximaData = calcularProximaIntervencao(p.dataPrimeiraIntervencao, p.frequencia);
+            if (proximaData) {
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
+                return diasRestantes <= 30;
+            }
+            return false;
+        }
+        
+        // Corretivas, Melhorias, Revisões contam normalmente
+        return true;
+    }).length;
     
     // Tendência do backlog (comparar com semana anterior)
     const semanaAnterior = processarEvolucaoBacklog(2, empresaFiltro);
@@ -16783,19 +16946,81 @@ function calcularMetricasSemana(empresaFiltro = '') {
  */
 function processarPedidosPorUtilizador(empresaFiltro = '', dias = 7) {
     const hoje = new Date();
-    const dataLimite = new Date(hoje);
-    dataLimite.setDate(dataLimite.getDate() - dias);
     
     // Filtrar pedidos
     const pedidosFiltrados = empresaFiltro 
         ? AppState.requests.filter(r => r.empresa === empresaFiltro)
         : AppState.requests;
     
+    // 🔍 DEBUG: Log temporário para verificar versão
+    console.log('%c🔍 processarPedidosPorUtilizador() - v3.8.3.10.27.92', 'color: #9b59b6; font-weight: bold;');
+    console.log('   Período:', dias);
+    console.log('   Total pedidos:', pedidosFiltrados.length);
+    
+    // 🔧 v3.8.3.10.27.92: Contar OTs antigas sem closed_at (usar dataHora como fallback)
+    let otsSemDataFecho = 0;
+    
     // Pedidos fechados no período
     const pedidosFechados = pedidosFiltrados.filter(p => {
-        const data = new Date(p.dataHora);
-        return p.estado === 'Resolvido' && data >= dataLimite;
+        if (p.estado !== 'Resolvido') return false;
+        
+        // 🔧 v3.8.3.10.27.92: Usar closed_at OU dataHora como fallback
+        const data = p.closed_at ? new Date(p.closed_at) : new Date(p.dataHora);
+        
+        // 🔍 DEBUG: Log das datas
+        if (p.fechadoPor === 'Eduardo Rocha' || p.responsavel === 'Eduardo Rocha') {
+            const fonte = p.closed_at ? 'closed_at' : 'dataHora (fallback)';
+            console.log(`   📋 ${p.id || 'sem-id'}: ${fonte} = ${data.toLocaleString('pt-PT')}`);
+            if (!p.closed_at) otsSemDataFecho++;
+        }
+        
+        // 🆕 v3.8.3.10.27.83: Se dias = 0, filtrar apenas HOJE
+        if (dias === 0) {
+            const hojeSoData = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+            const dataSoData = new Date(data.getFullYear(), data.getMonth(), data.getDate());
+            return dataSoData.getTime() === hojeSoData.getTime();
+        }
+        
+        // 🆕 v3.8.3.10.27.84: Semanas de calendário (segunda a domingo)
+        if (dias === 'thisweek') {
+            // Esta semana: começou na última segunda-feira
+            const inicioSemana = new Date(hoje);
+            const diaSemana = inicioSemana.getDay(); // 0 = domingo, 1 = segunda
+            const diasParaSegunda = diaSemana === 0 ? 6 : diaSemana - 1; // Se domingo, voltar 6 dias
+            inicioSemana.setDate(inicioSemana.getDate() - diasParaSegunda);
+            inicioSemana.setHours(0, 0, 0, 0);
+            return data >= inicioSemana;
+        }
+        
+        if (dias === 'lastweek') {
+            // Semana anterior: de segunda a domingo passados
+            const inicioSemana = new Date(hoje);
+            const diaSemana = inicioSemana.getDay();
+            const diasParaSegunda = diaSemana === 0 ? 6 : diaSemana - 1;
+            inicioSemana.setDate(inicioSemana.getDate() - diasParaSegunda - 7); // Voltar 1 semana
+            inicioSemana.setHours(0, 0, 0, 0);
+            
+            const fimSemana = new Date(inicioSemana);
+            fimSemana.setDate(fimSemana.getDate() + 6); // Domingo
+            fimSemana.setHours(23, 59, 59, 999);
+            
+            return data >= inicioSemana && data <= fimSemana;
+        }
+        
+        // Filtrar pelo período normal
+        const dataLimite = new Date(hoje);
+        dataLimite.setDate(dataLimite.getDate() - dias);
+        return data >= dataLimite;
     });
+    
+    // 🔍 DEBUG: Log de pedidos fechados encontrados
+    console.log('   ✅ Pedidos fechados no período:', pedidosFechados.length);
+    
+    // 🔧 v3.8.3.10.27.92: Avisar se há OTs usando dataHora como fallback
+    if (otsSemDataFecho > 0) {
+        console.warn(`   ⚠️ ${otsSemDataFecho} OT(s) SEM closed_at - usando dataHora (data de criação) como aproximação`);
+        console.warn('   💡 Execute o SQL supabase-add-closed-at.sql para criar o campo e trigger');
+    }
     
     // 🆕 v3.7.6.9: Contar por quem FECHOU (não por quem foi alocado)
     const porUtilizador = {};
@@ -16804,6 +17029,12 @@ function processarPedidosPorUtilizador(empresaFiltro = '', dias = 7) {
         const quemFechou = p.fechadoPor || p.responsavel || 'Sem responsável';
         porUtilizador[quemFechou] = (porUtilizador[quemFechou] || 0) + 1;
     });
+    
+    // 🔍 DEBUG: Log de contagem por utilizador
+    console.log('   📊 Contagem por utilizador:', porUtilizador);
+    if (porUtilizador['Eduardo Rocha']) {
+        console.log(`   ✅ Eduardo Rocha: ${porUtilizador['Eduardo Rocha']} OTs`);
+    }
     
     // Converter para array e ordenar
     const dados = Object.entries(porUtilizador)
@@ -17254,10 +17485,16 @@ function atualizarCardsMetricas(metricas) {
         fechadosEl.textContent = metricas.fechados || 0;
     }
     
-    // Backlog total
+    // Backlog total + comparação com lista filtrada
     const backlogEl = document.getElementById('backlogTotal');
+    const backlogListaInfo = document.getElementById('backlogListaInfo');
     if (backlogEl) {
         backlogEl.textContent = metricas.backlogTotal || 0;
+        
+        // 🆕 v3.8.3.10.27.85: Remover comparação com lista filtrada
+        if (backlogListaInfo) {
+            backlogListaInfo.textContent = '';
+        }
     }
     
     // Tendência do backlog
@@ -17326,7 +17563,9 @@ window.filtrarPorUtilizadorPeriodo = function(dias) {
     // Atualizar botões ativos
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.classList.remove('active');
-        if (parseInt(btn.getAttribute('data-period')) === dias) {
+        const btnPeriod = btn.getAttribute('data-period');
+        // Comparar como string para suportar 'thisweek' e 'lastweek'
+        if (btnPeriod == dias) {
             btn.classList.add('active');
         }
     });
@@ -17336,10 +17575,11 @@ window.filtrarPorUtilizadorPeriodo = function(dias) {
     const dadosPorUtilizador = processarPedidosPorUtilizador(empresaFiltro, dias);
     renderizarGraficoPedidosPorUtilizador(dadosPorUtilizador);
     
-    // Atualizar título do gráfico com período
+    // 🆕 v3.8.3.10.27.84: Atualizar título do gráfico com período
     const titulos = {
-        1: 'Último Dia',
-        7: 'Última Semana',
+        0: 'Hoje',
+        'thisweek': 'Esta Semana',
+        'lastweek': 'Semana Anterior',
         30: 'Último Mês',
         180: 'Últimos 6 Meses',
         365: 'Último Ano'
@@ -18744,6 +18984,190 @@ styleAnimations.textContent = `
     }
 `;
 document.head.appendChild(styleAnimations);
+
+// 🔍 DIAGNÓSTICO COMPLETO - Backlog vs Lista
+function diagnosticarBacklogCompleto() {
+    console.clear();
+    console.log('%c🔍 ===== DIAGNÓSTICO BACKLOG VS LISTA =====', 'font-size: 16px; font-weight: bold; color: #3b82f6;');
+    console.log('');
+    
+    // 1. Total de OTs
+    const total = AppState.requests.length;
+    console.log(`%c📊 Total OTs na BD: ${total}`, 'font-weight: bold;');
+    
+    // 2. Resolvidas
+    const resolvidas = AppState.requests.filter(p => p.estado === 'Resolvido');
+    console.log(`%c✅ OTs Resolvidas: ${resolvidas.length}`, 'color: #10b981;');
+    
+    // 3. NÃO Resolvidas (SEM FILTROS)
+    const naoResolvidas = AppState.requests.filter(p => p.estado !== 'Resolvido');
+    console.log(`%c⚠️ OTs NÃO Resolvidas (sem filtros): ${naoResolvidas.length}`, 'color: #f59e0b; font-weight: bold;');
+    
+    // 3b. BACKLOG REAL (com lógica do código)
+    const backlogReal = AppState.requests.filter(p => {
+        // Excluir resolvidas
+        if (p.estado === 'Resolvido') return false;
+        
+        // Excluir standby (case-insensitive)
+        if (p.estado && p.estado.toLowerCase() === 'standby') return false;
+        
+        // Se for preventiva, verificar se está para breve ou atrasada
+        if (p.tipo === 'Preventiva' && p.dataPrimeiraIntervencao && p.frequencia) {
+            const proximaData = calcularProximaIntervencao(p.dataPrimeiraIntervencao, p.frequencia);
+            if (proximaData) {
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
+                return diasRestantes <= 30;
+            }
+            return false;
+        }
+        
+        return true;
+    });
+    console.log(`%c🎯 BACKLOG REAL (com filtros do código): ${backlogReal.length}`, 'color: #ef4444; font-weight: bold; font-size: 14px;');
+    
+    // 4. Lista Filtrada
+    const listaFiltrada = AppState.filteredRequests.length;
+    console.log(`%c📋 Lista Filtrada (visível): ${listaFiltrada}`, 'color: #3b82f6; font-weight: bold;');
+    
+    // 5. Diferença
+    const diferenca = naoResolvidas.length - listaFiltrada;
+    console.log(`%c🔴 DIFERENÇA: ${diferenca} OTs`, 'font-size: 14px; font-weight: bold; color: #ef4444;');
+    console.log('');
+    
+    // 5b. Mostrar OTs Standby
+    const standbyOTs = AppState.requests.filter(p => p.estado && p.estado.toLowerCase() === 'standby');
+    console.log(`%c🛑 OTs em STANDBY: ${standbyOTs.length}`, 'color: #ff6b6b; font-weight: bold;');
+    if (standbyOTs.length > 0) {
+        console.table(standbyOTs.map(r => ({
+            ID: r.id.slice(0, 8),
+            Tipo: r.tipo,
+            Estado: r.estado,
+            Empresa: r.empresa,
+            Equipamento: r.areaEquipamento
+        })));
+    }
+    console.log('');
+    
+    // 5c. Mostrar Preventivas Longe (>30 dias)
+    const preventivasLonge = AppState.requests.filter(p => {
+        if (p.tipo !== 'Preventiva' || p.estado === 'Resolvido') return false;
+        if (!p.dataPrimeiraIntervencao || !p.frequencia) return false;
+        
+        const proximaData = calcularProximaIntervencao(p.dataPrimeiraIntervencao, p.frequencia);
+        if (!proximaData) return false;
+        
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
+        return diasRestantes > 30;
+    });
+    console.log(`%c🔵 Preventivas LONGE (>30 dias): ${preventivasLonge.length}`, 'color: #3b82f6; font-weight: bold;');
+    if (preventivasLonge.length > 0) {
+        console.table(preventivasLonge.map(r => {
+            const proximaData = calcularProximaIntervencao(r.dataPrimeiraIntervencao, r.frequencia);
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            const diasRestantes = Math.ceil((proximaData - hoje) / (1000 * 60 * 60 * 24));
+            
+            return {
+                ID: r.id.slice(0, 8),
+                Equipamento: r.areaEquipamento,
+                Dias: diasRestantes,
+                ProximaData: proximaData?.toLocaleDateString('pt-PT')
+            };
+        }));
+    }
+    console.log('');
+    
+    // 6. Agrupar por ESTADO
+    console.log('%c📌 OTs NÃO RESOLVIDAS por ESTADO:', 'font-weight: bold;');
+    const porEstado = {};
+    naoResolvidas.forEach(p => {
+        const estado = p.estado || '(null/undefined)';
+        porEstado[estado] = (porEstado[estado] || 0) + 1;
+    });
+    console.table(porEstado);
+    
+    // 7. Agrupar por TIPO
+    console.log('%c📌 OTs NÃO RESOLVIDAS por TIPO:', 'font-weight: bold;');
+    const porTipo = {};
+    naoResolvidas.forEach(p => {
+        const tipo = p.tipo || '(null/undefined)';
+        porTipo[tipo] = (porTipo[tipo] || 0) + 1;
+    });
+    console.table(porTipo);
+    
+    // 8. Agrupar por EMPRESA
+    console.log('%c📌 OTs NÃO RESOLVIDAS por EMPRESA:', 'font-weight: bold;');
+    const porEmpresa = {};
+    naoResolvidas.forEach(p => {
+        const empresa = p.empresa || '(null/undefined)';
+        porEmpresa[empresa] = (porEmpresa[empresa] || 0) + 1;
+    });
+    console.table(porEmpresa);
+    
+    // 9. Estados únicos
+    console.log('%c⚠️ TODOS OS ESTADOS ÚNICOS na BD:', 'font-weight: bold;');
+    const estadosUnicos = [...new Set(AppState.requests.map(r => r.estado || '(null)'))];
+    console.log(estadosUnicos);
+    console.log('');
+    
+    // 10. OTs OCULTAS
+    const idsLista = new Set(AppState.filteredRequests.map(r => r.id));
+    const ocultas = naoResolvidas.filter(r => !idsLista.has(r.id));
+    
+    console.log(`%c🔍 ${ocultas.length} OTs OCULTAS (no backlog mas não na lista):`, 'font-size: 14px; font-weight: bold; color: #ef4444;');
+    if (ocultas.length > 0) {
+        console.table(ocultas.map(r => ({
+            ID: r.id.slice(0, 8),
+            Tipo: r.tipo || '(vazio)',
+            Estado: r.estado || '(vazio)',
+            Prioridade: r.prioridade || '(vazio)',
+            Empresa: r.empresa || '(vazio)',
+            Equipamento: r.areaEquipamento || '(vazio)',
+            Componente: r.componente || '(vazio)',
+            Descrição: (r.descricao || '').slice(0, 50)
+        })));
+        
+        // Analisar POR QUE estão ocultas
+        console.log('%c🔬 ANÁLISE: Por que cada OT está oculta?', 'font-weight: bold;');
+        ocultas.forEach((r, i) => {
+            console.log(`\n--- OT ${i+1}: ${r.id.slice(0, 8)} (${r.tipo} - ${r.estado}) ---`);
+            
+            // Testar filtros
+            const passaTipo = AppState.currentFilters.tipo.length === 0 || AppState.currentFilters.tipo.includes(r.tipo);
+            const passaEstado = AppState.currentFilters.estado.length === 0 || AppState.currentFilters.estado.includes(r.estado);
+            const passaPrioridade = AppState.currentFilters.prioridade.length === 0 || AppState.currentFilters.prioridade.includes(r.prioridade);
+            const passaEmpresa = AppState.currentFilters.empresa.length === 0 || AppState.currentFilters.empresa.includes(r.empresa || 'MCF');
+            
+            console.log(`   ${passaTipo ? '✅' : '❌'} Tipo: ${r.tipo}`);
+            console.log(`   ${passaEstado ? '✅' : '❌'} Estado: ${r.estado}`);
+            console.log(`   ${passaPrioridade ? '✅' : '❌'} Prioridade: ${r.prioridade}`);
+            console.log(`   ${passaEmpresa ? '✅' : '❌'} Empresa: ${r.empresa}`);
+            
+            if (!passaTipo) console.log(`      👉 Filtro TIPO não inclui "${r.tipo}"`);
+            if (!passaEstado) console.log(`      👉 Filtro ESTADO não inclui "${r.estado}"`);
+            if (!passaPrioridade) console.log(`      👉 Filtro PRIORIDADE não inclui "${r.prioridade}"`);
+            if (!passaEmpresa) console.log(`      👉 Filtro EMPRESA não inclui "${r.empresa}"`);
+        });
+    } else {
+        console.log('%c✅ Nenhuma OT oculta! Backlog = Lista', 'color: #10b981; font-weight: bold;');
+    }
+    
+    // 11. Filtros ativos
+    console.log('');
+    console.log('%c⚙️ FILTROS ATIVOS:', 'font-weight: bold;');
+    console.log('   Tipos:', AppState.currentFilters.tipo);
+    console.log('   Estados:', AppState.currentFilters.estado);
+    console.log('   Prioridades:', AppState.currentFilters.prioridade);
+    console.log('   Empresas:', AppState.currentFilters.empresa);
+}
+
+// 🔍 DEBUG: Filtros de Preventivas
+// Tornar acessível globalmente
+window.diagnosticarBacklogCompleto = diagnosticarBacklogCompleto;
 
     </script>
 </body>
