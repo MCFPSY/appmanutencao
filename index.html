@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.83 (Worker: v3.8.3.10.27.10)
-    📅 Data: 2026-02-14
+    📦 Versão: v3.8.3.10.27.94 (Worker: v3.8.3.10.27.10)
+    📅 Data: 2026-02-15
     
+    🎯 v3.8.3.10.27.94: FIX - Auto-ativar filtros Preventiva ao carregar (sincroniza checkboxes com AppState) ✅
     🎯 v3.8.3.10.27.83: FEATURE - Botão "📅 Hoje" em Pedidos Fechados por Utilizador ✅
     🎯 v3.8.3.10.27.82: DEBUG - Logs para verificar se standby estão a ser excluídos ✅
     🎯 v3.8.3.10.27.81: FIX - Standby NUNCA aparecem na lista (excluídos sempre) ✅
-    🎯 v3.8.3.10.27.80: FIX CRÍTICO - Preventiva DESMARCADA = 0 preventivas | MARCADA = aplicar sub-filtros ✅
     🎯 v3.8.3.10.27.79: FIX DEFINITIVO - Checkbox "Preventiva" = TODAS | Sub-filtros = específicas | "Todas" renomeado para "≥30 dias" ✅
     🎯 v3.8.3.10.27.78: FIX - "Todas" agora faz UNIÃO (OR) com outros filtros preventivas ✅
     🎯 v3.8.3.10.27.77: FIX CRÍTICO - Preventivas controladas APENAS pelos filtros próprios (ignora checkbox "Preventiva") ✅
@@ -7844,9 +7844,9 @@ const AppState = {
     filteredRequests: [],
     sortOrder: 'desc',
     groupMode: false,
-    // 🔧 v3.8.3.10.27.71: FIX CRÍTICO - Filtros padrão corretos (sem "Para breve" e "Atrasadas" em tipo)
+    // 🔧 v3.8.3.10.27.94: FIX - Adicionar 'Preventiva' aos filtros padrão
     currentFilters: { 
-        tipo: ['Corretiva', 'Melhoria', 'Revisão'], 
+        tipo: ['Preventiva', 'Corretiva', 'Melhoria', 'Revisão'], 
         prioridade: [], 
         estado: ['Novo', 'Em curso'], 
         empresa: [], 
@@ -8560,6 +8560,9 @@ async function initializeApp() {
     } else {
         console.warn('📵 Offline - usando apenas localStorage');
     }
+    
+    // 🔧 v3.8.3.10.27.94: Sincronizar filtros com estado dos checkboxes
+    syncFiltersWithCheckboxes();
     
     renderRequestsList();
     await initializePlanning();  // ✅ v3.7.0.8: AWAIT para carregar planeamento do Supabase
@@ -11792,6 +11795,58 @@ function handleFilterChange(e) {
     renderRequestsList();
     // 🚨 FIX: Atualizar contagens do filtro de responsável após mudar filtros
     populateResponsavelFilter();
+}
+
+// 🔧 v3.8.3.10.27.94: Sincronizar estado dos checkboxes com AppState.currentFilters
+function syncFiltersWithCheckboxes() {
+    console.log('🔄 Sincronizando filtros com checkboxes...');
+    
+    // Resetar filtros (exceto estado que tem valores padrão)
+    AppState.currentFilters = { 
+        tipo: [], 
+        prioridade: [], 
+        estado: [], 
+        empresa: [], 
+        tipoIntervencao: [], 
+        urgente: [], 
+        paragemProducao: [], 
+        exigeCompra: [] 
+    };
+    
+    // Ler todos os checkboxes marcados e adicionar ao AppState
+    document.querySelectorAll('.filter-tipo:checked').forEach(checkbox => {
+        AppState.currentFilters.tipo.push(checkbox.value);
+    });
+    
+    document.querySelectorAll('.filter-prioridade:checked').forEach(checkbox => {
+        AppState.currentFilters.prioridade.push(checkbox.value);
+    });
+    
+    document.querySelectorAll('.filter-estado:checked').forEach(checkbox => {
+        AppState.currentFilters.estado.push(checkbox.value);
+    });
+    
+    document.querySelectorAll('.filter-empresa:checked').forEach(checkbox => {
+        AppState.currentFilters.empresa.push(checkbox.value);
+    });
+    
+    document.querySelectorAll('.filter-tipoIntervencao:checked').forEach(checkbox => {
+        AppState.currentFilters.tipoIntervencao.push(checkbox.value);
+    });
+    
+    document.querySelectorAll('.filter-urgente:checked').forEach(checkbox => {
+        AppState.currentFilters.urgente.push(checkbox.value);
+    });
+    
+    document.querySelectorAll('.filter-paragemProducao:checked').forEach(checkbox => {
+        AppState.currentFilters.paragemProducao.push(checkbox.value);
+    });
+    
+    document.querySelectorAll('.filter-exigeCompra:checked').forEach(checkbox => {
+        AppState.currentFilters.exigeCompra.push(checkbox.value);
+    });
+    
+    console.log('✅ Filtros sincronizados:', AppState.currentFilters);
 }
 
 // ⚡ EQUIPAMENTOS - Popular filtro de equipamento
