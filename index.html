@@ -5710,7 +5710,7 @@
                             <label class="filter-label">Tipo</label>
                             <div class="checkbox-group">
                                 <label class="checkbox-label">
-                                    <input type="checkbox" value="Preventiva" class="filter-tipo">
+                                    <input type="checkbox" value="Preventiva" class="filter-tipo" checked>
                                     <span>Preventiva</span>
                                 </label>
                                 <!-- 🆕 v3.8.3.10.25: Filtros de preventivas (todas, para breve, atrasadas) -->
@@ -17191,6 +17191,18 @@ function renderizarGraficoEvolucaoBacklog(dados) {
                     pointBackgroundColor: 'rgba(33, 150, 243, 1)',
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2
+                },
+                {
+                    label: '🎯 Target (40 OTs)',
+                    data: dados.map(() => 40),
+                    backgroundColor: 'rgba(76, 175, 80, 0)',
+                    borderColor: 'rgba(76, 175, 80, 1)',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 0,
+                    pointHoverRadius: 0
                 }
             ]
         },
