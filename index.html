@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <!-- 
     🏭 APP MANUTENÇÃO MCF + PSY
-    📦 Versão: v3.8.3.10.27.98.7 (Worker: v3.8.3.10.27.10)
+    📦 Versão: v3.8.3.10.27.98.8 (Worker: v3.8.3.10.27.10)
     📅 Data: 2026-02-15
     
+    🎯 v3.8.3.10.27.98.8: FEATURE - Ranking com períodos Trimestral, Semestral e Anual ✅
     🎯 v3.8.3.10.27.98.7: UI - Remover emoji tab Ranking + período padrão = Semana ✅
     🎯 v3.8.3.10.27.98.6: DEBUG - Controlo de acesso Ranking com logs detalhados ✅
     🎯 v3.8.3.10.27.98.5: FIX - Ranking alinhado com Análise (fechadoPor → responsavel) ✅
@@ -7212,6 +7213,9 @@
                         <select class="form-input" id="rankingTipoPeriodo" style="width: 150px;">
                             <option value="semana" selected>Semana</option>
                             <option value="mes">Mês</option>
+                            <option value="trimestre">Trimestre</option>
+                            <option value="semestre">Semestre</option>
+                            <option value="ano">Ano</option>
                         </select>
                     </div>
                     
@@ -18320,6 +18324,39 @@ function obterIntervaloPeriodo(data, tipoPeriodo) {
         fim.setHours(23, 59, 59);
         
         return { inicio, fim };
+        
+    } else if (tipoPeriodo === 'trimestre') {
+        // 🆕 v3.8.3.10.27.98.8: Trimestre (Jan-Mar, Abr-Jun, Jul-Set, Out-Dez)
+        const mesAtual = d.getMonth(); // 0-11
+        const trimestreInicio = Math.floor(mesAtual / 3) * 3; // 0, 3, 6, 9
+        
+        const inicio = new Date(d.getFullYear(), trimestreInicio, 1);
+        inicio.setHours(0, 0, 0, 0);
+        
+        const fim = new Date(d.getFullYear(), trimestreInicio + 3, 0, 23, 59, 59);
+        
+        return { inicio, fim };
+        
+    } else if (tipoPeriodo === 'semestre') {
+        // 🆕 v3.8.3.10.27.98.8: Semestre (Jan-Jun, Jul-Dez)
+        const mesAtual = d.getMonth(); // 0-11
+        const semestreInicio = mesAtual < 6 ? 0 : 6; // Jan ou Jul
+        
+        const inicio = new Date(d.getFullYear(), semestreInicio, 1);
+        inicio.setHours(0, 0, 0, 0);
+        
+        const fim = new Date(d.getFullYear(), semestreInicio + 6, 0, 23, 59, 59);
+        
+        return { inicio, fim };
+        
+    } else if (tipoPeriodo === 'ano') {
+        // 🆕 v3.8.3.10.27.98.8: Ano (Jan-Dez)
+        const inicio = new Date(d.getFullYear(), 0, 1);
+        inicio.setHours(0, 0, 0, 0);
+        
+        const fim = new Date(d.getFullYear(), 11, 31, 23, 59, 59);
+        
+        return { inicio, fim };
     }
     
     return { inicio: new Date(0), fim: new Date() };
@@ -18539,6 +18576,24 @@ function formatarPeriodo(data, tipoPeriodo) {
         const numeroSemana = Math.ceil((diasPassados + primeiroDia.getDay() + 1) / 7);
         
         return `Semana ${numeroSemana} (${diaInicio}/${mesInicio} - ${diaFim}/${mesFim})`;
+        
+    } else if (tipoPeriodo === 'trimestre') {
+        // 🆕 v3.8.3.10.27.98.8: Trimestre
+        const { inicio, fim } = obterIntervaloPeriodo(d, 'trimestre');
+        const trimestre = Math.floor(inicio.getMonth() / 3) + 1;
+        const meses = ['Jan-Mar', 'Abr-Jun', 'Jul-Set', 'Out-Dez'];
+        return `${trimestre}º Trimestre ${inicio.getFullYear()} (${meses[trimestre - 1]})`;
+        
+    } else if (tipoPeriodo === 'semestre') {
+        // 🆕 v3.8.3.10.27.98.8: Semestre
+        const { inicio } = obterIntervaloPeriodo(d, 'semestre');
+        const semestre = inicio.getMonth() < 6 ? 1 : 2;
+        const meses = semestre === 1 ? 'Jan-Jun' : 'Jul-Dez';
+        return `${semestre}º Semestre ${inicio.getFullYear()} (${meses})`;
+        
+    } else if (tipoPeriodo === 'ano') {
+        // 🆕 v3.8.3.10.27.98.8: Ano
+        return `Ano ${d.getFullYear()}`;
     }
     
     return 'Período desconhecido';
@@ -19800,6 +19855,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 d.setMonth(d.getMonth() - 1);
             } else if (RankingState.tipoPeriodo === 'semana') {
                 d.setDate(d.getDate() - 7);
+            } else if (RankingState.tipoPeriodo === 'trimestre') {
+                // 🆕 v3.8.3.10.27.98.8: Trimestre anterior
+                d.setMonth(d.getMonth() - 3);
+            } else if (RankingState.tipoPeriodo === 'semestre') {
+                // 🆕 v3.8.3.10.27.98.8: Semestre anterior
+                d.setMonth(d.getMonth() - 6);
+            } else if (RankingState.tipoPeriodo === 'ano') {
+                // 🆕 v3.8.3.10.27.98.8: Ano anterior
+                d.setFullYear(d.getFullYear() - 1);
             }
             
             RankingState.periodoAtual = d;
@@ -19815,6 +19879,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 d.setMonth(d.getMonth() + 1);
             } else if (RankingState.tipoPeriodo === 'semana') {
                 d.setDate(d.getDate() + 7);
+            } else if (RankingState.tipoPeriodo === 'trimestre') {
+                // 🆕 v3.8.3.10.27.98.8: Próximo trimestre
+                d.setMonth(d.getMonth() + 3);
+            } else if (RankingState.tipoPeriodo === 'semestre') {
+                // 🆕 v3.8.3.10.27.98.8: Próximo semestre
+                d.setMonth(d.getMonth() + 6);
+            } else if (RankingState.tipoPeriodo === 'ano') {
+                // 🆕 v3.8.3.10.27.98.8: Próximo ano
+                d.setFullYear(d.getFullYear() + 1);
             }
             
             RankingState.periodoAtual = d;
@@ -20269,4 +20342,3 @@ window.diagnosticarBacklogCompleto = diagnosticarBacklogCompleto;
     </script>
 </body>
 </html>
-
