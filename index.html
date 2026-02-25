@@ -6210,6 +6210,12 @@
                                     <path d="M9 18l6-6-6-6"/>
                                 </svg>
                             </button>
+                            <!-- 🆕 v3.8.3.10.27.98.11: Botão Limpar Planeamento -->
+                            <button class="btn btn-danger" id="limparPlaneamentoBtn" 
+                                    title="Remover todas as datas planeadas antigas"
+                                    style="margin-left: 12px; white-space: nowrap;">
+                                🗑️ Limpar Planeamento
+                            </button>
                         </div>
                     </div>
                     
@@ -11200,6 +11206,12 @@ function setupEventListeners() {
     document.getElementById('todayBtn').addEventListener('click', resetPlanningToToday);
     document.getElementById('savePlanningBtn').addEventListener('click', savePlanning);
     
+    // 🆕 v3.8.3.10.27.98.11: Event listener para Limpar Planeamento
+    const limparPlaneamentoBtn = document.getElementById('limparPlaneamentoBtn');
+    if (limparPlaneamentoBtn) {
+        limparPlaneamentoBtn.addEventListener('click', limparPlaneamentoCompleto);
+    }
+    
     // ⚡ NOVO: Event listener para resumo de preventivas
     const atualizarPreventivasBtn = document.getElementById('atualizarPreventivasBtn');
     if (atualizarPreventivasBtn) {
@@ -14356,41 +14368,79 @@ function hideLoadingSpinner() {
 
 // UTILS
 // ✅ v3.7.0.9: Gerar ID sequencial para Ordens de Trabalho (OT_XXXXX)
+// 🆕 v3.8.3.10.27.98.13: FIX CRÍTICO - Retry + Fallback inteligente
 async function generateOTID() {
-    try {
-        // Obter todas as OTs do Supabase para descobrir o próximo número
-        const response = await window.SupabaseAPI.getPedidos();
-        
-        let nextNumber = 1;
-        
-        if (response && response.length > 0) {
-            // Filtrar apenas IDs do formato OT_XXXXX e ordenar
-            const otIDs = response
-                .map(r => r.ID)
-                .filter(id => id && id.startsWith('OT_') && !isNaN(parseInt(id.replace('OT_', ''))))
-                .map(id => parseInt(id.replace('OT_', '')))
-                .sort((a, b) => b - a); // Ordenar decrescente
+    const MAX_RETRIES = 3;
+    let attempt = 0;
+    
+    while (attempt < MAX_RETRIES) {
+        try {
+            attempt++;
+            console.log(`🔢 [generateOTID] Tentativa ${attempt}/${MAX_RETRIES}...`);
             
-            if (otIDs.length > 0) {
-                nextNumber = otIDs[0] + 1;
+            // Obter todas as OTs do Supabase para descobrir o próximo número
+            const response = await Promise.race([
+                window.SupabaseAPI.getPedidos(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000)) // 10s timeout
+            ]);
+            
+            let nextNumber = 1;
+            
+            if (response && response.length > 0) {
+                // Filtrar apenas IDs do formato OT_XXXXX e ordenar
+                const otIDs = response
+                    .map(r => r.ID)
+                    .filter(id => id && id.startsWith('OT_') && !isNaN(parseInt(id.replace('OT_', ''))))
+                    .map(id => parseInt(id.replace('OT_', '')))
+                    .sort((a, b) => b - a); // Ordenar decrescente
+                
+                if (otIDs.length > 0) {
+                    nextNumber = otIDs[0] + 1;
+                    console.log(`📊 [generateOTID] Último número: ${otIDs[0]}, Próximo: ${nextNumber}`);
+                } else {
+                    // Se não há OT_XXXXX, contar total de registros
+                    nextNumber = response.length + 1;
+                    console.log(`📊 [generateOTID] Nenhuma OT sequencial encontrada. Total registros: ${response.length}`);
+                }
             } else {
-                // Se não há OT_XXXXX, contar total de registros
-                nextNumber = response.length + 1;
+                console.log(`📊 [generateOTID] Nenhuma OT encontrada. Começando em 1.`);
+            }
+            
+            // Formatar como OT_00001, OT_00002, etc.
+            const otID = `OT_${String(nextNumber).padStart(5, '0')}`;
+            console.log(`✅ [generateOTID] ID gerado com sucesso: ${otID}`);
+            return otID;
+            
+        } catch (error) {
+            console.error(`❌ [generateOTID] Erro na tentativa ${attempt}/${MAX_RETRIES}:`, error);
+            
+            if (attempt < MAX_RETRIES) {
+                console.log(`⏳ [generateOTID] Aguardando 2s antes de tentar novamente...`);
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Esperar 2s
+            } else {
+                // TODAS AS TENTATIVAS FALHARAM - USAR FALLBACK INTELIGENTE
+                console.error(`🚨 [generateOTID] CRÍTICO: Todas as ${MAX_RETRIES} tentativas falharam!`);
+                
+                // ⚠️ FALLBACK INTELIGENTE: Usar timestamp MAS formatar para sequência
+                // Em vez de OT_1772010866597, usar OT_TMP_xxxx
+                const timestamp = Date.now();
+                const fallbackID = `OT_TMP_${String(timestamp).slice(-5)}`; // Últimos 5 dígitos
+                
+                console.error(`⚠️ [generateOTID] USANDO FALLBACK: ${fallbackID}`);
+                console.error(`⚠️ [generateOTID] AÇÃO NECESSÁRIA: Verificar conexão Supabase e renumerar esta OT!`);
+                
+                // 🔔 ALERTAR UTILIZADOR
+                showToast('⚠️ AVISO: Erro ao gerar número da OT. ID temporário criado. Contacte administrador!', 'warning', 8000);
+                
+                return fallbackID;
             }
         }
-        
-        // Formatar como OT_00001, OT_00002, etc.
-        const otID = `OT_${String(nextNumber).padStart(5, '0')}`;
-        console.log(`✅ Novo ID gerado: ${otID} (próximo após ${nextNumber - 1})`);
-        return otID;
-        
-    } catch (error) {
-        console.error('❌ Erro ao gerar ID OT:', error);
-        // Fallback: usar timestamp
-        const fallbackID = `OT_${Date.now()}`;
-        console.warn(`⚠️ Usando ID fallback: ${fallbackID}`);
-        return fallbackID;
     }
+    
+    // Nunca deve chegar aqui, mas por segurança
+    const emergencyID = `OT_ERR_${Date.now().toString().slice(-5)}`;
+    console.error(`🆘 [generateOTID] EMERGÊNCIA: ID de emergência usado: ${emergencyID}`);
+    return emergencyID;
 }
 
 // Manter generateUUID para compatibilidade (caso seja usado em outro lugar)
@@ -15323,6 +15373,171 @@ async function savePlanning() {
     }
 }
 function savePlanningToStorage() { localStorage.setItem(CONFIG.STORAGE_KEYS.PLANNING, JSON.stringify(AppState.planning)); }
+
+// 🆕 v3.8.3.10.27.98.11: Limpar Planeamento Completo
+async function limparPlaneamentoCompleto() {
+    console.log('🗑️ [LIMPAR PLANEAMENTO] Iniciando...');
+    
+    // 🔒 VERIFICAR PERMISSÕES
+    if (!AppState.currentUser) {
+        showToast('❌ Sessão expirada. Por favor, faça login novamente.', 'error');
+        return;
+    }
+    
+    const podeEditar = AppState.currentUser.podeEditarPlaneamento || AppState.currentUser.role === 'admin';
+    if (!podeEditar) {
+        showToast('🔒 Sem permissão para limpar o planeamento', 'error');
+        return;
+    }
+    
+    // 🔍 ANALISAR O QUE SERÁ LIMPO
+    const otsParaLimpar = AppState.requests.filter(ot => {
+        // Apenas OTs com data planeada
+        if (!ot.dataPlaneada) return false;
+        
+        // Apenas OTs "Pendentes" (não Em Progresso/Resolvidas)
+        if (ot.estado !== 'Pendente' && ot.estado !== 'Aberto') return false;
+        
+        // Opcional: Apenas OTs com data planeada antiga (< hoje)
+        const dataPlaneada = new Date(ot.dataPlaneada);
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        
+        return dataPlaneada < hoje; // Apenas datas antigas
+    });
+    
+    console.log('📊 OTs a limpar:', otsParaLimpar.length);
+    console.log('📋 Lista:', otsParaLimpar.map(ot => `${ot.numeroOT} (${ot.dataPlaneada})`));
+    
+    if (otsParaLimpar.length === 0) {
+        showToast('ℹ️ Não há datas de planeamento antigas para limpar', 'info');
+        return;
+    }
+    
+    // 📊 PREVIEW: Mostrar o que será limpo
+    const preview = `
+        <div style="text-align: left; margin: 20px 0;">
+            <p style="margin-bottom: 12px;"><strong>🗑️ Serão limpas ${otsParaLimpar.length} OTs com datas antigas:</strong></p>
+            <ul style="max-height: 200px; overflow-y: auto; padding-left: 20px; margin: 12px 0; line-height: 1.6;">
+                ${otsParaLimpar.slice(0, 10).map(ot => `
+                    <li>${ot.numeroOT} - ${ot.equipamento || 'N/A'} (${new Date(ot.dataPlaneada).toLocaleDateString('pt-PT')})</li>
+                `).join('')}
+                ${otsParaLimpar.length > 10 ? `<li><em>... e mais ${otsParaLimpar.length - 10} OTs</em></li>` : ''}
+            </ul>
+            <p style="color: #e74c3c; font-weight: 600; margin-top: 12px;">⚠️ ATENÇÃO: Esta ação NÃO pode ser desfeita!</p>
+            <p style="color: #666; font-size: 0.9em; margin-top: 8px;">
+                ✅ Apenas OTs "Pendentes" com datas < hoje<br>
+                ✅ OTs "Em Progresso" ou "Resolvidas" não serão afetadas
+            </p>
+        </div>
+    `;
+    
+    // ⚠️ CONFIRMAÇÃO DUPLA
+    const confirma1 = await new Promise((resolve) => {
+        showCustomAlert({
+            title: '🗑️ Limpar Planeamento',
+            message: preview,
+            icon: '⚠️',
+            buttonText: 'Continuar',
+            secondaryButtonText: 'Cancelar',
+            onConfirm: () => resolve(true),
+            onCancel: () => resolve(false)
+        });
+    });
+    
+    if (!confirma1) {
+        console.log('❌ Limpeza cancelada pelo utilizador (1ª confirmação)');
+        return;
+    }
+    
+    // ⚠️ CONFIRMAÇÃO FINAL
+    const confirma2 = await new Promise((resolve) => {
+        showCustomAlert({
+            title: '⚠️ CONFIRMAR LIMPEZA',
+            message: `
+                <p style="font-size: 1.1em; font-weight: 600; margin-bottom: 12px;">
+                    Tens a certeza que queres limpar ${otsParaLimpar.length} datas de planeamento?
+                </p>
+                <p style="color: #e74c3c; font-weight: 600;">
+                    ⚠️ ESTA AÇÃO NÃO PODE SER DESFEITA!
+                </p>
+            `,
+            icon: '🚨',
+            buttonText: 'SIM, Limpar Agora',
+            secondaryButtonText: 'NÃO, Cancelar',
+            onConfirm: () => resolve(true),
+            onCancel: () => resolve(false)
+        });
+    });
+    
+    if (!confirma2) {
+        console.log('❌ Limpeza cancelada pelo utilizador (2ª confirmação)');
+        return;
+    }
+    
+    // 🚀 EXECUTAR LIMPEZA
+    console.log('🚀 Iniciando limpeza de', otsParaLimpar.length, 'OTs...');
+    
+    try {
+        let sucessos = 0;
+        let erros = 0;
+        
+        for (const ot of otsParaLimpar) {
+            try {
+                // Atualizar BD: remover dataPlaneada
+                await window.SupabaseAPI.updatePedido(ot.id, {
+                    dataPlaneada: null
+                });
+                
+                // Atualizar AppState local
+                const otIndex = AppState.requests.findIndex(r => r.id === ot.id);
+                if (otIndex !== -1) {
+                    AppState.requests[otIndex].dataPlaneada = null;
+                }
+                
+                sucessos++;
+                console.log(`✅ OT ${ot.numeroOT} limpa`);
+                
+            } catch (error) {
+                erros++;
+                console.error(`❌ Erro ao limpar OT ${ot.numeroOT}:`, error);
+            }
+        }
+        
+        // 📊 LOG DE AUDITORIA
+        console.log('======================================');
+        console.log('🗑️ LIMPEZA DE PLANEAMENTO CONCLUÍDA');
+        console.log('👤 Utilizador:', AppState.currentUser.username);
+        console.log('📅 Data:', new Date().toLocaleString('pt-PT'));
+        console.log('✅ Sucessos:', sucessos);
+        console.log('❌ Erros:', erros);
+        console.log('📋 Total:', otsParaLimpar.length);
+        console.log('======================================');
+        
+        // 🔄 Atualizar interface
+        if (sucessos > 0) {
+            // Limpar planeamento local também
+            AppState.planning.tasks = {};
+            AppState.planning.allocations = {};
+            savePlanningToStorage();
+            
+            // Recarregar grid de planeamento
+            await loadPlanningFromSupabase();
+            renderPlanningGrid();
+            
+            showToast(`✅ ${sucessos} datas de planeamento limpas com sucesso!`, 'success');
+        }
+        
+        if (erros > 0) {
+            showToast(`⚠️ ${erros} OTs falharam ao limpar. Ver console para detalhes.`, 'warning');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro crítico ao limpar planeamento:', error);
+        showToast('❌ Erro ao limpar planeamento: ' + error.message, 'error');
+    }
+}
+
 // ✅ v3.7.0.8: Carregar planeamento do Supabase
 async function loadPlanningFromSupabase() {
     if (!AppState.isOnline) {
@@ -16510,6 +16725,9 @@ function adicionarLinhaBaixa() {
     // Obter famílias únicas
     const familias = [...new Set(AppState.artigos.filter(a => a.visivel !== false).map(a => a.familia))].sort();
     
+    // 🆕 v3.8.3.10.27.98.12: Adicionar opção "NÃO EXISTENTE" no FINAL
+    familias.push('NÃO EXISTENTE');
+    
     linha.innerHTML = `
         <div class="form-group" style="margin: 0;">
             <label class="form-label" style="font-size: 12px; margin-bottom: 4px;">📦 Família</label>
@@ -16523,6 +16741,12 @@ function adicionarLinhaBaixa() {
             <select class="form-input baixa-artigo-select" data-linha="${linhaId}" onchange="updateLinhaBaixaInfo('${linhaId}')" required disabled>
                 <option value="">Escolha família primeiro...</option>
             </select>
+            <input type="text" 
+                   class="form-input baixa-artigo-input" 
+                   data-linha="${linhaId}" 
+                   placeholder="Descrição livre do artigo..." 
+                   style="display: none;"
+                   required />
             <small class="baixa-linha-info" style="display: none; margin-top: 4px; color: #6c757d;"></small>
         </div>
         <div class="form-group" style="margin: 0;">
@@ -16565,7 +16789,31 @@ function filtrarArtigosBaixaLinha(linhaId) {
     
     const familiaSelect = linha.querySelector('.baixa-familia-select');
     const artigoSelect = linha.querySelector('.baixa-artigo-select');
+    const artigoInput = linha.querySelector('.baixa-artigo-input');
     const familiaSelecionada = familiaSelect.value;
+    
+    // 🆕 v3.8.3.10.27.98.12: Se "NÃO EXISTENTE", mostrar input de texto livre
+    if (familiaSelecionada === 'NÃO EXISTENTE') {
+        artigoSelect.style.display = 'none';
+        artigoSelect.required = false;
+        artigoInput.style.display = 'block';
+        artigoInput.required = true;
+        artigoInput.value = '';
+        
+        console.log('📝 Modo texto livre ativado para família "NÃO EXISTENTE"');
+        
+        // Esconder info e resetar resumo
+        const info = linha.querySelector('.baixa-linha-info');
+        if (info) info.style.display = 'none';
+        calcularResumoBaixa();
+        return;
+    }
+    
+    // Modo normal: combo box de artigos
+    artigoSelect.style.display = 'block';
+    artigoSelect.required = true;
+    artigoInput.style.display = 'none';
+    artigoInput.required = false;
     
     // Resetar artigo
     artigoSelect.innerHTML = '<option value="">Selecione um artigo...</option>';
@@ -16639,20 +16887,37 @@ function calcularResumoBaixa() {
     
     linhas.forEach(linha => {
         const select = linha.querySelector('.baixa-artigo-select');
+        const input = linha.querySelector('.baixa-artigo-input');
         const qtdInput = linha.querySelector('.baixa-quantidade-input');
+        const familiaSelect = linha.querySelector('.baixa-familia-select');
         
-        if (select.value && qtdInput.value) {
-            const option = select.options[select.selectedIndex];
+        // 🆕 v3.8.3.10.27.98.12: Suportar modo texto livre
+        const isModoTextoLivre = familiaSelect.value === 'NÃO EXISTENTE';
+        
+        if (qtdInput.value) {
+            let artigoNome, preco, unidade, custo;
             const quantidade = parseFloat(qtdInput.value);
-            const preco = parseFloat(option.dataset.preco);
-            const unidade = option.dataset.unidade;
-            const artigoNome = option.text.split(' (Stock:')[0];
             
-            const custo = quantidade * preco;
-            custoTotal += custo;
-            totalItens++;
-            
-            artigos.push({ nome: artigoNome, quantidade, unidade, preco, custo });
+            if (isModoTextoLivre && input.value.trim()) {
+                // Modo texto livre: sem preço/stock
+                artigoNome = input.value.trim();
+                preco = 0;
+                unidade = 'un';
+                custo = 0;
+                totalItens++;
+                artigos.push({ nome: artigoNome, quantidade, unidade, preco, custo, textoLivre: true });
+                
+            } else if (!isModoTextoLivre && select.value) {
+                // Modo normal: artigo do combo
+                const option = select.options[select.selectedIndex];
+                artigoNome = option.text.split(' (Stock:')[0];
+                preco = parseFloat(option.dataset.preco);
+                unidade = option.dataset.unidade;
+                custo = quantidade * preco;
+                custoTotal += custo;
+                totalItens++;
+                artigos.push({ nome: artigoNome, quantidade, unidade, preco, custo, textoLivre: false });
+            }
         }
     });
     
@@ -16662,8 +16927,8 @@ function calcularResumoBaixa() {
             <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;">
                 ${artigos.map(a => `
                     <div style="display: flex; justify-content: space-between;">
-                        <span>${a.nome} (${a.quantidade} ${a.unidade})</span>
-                        <strong>€${a.custo.toFixed(2)}</strong>
+                        <span>${a.nome} (${a.quantidade} ${a.unidade})${a.textoLivre ? ' <em style="color: #ff9500;">📝 Texto livre</em>' : ''}</span>
+                        <strong>${a.textoLivre ? '€0.00' : '€' + a.custo.toFixed(2)}</strong>
                     </div>
                 `).join('')}
             </div>
@@ -16696,34 +16961,71 @@ async function confirmarBaixaMultipla() {
     
     linhas.forEach((linha, index) => {
         const select = linha.querySelector('.baixa-artigo-select');
+        const input = linha.querySelector('.baixa-artigo-input');
         const qtdInput = linha.querySelector('.baixa-quantidade-input');
+        const familiaSelect = linha.querySelector('.baixa-familia-select');
         
-        if (!select.value) {
-            showToast(`❌ Linha ${index + 1}: Selecione um artigo!`, 'error');
-            erro = true;
-            return;
-        }
+        // 🆕 v3.8.3.10.27.98.12: Detectar modo texto livre
+        const isModoTextoLivre = familiaSelect.value === 'NÃO EXISTENTE';
         
+        // Validar quantidade
         if (!qtdInput.value || parseFloat(qtdInput.value) <= 0) {
             showToast(`❌ Linha ${index + 1}: Quantidade inválida!`, 'error');
             erro = true;
             return;
         }
         
-        const artigo = AppState.artigos.find(a => a.id === select.value);
         const quantidade = parseFloat(qtdInput.value);
         
-        movimentos.push({
-            id: 'MOV' + Date.now() + '_' + index,
-            dataHora: new Date().toISOString(),
-            artigoId: artigo.id,
-            tipo: 'Saída',
-            quantidade: -quantidade,  // Negativo para saída
-            empresa: empresa,
-            pedidoId: otSearch.value.trim() || '',  // 🔥 ID da OT (ou vazio)
-            responsavel: responsavel,
-            observacoes: observacoesGerais || `Baixa múltipla - ${artigo.designacao}`
-        });
+        if (isModoTextoLivre) {
+            // ✅ MODO TEXTO LIVRE: Família "NÃO EXISTENTE"
+            if (!input.value.trim()) {
+                showToast(`❌ Linha ${index + 1}: Descrição do artigo vazia!`, 'error');
+                erro = true;
+                return;
+            }
+            
+            // Criar movimento com descrição livre (sem artigoId)
+            movimentos.push({
+                id: 'MOV' + Date.now() + '_' + index,
+                dataHora: new Date().toISOString(),
+                artigoId: null,  // ⚠️ NULL = artigo não existente no sistema
+                artigoDescricao: input.value.trim(),  // 📝 Descrição livre
+                familia: 'NÃO EXISTENTE',
+                tipo: 'Saída',
+                quantidade: -quantidade,
+                empresa: empresa,
+                pedidoId: otSearch.value.trim() || '',
+                responsavel: responsavel,
+                observacoes: observacoesGerais || `Baixa de artigo não existente: ${input.value.trim()}`
+            });
+            
+            console.log(`📝 Movimento texto livre: ${input.value.trim()} (${quantidade} un)`);
+            
+        } else {
+            // ✅ MODO NORMAL: Artigo do combo
+            if (!select.value) {
+                showToast(`❌ Linha ${index + 1}: Selecione um artigo!`, 'error');
+                erro = true;
+                return;
+            }
+            
+            const artigo = AppState.artigos.find(a => a.id === select.value);
+            
+            movimentos.push({
+                id: 'MOV' + Date.now() + '_' + index,
+                dataHora: new Date().toISOString(),
+                artigoId: artigo.id,
+                tipo: 'Saída',
+                quantidade: -quantidade,
+                empresa: empresa,
+                pedidoId: otSearch.value.trim() || '',
+                responsavel: responsavel,
+                observacoes: observacoesGerais || `Baixa múltipla - ${artigo.designacao}`
+            });
+            
+            console.log(`✅ Movimento normal: ${artigo.designacao} (${quantidade} ${artigo.unidade})`);
+        }
     });
     
     if (erro || movimentos.length === 0) {
@@ -20342,3 +20644,4 @@ window.diagnosticarBacklogCompleto = diagnosticarBacklogCompleto;
     </script>
 </body>
 </html>
+
