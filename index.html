@@ -5635,6 +5635,14 @@
                 </svg>
                 Ranking
             </button>
+            <button class="tab-btn" data-tab="compras">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="9" cy="21" r="1"/>
+                    <circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
+                Compras
+            </button>
         </nav>
 
         <!-- Nova Ordem de Trabalho Tab -->
@@ -7203,6 +7211,142 @@
         </div>
     </section>
 
+    <!-- 🛒 Tab Compras (v3.8.3.10.27.98.15) -->
+    <section class="tab-content" id="tab-compras">
+        <div class="container">
+            <!-- Card: Listagem de Pedidos -->
+            <div class="card">
+                <h2 class="card-title">🛒 Pedidos de Compras</h2>
+                <p class="card-description">Sistema simples para registar pedidos de materiais/componentes</p>
+                
+                <!-- Filtros -->
+                <!-- Filtros (movido para cima) -->
+                <div style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg); flex-wrap: wrap;">
+                    <select class="form-input" id="comprasFiltroEmpresa" style="width: 150px;" onchange="carregarPedidosCompras()">
+                        <option value="">Todas Empresas</option>
+                        <option value="MCF">MCF</option>
+                        <option value="PSY">PSY</option>
+                    </select>
+                    
+                    <select class="form-input" id="comprasFiltroStatus" style="width: 150px;" onchange="carregarPedidosCompras()">
+                        <option value="Pendente">Pendentes</option>
+                        <option value="Resolvido">Resolvidos</option>
+                        <option value="">Todos</option>
+                    </select>
+                    
+                    <button class="btn btn-secondary" onclick="carregarPedidosCompras()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                        </svg>
+                        Atualizar
+                    </button>
+                </div>
+                
+                <!-- Tabela de Pedidos -->
+                <div style="overflow-x: auto;">
+                    <table class="compras-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr>
+                                <th style="min-width: 80px; text-align: center; padding: 12px; background: var(--color-background); border: 1px solid rgba(0,0,0,0.03);">Empresa</th>
+                                <th style="min-width: 150px; text-align: center; padding: 12px; background: var(--color-background); border: 1px solid rgba(0,0,0,0.03);">Área/Equipamento</th>
+                                <th style="min-width: 120px; text-align: center; padding: 12px; background: var(--color-background); border: 1px solid rgba(0,0,0,0.03);">Componente</th>
+                                <th style="min-width: 200px; text-align: center; padding: 12px; background: var(--color-background); border: 1px solid rgba(0,0,0,0.03);">Descrição</th>
+                                <th style="min-width: 80px; text-align: center; padding: 12px; background: var(--color-background); border: 1px solid rgba(0,0,0,0.03);">Qtd</th>
+                                <th style="min-width: 150px; text-align: center; padding: 12px; background: var(--color-background); border: 1px solid rgba(0,0,0,0.03);">Razão</th>
+                                <th style="min-width: 90px; text-align: center; padding: 12px; background: var(--color-background); border: 1px solid rgba(0,0,0,0.03);">OT</th>
+                                <th style="min-width: 100px; text-align: center; padding: 12px; background: var(--color-background); border: 1px solid rgba(0,0,0,0.03);">Criado Por</th>
+                                <th style="min-width: 110px; text-align: center; padding: 12px; background: var(--color-background); border: 1px solid rgba(0,0,0,0.03);">Data</th>
+                                <th style="min-width: 100px; text-align: center; padding: 12px; background: var(--color-background); border: 1px solid rgba(0,0,0,0.03);">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="comprasTableBody">
+                            <tr>
+                                <td colspan="10" style="text-align: center; padding: var(--spacing-xl); border: 1px solid rgba(0,0,0,0.03);">
+                                    <div class="loading-spinner"></div>
+                                    <p style="margin-top: var(--spacing-sm);">A carregar pedidos...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Estado Vazio -->
+                <div id="comprasEmptyState" class="empty-state-small" style="display: none;">
+                    <p>📭 Nenhum pedido de compra encontrado</p>
+                    <p style="color: var(--color-text-secondary); font-size: 0.875rem;">Adicione um novo pedido usando o formulário abaixo</p>
+                </div>
+            </div>
+            
+            <!-- Card: Novo Pedido (movido para baixo) -->
+            <div class="card">
+                <h3 style="margin: 0 0 var(--spacing-lg) 0; font-size: 1.25rem; color: var(--color-text);">➕ Novo Pedido</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md);">
+                    <!-- Empresa -->
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" for="comprasEmpresa">Empresa *</label>
+                        <select class="form-input" id="comprasEmpresa" required>
+                            <option value="">Selecione...</option>
+                            <option value="MCF">MCF</option>
+                            <option value="PSY">PSY</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Área/Equipamento -->
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" for="comprasAreaEquipamento">Área/Equipamento *</label>
+                        <select class="form-input" id="comprasAreaEquipamento" required disabled>
+                            <option value="">Escolha empresa primeiro</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Componente (opcional) -->
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" for="comprasComponente">Componente</label>
+                        <select class="form-input" id="comprasComponente" disabled>
+                            <option value="">Escolha área primeiro</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Quantidade -->
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" for="comprasQuantidade">Quantidade *</label>
+                        <input type="number" class="form-input" id="comprasQuantidade" min="1" value="1" required>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr; gap: var(--spacing-md); margin-top: var(--spacing-md);">
+                    <!-- Descrição -->
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" for="comprasDescricao">Descrição *</label>
+                        <textarea class="form-input" id="comprasDescricao" rows="2" placeholder="Descreva o que precisa comprar..." required></textarea>
+                    </div>
+                    
+                    <!-- Razão -->
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" for="comprasRazao">Razão *</label>
+                        <input type="text" class="form-input" id="comprasRazao" placeholder="Ex: Manutenção preventiva, Avaria, Reposição de stock..." required>
+                    </div>
+                    
+                    <!-- OT Relacionada (opcional) -->
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" for="comprasOT">OT Relacionada (opcional)</label>
+                        <input type="text" class="form-input" id="comprasOT" placeholder="Ex: OT_00123">
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="adicionarPedidoCompra()" style="margin-top: var(--spacing-md);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 4px;">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Adicionar Pedido
+                </button>
+            </div>
+        </div>
+    </section>
+
     <!-- 🏆 Tab Ranking (v3.8.3.10.27.98) -->
     <section class="tab-content" id="tab-ranking">
         <div class="container">
@@ -7886,7 +8030,23 @@ window.SupabaseAPI = {
     // 🆕 v3.8.3.10.27: Execuções preventivas
     addExecucaoPreventiva,
     getExecucoesPreventiva,
-    atualizarProximaExecucao
+    atualizarProximaExecucao,
+    // 🛒 v3.8.3.10.27.98.15: Pedidos de Compras
+    getPedidosCompras: () => supabaseFetch('pedidos_compras?order=criado_em.desc'),
+    addPedidoCompra: (pedido) => supabaseFetch('pedidos_compras', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+        body: JSON.stringify(pedido)
+    }),
+    resolverPedidoCompra: (id, usuario) => supabaseFetch(`pedidos_compras?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+        body: JSON.stringify({
+            status: 'Resolvido',
+            resolvido_por: usuario,
+            resolvido_em: new Date().toISOString()
+        })
+    })
 };
 
 // Supabase API inicializada
@@ -11546,7 +11706,17 @@ function handleTabChange(e) {
         }, 300); // Aumentado de 100ms para 300ms
     }
     
-    // 📚 Carregar manuais ao abrir tab Manuais
+    // 🛒 v3.8.3.10.27.98.15: Carregar pedidos ao abrir tab Compras
+    if (tab === 'compras') {
+        carregarPedidosCompras();
+    }
+    
+    // 📚 v3.8.3.10.27.98.16: Carregar manuais ao abrir tab Documentos
+    if (tab === 'documentos') {
+        setTimeout(() => carregarManuais(), 100);
+    }
+    
+    // 📚 Carregar manuais ao abrir tab Manuais (legacy - mantido por compatibilidade)
     if (tab === 'manuais') {
         setTimeout(() => carregarManuais(), 100);
     }
@@ -11613,7 +11783,12 @@ function restoreActiveTab() {
                     }, 500); // Aumentado de 200ms para 500ms
                 }
                 
-                // 📚 Carregar manuais ao restaurar tab Manuais
+                // 📚 v3.8.3.10.27.98.16: Carregar manuais ao restaurar tab Documentos
+                if (activeTab === 'documentos') {
+                    setTimeout(() => carregarManuais(), 100);
+                }
+                
+                // 📚 Carregar manuais ao restaurar tab Manuais (legacy)
                 if (activeTab === 'manuais') {
                     setTimeout(() => carregarManuais(), 100);
                 }
@@ -20209,6 +20384,294 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================
+// 🛒 v3.8.3.10.27.98.15: PEDIDOS DE COMPRAS
+// ============================================
+
+/**
+ * Carregar pedidos de compras do Supabase
+ */
+async function carregarPedidosCompras() {
+    try {
+        console.log('📦 Carregando pedidos de compras...');
+        
+        const tbody = document.getElementById('comprasTableBody');
+        const emptyState = document.getElementById('comprasEmptyState');
+        
+        // Loading
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10" style="text-align: center; padding: var(--spacing-xl);">
+                    <div class="loading-spinner"></div>
+                    <p style="margin-top: var(--spacing-sm);">A carregar pedidos...</p>
+                </td>
+            </tr>
+        `;
+        
+        // Buscar pedidos
+        const pedidos = await window.SupabaseAPI.getPedidosCompras();
+        
+        // Aplicar filtros
+        const filtroEmpresa = document.getElementById('comprasFiltroEmpresa').value;
+        const filtroStatus = document.getElementById('comprasFiltroStatus').value;
+        
+        let pedidosFiltrados = pedidos.filter(p => {
+            let matches = true;
+            if (filtroEmpresa && p.empresa !== filtroEmpresa) matches = false;
+            if (filtroStatus && p.status !== filtroStatus) matches = false;
+            return matches;
+        });
+        
+        // Renderizar
+        if (pedidosFiltrados.length === 0) {
+            tbody.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
+        
+        emptyState.style.display = 'none';
+        
+        tbody.innerHTML = pedidosFiltrados.map(pedido => {
+            const data = new Date(pedido.criado_em).toLocaleDateString('pt-PT', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            const isPendente = pedido.status === 'Pendente';
+            const statusBadge = isPendente 
+                ? '<span style="background: rgba(255, 149, 0, 0.1); color: #FF9500; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Pendente</span>'
+                : '<span style="background: rgba(52, 199, 89, 0.1); color: #34C759; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Resolvido</span>';
+            
+            return `
+                <tr>
+                    <td style="text-align: center; padding: 10px; border: 1px solid rgba(0,0,0,0.03);"><strong>${pedido.empresa}</strong></td>
+                    <td style="text-align: center; padding: 10px; border: 1px solid rgba(0,0,0,0.03);">${pedido.area_equipamento || '-'}</td>
+                    <td style="text-align: center; padding: 10px; border: 1px solid rgba(0,0,0,0.03);">${pedido.componente || '-'}</td>
+                    <td style="text-align: center; padding: 10px; border: 1px solid rgba(0,0,0,0.03);">${pedido.descricao}</td>
+                    <td style="text-align: center; padding: 10px; border: 1px solid rgba(0,0,0,0.03);"><strong>${pedido.quantidade}</strong></td>
+                    <td style="text-align: center; padding: 10px; border: 1px solid rgba(0,0,0,0.03);">${pedido.razao}</td>
+                    <td style="text-align: center; padding: 10px; border: 1px solid rgba(0,0,0,0.03);">${pedido.ot_relacionada || '-'}</td>
+                    <td style="text-align: center; padding: 10px; border: 1px solid rgba(0,0,0,0.03);">${pedido.criado_por}</td>
+                    <td style="text-align: center; padding: 10px; border: 1px solid rgba(0,0,0,0.03); font-size: 0.875rem;">${data}</td>
+                    <td style="text-align: center; padding: 10px; border: 1px solid rgba(0,0,0,0.03);">
+                        ${isPendente ? `
+                            <button class="btn btn-success btn-sm" onclick="resolverPedidoCompra('${pedido.id}')" title="Marcar como resolvido">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                            </button>
+                        ` : statusBadge}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        console.log(`✅ ${pedidosFiltrados.length} pedidos carregados`);
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar pedidos:', error);
+        showToast('Erro ao carregar pedidos de compras', 'error');
+        document.getElementById('comprasTableBody').innerHTML = `
+            <tr>
+                <td colspan="10" style="text-align: center; padding: var(--spacing-xl); color: var(--color-danger);">
+                    ❌ Erro ao carregar pedidos. Tente novamente.
+                </td>
+            </tr>
+        `;
+    }
+}
+
+/**
+ * Adicionar novo pedido de compra
+ */
+async function adicionarPedidoCompra() {
+    try {
+        // Validar campos obrigatórios
+        const empresa = document.getElementById('comprasEmpresa').value;
+        const areaEquipamento = document.getElementById('comprasAreaEquipamento').value;
+        const descricao = document.getElementById('comprasDescricao').value;
+        const quantidade = document.getElementById('comprasQuantidade').value;
+        const razao = document.getElementById('comprasRazao').value;
+        
+        if (!empresa || !areaEquipamento || !descricao || !quantidade || !razao) {
+            showToast('Preencha todos os campos obrigatórios (*)', 'warning');
+            return;
+        }
+        
+        if (parseFloat(quantidade) <= 0) {
+            showToast('Quantidade deve ser maior que zero', 'warning');
+            return;
+        }
+        
+        // Coletar dados
+        const componente = document.getElementById('comprasComponente').value;
+        const otRelacionada = document.getElementById('comprasOT').value;
+        
+        const pedido = {
+            empresa,
+            area_equipamento: areaEquipamento,
+            componente: componente || null,
+            descricao,
+            quantidade: parseFloat(quantidade),
+            razao,
+            ot_relacionada: otRelacionada || null,
+            status: 'Pendente',
+            criado_por: AppState.currentUser.nomeCompleto || AppState.currentUser.username,
+            criado_em: new Date().toISOString()
+        };
+        
+        console.log('📦 Criando pedido:', pedido);
+        
+        // Salvar no Supabase
+        await window.SupabaseAPI.addPedidoCompra(pedido);
+        
+        showToast('✅ Pedido de compra adicionado com sucesso!', 'success');
+        
+        // Limpar formulário
+        document.getElementById('comprasEmpresa').value = '';
+        document.getElementById('comprasAreaEquipamento').value = '';
+        document.getElementById('comprasAreaEquipamento').disabled = true;
+        document.getElementById('comprasComponente').value = '';
+        document.getElementById('comprasComponente').disabled = true;
+        document.getElementById('comprasDescricao').value = '';
+        document.getElementById('comprasQuantidade').value = '1';
+        document.getElementById('comprasRazao').value = '';
+        document.getElementById('comprasOT').value = '';
+        
+        // Recarregar lista
+        await carregarPedidosCompras();
+        
+    } catch (error) {
+        console.error('❌ Erro ao adicionar pedido:', error);
+        showToast('Erro ao adicionar pedido de compra', 'error');
+    }
+}
+
+/**
+ * Marcar pedido como resolvido
+ */
+async function resolverPedidoCompra(pedidoId) {
+    try {
+        // Confirmar ação
+        const confirmou = confirm('Marcar este pedido como resolvido?');
+        if (!confirmou) return;
+        
+        console.log('✅ Resolvendo pedido:', pedidoId);
+        
+        // Atualizar no Supabase
+        await window.SupabaseAPI.resolverPedidoCompra(
+            pedidoId,
+            AppState.currentUser.nomeCompleto || AppState.currentUser.username
+        );
+        
+        showToast('✅ Pedido marcado como resolvido!', 'success');
+        
+        // Recarregar lista
+        await carregarPedidosCompras();
+        
+    } catch (error) {
+        console.error('❌ Erro ao resolver pedido:', error);
+        showToast('Erro ao marcar pedido como resolvido', 'error');
+    }
+}
+
+/**
+ * Inicializar listeners da tab Compras
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    // Listener: Mudança de empresa → carregar áreas/equipamentos
+    const comprasEmpresa = document.getElementById('comprasEmpresa');
+    if (comprasEmpresa) {
+        comprasEmpresa.addEventListener('change', async () => {
+            const empresa = comprasEmpresa.value;
+            const areaSelect = document.getElementById('comprasAreaEquipamento');
+            const componenteSelect = document.getElementById('comprasComponente');
+            
+            if (!empresa) {
+                areaSelect.disabled = true;
+                areaSelect.innerHTML = '<option value="">Escolha empresa primeiro</option>';
+                componenteSelect.disabled = true;
+                componenteSelect.innerHTML = '<option value="">Escolha área primeiro</option>';
+                return;
+            }
+            
+            // Carregar áreas/equipamentos (usar mesmos dados da tab "Nova Ordem")
+            try {
+                const equipamentos = await window.SupabaseAPI.getEquipamentos();
+                console.log('🔍 [Compras] Equipamentos carregados:', equipamentos.length);
+                
+                // Log estrutura para debug
+                if (equipamentos.length > 0) {
+                    console.log('📋 [Compras] Exemplo equipamento:', equipamentos[0]);
+                }
+                
+                // Filtrar por empresa (usar minúscula 'empresa' como na tab Nova Ordem)
+                const filtrados = equipamentos.filter(eq => eq.empresa === empresa);
+                console.log(`🏢 [Compras] Filtrados para ${empresa}:`, filtrados.length);
+                
+                // Extrair áreas únicas (usar minúscula 'area')
+                const areas = [...new Set(filtrados.map(eq => eq.area))].filter(a => a).sort();
+                console.log('📋 [Compras] Áreas extraídas:', areas);
+                
+                areaSelect.disabled = false;
+                areaSelect.innerHTML = '<option value="">Selecione...</option>' + 
+                    areas.map(area => `<option value="${area}">${area}</option>`).join('');
+                
+                componenteSelect.disabled = true;
+                componenteSelect.innerHTML = '<option value="">Escolha área primeiro</option>';
+                
+            } catch (error) {
+                console.error('❌ [Compras] Erro ao carregar áreas:', error);
+                showToast('Erro ao carregar áreas', 'error');
+            }
+        });
+    }
+    
+    // Listener: Mudança de área → carregar componentes
+    const comprasArea = document.getElementById('comprasAreaEquipamento');
+    if (comprasArea) {
+        comprasArea.addEventListener('change', async () => {
+            const empresa = document.getElementById('comprasEmpresa').value;
+            const area = comprasArea.value;
+            const componenteSelect = document.getElementById('comprasComponente');
+            
+            if (!area) {
+                componenteSelect.disabled = true;
+                componenteSelect.innerHTML = '<option value="">Escolha área primeiro</option>';
+                return;
+            }
+            
+            try {
+                const equipamentos = await window.SupabaseAPI.getEquipamentos();
+                console.log('🔍 [Compras] Carregando componentes para:', { empresa, area });
+                
+                // Filtrar por empresa e área (usar minúsculas)
+                const filtrados = equipamentos.filter(eq => 
+                    eq.empresa === empresa && eq.area === area
+                );
+                console.log(`🔧 [Compras] Equipamentos filtrados:`, filtrados.length);
+                
+                // Extrair componentes únicos (usar minúscula 'componente')
+                const componentes = [...new Set(
+                    filtrados.map(eq => eq.componente).filter(c => c)
+                )].sort();
+                console.log('📋 [Compras] Componentes extraídos:', componentes);
+                
+                componenteSelect.disabled = false;
+                componenteSelect.innerHTML = '<option value="">Nenhum (opcional)</option>' + 
+                    componentes.map(comp => `<option value="${comp}">${comp}</option>`).join('');
+                
+            } catch (error) {
+                console.error('❌ [Compras] Erro ao carregar componentes:', error);
+                showToast('Erro ao carregar componentes', 'error');
+            }
+        });
+    }
+});
+
+// ============================================
 // 🆕 v3.8.3.0: MELHORIAS OT
 // ============================================
 
@@ -20644,4 +21107,3 @@ window.diagnosticarBacklogCompleto = diagnosticarBacklogCompleto;
     </script>
 </body>
 </html>
-
