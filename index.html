@@ -7506,13 +7506,55 @@ async function getUtilizadores() {
 }
 
 async function loginUtilizador(username, password) {
-    const users = await supabaseFetch(`utilizadores?Username=eq.${encodeURIComponent(username)}&Password=eq.${encodeURIComponent(password)}`);
+    console.log('🔍 [Login] Tentando login:', { username, passwordLength: password?.length });
     
-    if (users.length === 0) {
-        throw new Error('Utilizador ou password incorretos');
+    try {
+        // Tentar primeiro com Username/Password capitalizados
+        let users = await supabaseFetch(`utilizadores?Username=eq.${encodeURIComponent(username)}&Password=eq.${encodeURIComponent(password)}`);
+        console.log('🔍 [Login] Resultado (Username/Password):', users.length, 'users');
+        
+        // Se não encontrar, tentar com lowercase
+        if (users.length === 0) {
+            console.log('🔍 [Login] Tentando com username/password (lowercase)...');
+            users = await supabaseFetch(`utilizadores?username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}`);
+            console.log('🔍 [Login] Resultado (username/password):', users.length, 'users');
+        }
+        
+        // Se ainda não encontrar, tentar case-insensitive no username
+        if (users.length === 0) {
+            console.log('🔍 [Login] Tentando case-insensitive no Username...');
+            const allUsers = await supabaseFetch(`utilizadores?select=*`);
+            console.log('🔍 [Login] Total utilizadores na BD:', allUsers.length);
+            
+            // Procurar manualmente (case-insensitive)
+            users = allUsers.filter(u => {
+                const userField = u.Username || u.username;
+                const passField = u.Password || u.password;
+                return userField?.toLowerCase() === username.toLowerCase() && 
+                       passField === password;
+            });
+            
+            console.log('🔍 [Login] Resultado (case-insensitive):', users.length, 'users');
+            
+            if (users.length === 0) {
+                // Log para debug (sem mostrar passwords)
+                console.error('❌ [Login] Nenhum match encontrado');
+                console.log('🔍 [Login] Usernames disponíveis:', 
+                    allUsers.map(u => u.Username || u.username)
+                );
+            }
+        }
+        
+        if (users.length === 0) {
+            throw new Error('Utilizador ou password incorretos');
+        }
+        
+        console.log('✅ [Login] Utilizador encontrado:', users[0].Username || users[0].username);
+        return users[0];
+    } catch (error) {
+        console.error('❌ [Login] Erro:', error);
+        throw error;
     }
-    
-    return users[0];
 }
 
 // Pedidos
@@ -15344,17 +15386,8 @@ function renderPlanningGrid() {
     });
 }
 // ✅ v3.7.0.8: Alternar alocação de dia + guardar em diasAlocados
-function toggleAllocation(taskId, dateKey) {
-    const allocationKey = `${taskId}-${dateKey}`;
-    
-    // Toggle na estrutura antiga (compatibilidade)
-    if (AppState.planning.allocations[allocationKey]) {
-        delete AppState.planning.allocations[allocationKey];
-    } else {
-        AppState.planning.allocations[allocationKey] = true;
-    }
-    
-    // ✅ NOVO: Atualizar estrutura nova
+async function toggleAllocation(taskId, dateKey) {
+    // Inicializar estrutura se não existir
     if (!AppState.planning.tasks[taskId]) {
         AppState.planning.tasks[taskId] = {
             responsavel: '',
@@ -15363,19 +15396,132 @@ function toggleAllocation(taskId, dateKey) {
         };
     }
     
-    const diasArray = AppState.planning.tasks[taskId].diasAlocados;
-    const index = diasArray.indexOf(dateKey);
+    const planningData = AppState.planning.tasks[taskId];
+    let diasAlocados = planningData.diasAlocados || [];
     
-    if (index > -1) {
-        // Remover dia
-        diasArray.splice(index, 1);
-    } else {
-        // Adicionar dia
-        diasArray.push(dateKey);
+    // ✅ v3.8.3.10.27.98.18: Auto-limpar dias > 14 dias no passado
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const catorzeDiasAtras = new Date(hoje);
+    catorzeDiasAtras.setDate(hoje.getDate() - 14);
+    const catorzeDiasAtrasKey = formatDateKey(catorzeDiasAtras);
+    
+    const diasAntesLimpeza = diasAlocados.length;
+    diasAlocados = diasAlocados.filter(dia => dia >= catorzeDiasAtrasKey);
+    const diasRemovidos = diasAntesLimpeza - diasAlocados.length;
+    
+    if (diasRemovidos > 0) {
+        console.log(`🧹 [Auto-limpeza] Removidos ${diasRemovidos} dias > 14 dias atrás de ${taskId}`);
     }
+    
+    // ✅ v3.8.3.10.27.98.18: Verificar se tem dias no passado recente (0-14 dias)
+    const hojeKey = formatDateKey(hoje);
+    const diasPassadoRecente = diasAlocados.filter(dia => dia < hojeKey);
+    
+    // 🔍 DEBUG: Logs de diagnóstico (v3.8.3.10.27.98.19)
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🔍 [toggleAllocation] OT:', taskId, '→ Dia:', dateKey);
+    console.log('📊 diasAlocados:', diasAlocados);
+    console.log('📅 Hoje:', hojeKey);
+    console.log('⏮️  Dias no passado:', diasPassadoRecente);
+    console.log('✅ CONDIÇÕES DO POPUP:');
+    console.log('   1. Tem dias passado?', diasPassadoRecente.length > 0, `(${diasPassadoRecente.length} dias)`);
+    console.log('   2. Dia NÃO alocado?', !diasAlocados.includes(dateKey), `(includes: ${diasAlocados.includes(dateKey)})`);
+    console.log('   3. Dia é futuro?', dateKey >= hojeKey, `(${dateKey} >= ${hojeKey})`);
+    const deveAparecerPopup = diasPassadoRecente.length > 0 && !diasAlocados.includes(dateKey) && dateKey >= hojeKey;
+    console.log('🎯 Popup DEVE aparecer?', deveAparecerPopup ? '✅ SIM' : '❌ NÃO');
+    console.log('═══════════════════════════════════════════════════════');
+    
+    // Se está a ADICIONAR dia FUTURO E tem dias no passado recente
+    if (diasPassadoRecente.length > 0 && 
+        !diasAlocados.includes(dateKey) && 
+        dateKey >= hojeKey) {
+        
+        const diasTexto = diasPassadoRecente
+            .sort()
+            .map(d => {
+                const date = new Date(d);
+                return date.toLocaleDateString('pt-PT', { 
+                    day: '2-digit', 
+                    month: 'short' 
+                });
+            })
+            .join(', ');
+        
+        const request = AppState.requests.find(r => r.id === taskId);
+        const descricao = request?.descricao || taskId;
+        
+        const mensagem = 
+            `⚠️ PLANEAMENTO EXISTENTE\n\n` +
+            `OT: ${taskId}\n` +
+            `${descricao.substring(0, 60)}${descricao.length > 60 ? '...' : ''}\n\n` +
+            `Esta OT já tem ${diasPassadoRecente.length} dia(s) planeado(s) no passado:\n` +
+            `${diasTexto}\n\n` +
+            `Deseja APAGAR o planeamento antigo e começar de novo?\n\n` +
+            `• SIM: Apaga dias antigos (só os novos ficam)\n` +
+            `• NÃO: Mantém dias antigos (adiciona aos existentes)`;
+        
+        console.log('🚨 [POPUP] Vai aparecer popup AGORA...');
+        const resposta = confirm(mensagem);
+        console.log('📝 [POPUP] Utilizador respondeu:', resposta ? 'SIM' : 'NÃO');
+        
+        if (resposta) {
+            // Utilizador escolheu APAGAR planeamento antigo (SIM)
+            diasAlocados = [dateKey];
+            console.log(`✅ [Planeamento] Utilizador APAGOU planeamento antigo de ${taskId}`);
+            showToast(`✅ Planeamento antigo removido. Novo planeamento iniciado.`, 'success');
+        } else {
+            // Utilizador escolheu MANTER planeamento antigo (NÃO)
+            diasAlocados.push(dateKey);
+            console.log(`ℹ️ [Planeamento] Utilizador MANTEVE planeamento antigo de ${taskId}`);
+            showToast(`✅ Dia adicionado ao planeamento existente.`, 'success');
+        }
+    } else {
+        // ✅ Toggle normal (sem confirmação)
+        const index = diasAlocados.indexOf(dateKey);
+        
+        if (index > -1) {
+            // Remover dia
+            diasAlocados.splice(index, 1);
+            console.log(`➖ [Toggle] Removido dia ${dateKey} de ${taskId}`);
+        } else {
+            // Adicionar dia
+            diasAlocados.push(dateKey);
+            console.log(`➕ [Toggle] Adicionado dia ${dateKey} a ${taskId}`);
+        }
+    }
+    
+    // Atualizar estrutura
+    planningData.diasAlocados = diasAlocados;
+    
+    // Atualizar estrutura antiga (compatibilidade)
+    // Limpar todas as alocações antigas desta task
+    Object.keys(AppState.planning.allocations).forEach(key => {
+        if (key.startsWith(taskId + '-')) {
+            delete AppState.planning.allocations[key];
+        }
+    });
+    
+    // Adicionar novas alocações
+    diasAlocados.forEach(dia => {
+        AppState.planning.allocations[`${taskId}-${dia}`] = true;
+    });
     
     renderPlanningGrid();
     savePlanningToStorage();
+    
+    // ✅ Sincronizar com Supabase
+    if (AppState.isOnline) {
+        try {
+            await syncSingleTask(taskId);
+            console.log(`✅ [Sync] ${taskId} sincronizado com Supabase (${diasAlocados.length} dias)`);
+        } catch (error) {
+            console.error(`❌ [Sync] Erro ao sincronizar ${taskId}:`, error);
+            showToast('⚠️ Erro ao sincronizar planeamento. Tente novamente.', 'warning');
+        }
+    } else {
+        console.warn(`⚠️ [Offline] ${taskId} não sincronizado`);
+    }
 }
 // ✅ v3.7.0.8: Atualizar horas NO PLANEAMENTO (não na ordem de trabalho)
 async function updateTaskHours(taskId, hours) {
