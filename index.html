@@ -2206,10 +2206,16 @@
         /* 🖨️ REGRAS DE IMPRESSÃO - VERSÃO FINAL v3.8.3.10.27.15 */
         /* 🆕 v3.8.3.10.27.20: CSS de impressão do PLANEAMENTO */
         @media print {
-            /* ✅ Configuração de página padrão */
+            /* ✅ Configuração de página padrão (LANDSCAPE para planeamento) */
             @page {
                 size: A4 landscape;
                 margin: 10mm;
+            }
+            
+            /* 🖨️ v3.8.3.10.27.98.23: PORTRAIT para impressão de OT individual */
+            @page :first {
+                size: A4 portrait;
+                margin: 15mm;
             }
             
             body {
@@ -2713,32 +2719,32 @@
                 text-align: center;
                 color: #667eea;
                 border-bottom: 2px solid #667eea;
-                padding-bottom: 6px;
-                margin: 0 0 10px 0;
-                font-size: 16pt;
+                padding-bottom: 4px;
+                margin: 0 0 6px 0;
+                font-size: 14pt;
             }
             
             body:not(.printing-planning) #printContainer .print-header {
                 text-align: center;
-                margin-bottom: 12px;
-                font-size: 9pt;
+                margin-bottom: 8px;
+                font-size: 8.5pt;
             }
             
             body:not(.printing-planning) #printContainer .print-header p {
-                margin: 2px 0;
+                margin: 1px 0;
             }
             
             body:not(.printing-planning) #printContainer .print-section {
-                margin-bottom: 10px;
+                margin-bottom: 8px;
                 page-break-inside: avoid;
             }
             
             body:not(.printing-planning) #printContainer .print-section h2 {
                 color: #667eea;
                 border-bottom: 1px solid #667eea;
-                padding-bottom: 3px;
-                margin: 0 0 6px 0;
-                font-size: 12pt;
+                padding-bottom: 2px;
+                margin: 0 0 4px 0;
+                font-size: 11pt;
             }
             
             body:not(.printing-planning) #printContainer table {
@@ -2747,48 +2753,123 @@
             }
             
             body:not(.printing-planning) #printContainer td {
-                padding: 3px 6px;
+                padding: 2px 4px;
                 border-bottom: 1px solid #ddd;
                 vertical-align: top;
-                font-size: 9pt;
+                font-size: 8.5pt;
             }
             
             #printContainer td:first-child {
                 font-weight: bold;
-                width: 38%;
+                width: 35%;
             }
             
             #printContainer .description {
                 white-space: pre-wrap;
                 word-wrap: break-word;
-                font-size: 9pt;
-                line-height: 1.4;
+                font-size: 8.5pt;
+                line-height: 1.3;
             }
             
-            #printContainer .photo-section {
-                page-break-before: always;
+            /* 🖨️ v3.8.3.10.27.98.23: Layout 2 colunas (descrição + foto lado a lado) */
+            body:not(.printing-planning) #printContainer .content-with-photo {
+                display: flex;
+                gap: 10mm;
+                page-break-inside: avoid;
+                margin-bottom: 8px;
+            }
+            
+            body:not(.printing-planning) #printContainer .content-with-photo .description-column {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            body:not(.printing-planning) #printContainer .content-with-photo .photo-column {
+                flex: 0 0 60mm;
                 text-align: center;
+            }
+            
+            body:not(.printing-planning) #printContainer .content-with-photo .photo-column img {
+                max-width: 100%;
+                max-height: 80mm;
+                height: auto;
+                display: block;
+                margin: 0 auto;
+                border: 1px solid #ddd;
+            }
+            
+            /* 🖨️ Foto sem layout 2 colunas (fallback se não usar wrapper) */
+            #printContainer .photo-section {
+                page-break-inside: avoid;
+                text-align: center;
+                margin-top: 8px;
             }
             
             #printContainer .photo-section img {
-                max-width: 100%;
-                max-height: 250mm;
+                max-width: 60mm;
+                max-height: 80mm;
                 height: auto;
                 display: block;
-                margin: 8px auto;
+                margin: 0 auto;
+                border: 1px solid #ddd;
+            }
+            
+            /* ✅ v3.8.3.10.27.98.21: Garantir que printContainer seja visível */
+            body:not(.printing-planning) #printContainer {
+                visibility: visible !important;
+                display: block !important;
+                max-height: none !important;
+                overflow: visible !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                background: white !important;
+                z-index: 99999 !important;
+                page-break-after: auto !important;
+            }
+            
+            body:not(.printing-planning) #printContainer * {
+                visibility: visible !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+            
+            body:not(.printing-planning) #printContainer h1,
+            body:not(.printing-planning) #printContainer h2,
+            body:not(.printing-planning) #printContainer p,
+            body:not(.printing-planning) #printContainer table,
+            body:not(.printing-planning) #printContainer tr,
+            body:not(.printing-planning) #printContainer td,
+            body:not(.printing-planning) #printContainer img {
+                visibility: visible !important;
+                display: block !important;
+                max-height: none !important;
+            }
+            
+            body:not(.printing-planning) #printContainer table {
+                display: table !important;
+            }
+            
+            body:not(.printing-planning) #printContainer tr {
+                display: table-row !important;
+            }
+            
+            body:not(.printing-planning) #printContainer td {
+                display: table-cell !important;
             }
             
             #printContainer .print-footer {
-                margin-top: 15px;
-                padding-top: 8px;
+                margin-top: 8px;
+                padding-top: 4px;
                 border-top: 1px solid #999;
                 text-align: center;
                 color: #666;
-                font-size: 8pt;
+                font-size: 7pt;
             }
             
             #printContainer .print-footer p {
-                margin: 2px 0;
+                margin: 1px 0;
             }
         }
         
@@ -13646,15 +13727,25 @@ function printRequest(id) {
     html += '</table>';
     html += '</div>';
     
-    html += '<div class="print-section">';
-    html += '<h2>Descrição</h2>';
-    html += '<p class="description">' + (request.descricao || '-').replace(/\n/g, '<br>') + '</p>';
-    html += '</div>';
-    
+    // 🖨️ v3.8.3.10.27.98.23: Layout 2 colunas se houver foto
     if (request.foto) {
-        html += '<div class="print-section photo-section">';
-        html += '<h2>Fotografia</h2>';
+        html += '<div class="content-with-photo">';
+        html += '<div class="description-column">';
+        html += '<div class="print-section">';
+        html += '<h2>Descrição</h2>';
+        html += '<p class="description">' + (request.descricao || '-').replace(/\n/g, '<br>') + '</p>';
+        html += '</div>';
+        html += '</div>';
+        html += '<div class="photo-column">';
+        html += '<h2 style="font-size: 10pt; margin: 0 0 4px 0; color: #667eea;">Fotografia</h2>';
         html += '<img src="' + request.foto + '" alt="Foto da ordem de trabalho">';
+        html += '</div>';
+        html += '</div>';
+    } else {
+        // Sem foto: layout normal (1 coluna)
+        html += '<div class="print-section">';
+        html += '<h2>Descrição</h2>';
+        html += '<p class="description">' + (request.descricao || '-').replace(/\n/g, '<br>') + '</p>';
         html += '</div>';
     }
     
@@ -14541,6 +14632,165 @@ function showToast(message, type = 'info') {
         toast.style.animation = 'slideOutRight 0.3s ease forwards';
         setTimeout(() => toast.remove(), 300);
     }, 4000);
+}
+
+// ✅ v3.8.3.10.27.98.20: Modal de confirmação customizado com botões SIM/NÃO
+function showConfirmModal(message, title = '⚠️ CONFIRMAÇÃO') {
+    return new Promise((resolve) => {
+        // Criar overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease;
+        `;
+        
+        // Criar modal
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        `;
+        
+        // Título
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = title;
+        titleEl.style.cssText = `
+            margin: 0 0 16px 0;
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+        `;
+        
+        // Mensagem
+        const messageEl = document.createElement('div');
+        messageEl.textContent = message;
+        messageEl.style.cssText = `
+            margin: 0 0 28px 0;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #4a4a4a;
+            white-space: pre-line;
+        `;
+        
+        // Container de botões
+        const buttonsEl = document.createElement('div');
+        buttonsEl.style.cssText = `
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        `;
+        
+        // Botão NÃO
+        const btnNo = document.createElement('button');
+        btnNo.textContent = 'NÃO';
+        btnNo.style.cssText = `
+            padding: 12px 28px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            color: #666;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        `;
+        btnNo.onmouseover = () => {
+            btnNo.style.background = '#f5f5f5';
+            btnNo.style.borderColor = '#d0d0d0';
+        };
+        btnNo.onmouseout = () => {
+            btnNo.style.background = 'white';
+            btnNo.style.borderColor = '#e0e0e0';
+        };
+        btnNo.onclick = () => {
+            overlay.remove();
+            resolve(false);
+        };
+        
+        // Botão SIM
+        const btnYes = document.createElement('button');
+        btnYes.textContent = 'SIM';
+        btnYes.style.cssText = `
+            padding: 12px 28px;
+            border: 2px solid #007AFF;
+            background: #007AFF;
+            color: white;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        `;
+        btnYes.onmouseover = () => {
+            btnYes.style.background = '#0051D5';
+            btnYes.style.borderColor = '#0051D5';
+        };
+        btnYes.onmouseout = () => {
+            btnYes.style.background = '#007AFF';
+            btnYes.style.borderColor = '#007AFF';
+        };
+        btnYes.onclick = () => {
+            overlay.remove();
+            resolve(true);
+        };
+        
+        // Montar modal
+        buttonsEl.appendChild(btnNo);
+        buttonsEl.appendChild(btnYes);
+        modal.appendChild(titleEl);
+        modal.appendChild(messageEl);
+        modal.appendChild(buttonsEl);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        
+        // Fechar com ESC
+        const handleEsc = (e) => {
+            if (e.key === 'Escape') {
+                overlay.remove();
+                resolve(false);
+                document.removeEventListener('keydown', handleEsc);
+            }
+        };
+        document.addEventListener('keydown', handleEsc);
+        
+        // Adicionar animações CSS
+        if (!document.getElementById('confirmModalStyles')) {
+            const style = document.createElement('style');
+            style.id = 'confirmModalStyles';
+            style.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes slideUp {
+                    from { 
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to { 
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    });
 }
 
 // ⚡ LOADING SPINNER - Feedback visual durante carregamento do Google Sheets
@@ -15452,7 +15702,6 @@ async function toggleAllocation(taskId, dateKey) {
         const descricao = request?.descricao || taskId;
         
         const mensagem = 
-            `⚠️ PLANEAMENTO EXISTENTE\n\n` +
             `OT: ${taskId}\n` +
             `${descricao.substring(0, 60)}${descricao.length > 60 ? '...' : ''}\n\n` +
             `Esta OT já tem ${diasPassadoRecente.length} dia(s) planeado(s) no passado:\n` +
@@ -15462,7 +15711,7 @@ async function toggleAllocation(taskId, dateKey) {
             `• NÃO: Mantém dias antigos (adiciona aos existentes)`;
         
         console.log('🚨 [POPUP] Vai aparecer popup AGORA...');
-        const resposta = confirm(mensagem);
+        const resposta = await showConfirmModal(mensagem, '⚠️ PLANEAMENTO EXISTENTE');
         console.log('📝 [POPUP] Utilizador respondeu:', resposta ? 'SIM' : 'NÃO');
         
         if (resposta) {
@@ -15805,19 +16054,41 @@ async function limparPlaneamentoCompleto() {
         
         for (const ot of otsParaLimpar) {
             try {
-                // Atualizar BD: remover dataPlaneada
+                // 1️⃣ Atualizar BD pedidos: remover dataPlaneada
                 await window.SupabaseAPI.updatePedido(ot.id, {
                     dataPlaneada: null
                 });
                 
-                // Atualizar AppState local
+                // 2️⃣ Remover do planeamento (diasAlocados)
+                const planeamentoExistente = await window.SupabaseAPI.getPlaneamento();
+                const registoPlaneamento = planeamentoExistente.find(p => p['Pedido ID'] === ot.id);
+                
+                if (registoPlaneamento) {
+                    // Apagar registo de planeamento do Supabase
+                    await window.SupabaseAPI.deletePlaneamento(registoPlaneamento.ID);
+                    console.log(`🗑️ Planeamento removido:`, ot.id);
+                }
+                
+                // 3️⃣ Atualizar AppState local (pedidos)
                 const otIndex = AppState.requests.findIndex(r => r.id === ot.id);
                 if (otIndex !== -1) {
                     AppState.requests[otIndex].dataPlaneada = null;
                 }
                 
+                // 4️⃣ Limpar do AppState.planning local
+                if (AppState.planning.tasks[ot.id]) {
+                    delete AppState.planning.tasks[ot.id];
+                }
+                
+                // Limpar allocations
+                Object.keys(AppState.planning.allocations).forEach(key => {
+                    if (key.startsWith(ot.id + '-')) {
+                        delete AppState.planning.allocations[key];
+                    }
+                });
+                
                 sucessos++;
-                console.log(`✅ OT ${ot.numeroOT} limpa`);
+                console.log(`✅ OT ${ot.numeroOT} limpa (dataPlaneada + diasAlocados)`);
                 
             } catch (error) {
                 erros++;
@@ -15837,16 +16108,14 @@ async function limparPlaneamentoCompleto() {
         
         // 🔄 Atualizar interface
         if (sucessos > 0) {
-            // Limpar planeamento local também
-            AppState.planning.tasks = {};
-            AppState.planning.allocations = {};
+            // Guardar alterações locais
             savePlanningToStorage();
             
             // Recarregar grid de planeamento
             await loadPlanningFromSupabase();
             renderPlanningGrid();
             
-            showToast(`✅ ${sucessos} datas de planeamento limpas com sucesso!`, 'success');
+            showToast(`✅ ${sucessos} OTs limpas (dataPlaneada + diasAlocados)!`, 'success');
         }
         
         if (erros > 0) {
@@ -15962,6 +16231,20 @@ async function syncSingleTask(taskId) {
         const existing = await window.SupabaseAPI.getPlaneamento();
         const existingTask = existing.find(p => p['Pedido ID'] === taskId);
         
+        // ✅ v3.8.3.10.27.98.21: Não gravar se diasAlocados estiver vazio
+        const diasAlocados = planningData.diasAlocados || [];
+        
+        // Se não há dias alocados, não criar/atualizar registo
+        if (diasAlocados.length === 0) {
+            console.log('⏭️ [syncSingleTask] Sem dias alocados - não sincronizar:', taskId);
+            // Se existe registo antigo, apagar
+            if (existingTask) {
+                await window.SupabaseAPI.deletePlaneamento(existingTask.ID);
+                console.log('🗑️ Registo antigo removido (sem dias):', taskId);
+            }
+            return;
+        }
+        
         const supabaseData = {
             'Pedido ID': taskId,
             'Descrição': task.descricao,
@@ -15970,7 +16253,7 @@ async function syncSingleTask(taskId) {
             'Empresa': task.empresa,
             'Responsável': planningData.responsavel || '',
             'Horas Estimadas': planningData.horasEstimadas || 0,
-            'Dias Alocados': JSON.stringify(planningData.diasAlocados || []),
+            'Dias Alocados': JSON.stringify(diasAlocados),
             'Última Atualização': new Date().toISOString()
         };
         
