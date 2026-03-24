@@ -2206,22 +2206,19 @@
         /* 🖨️ REGRAS DE IMPRESSÃO - VERSÃO FINAL v3.8.3.10.27.15 */
         /* 🆕 v3.8.3.10.27.20: CSS de impressão do PLANEAMENTO */
         @media print {
-            /* ✅ Configuração de página padrão (LANDSCAPE para planeamento) */
+            /* ✅ Configuração de página padrão (LANDSCAPE para planeamento e relatórios) */
             @page {
                 size: A4 landscape;
                 margin: 10mm;
-            }
-            
-            /* 🖨️ v3.8.3.10.27.98.23: PORTRAIT para impressão de OT individual */
-            @page :first {
-                size: A4 portrait;
-                margin: 15mm;
             }
             
             body {
                 margin: 0 !important;
                 padding: 0 !important;
             }
+            
+            /* 🖨️ v3.8.3.10.27.98.24: Default = LANDSCAPE (planeamento e lista OTs) */
+            /* OT individual usa PORTRAIT via <style> dinâmico injetado por printRequest() */
             
             /* 🎯 PLANEAMENTO: Quando body tem classe .printing-planning */
             body.printing-planning * {
@@ -2872,6 +2869,8 @@
                 margin: 1px 0;
             }
         }
+        
+        /* 🖨️ v3.8.3.10.27.98.24: OT individual usa @page portrait via <style> dinâmico (ver printRequest) */
         
         /* Utility Classes */
         .hidden {
@@ -13756,6 +13755,12 @@ function printRequest(id) {
     
     container.innerHTML = html;
     
+    // 🖨️ v3.8.3.10.27.98.24: Adicionar @page PORTRAIT dinamicamente
+    const styleOT = document.createElement('style');
+    styleOT.id = 'print-ot-style';
+    styleOT.textContent = '@media print { @page { size: A4 portrait; margin: 15mm; } }';
+    document.head.appendChild(styleOT);
+    
     // Fechar modal e imprimir
     closeModal();
     setTimeout(function() {
@@ -13763,6 +13768,9 @@ function printRequest(id) {
         // Limpar após impressão
         setTimeout(function() {
             container.innerHTML = '';
+            // Remover estilo customizado
+            const style = document.getElementById('print-ot-style');
+            if (style) style.remove();
         }, 100);
     }, 300);
 }
