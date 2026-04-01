@@ -1,0 +1,67 @@
+# Documentation and debug files from LLM sessions
+ACAO-*.md
+ANALISE-*.md
+CHECK-*.sql
+CHECKLIST-*.md
+CLARIFICACAO-*.md
+CRIAR-*.md
+DEBUG-*.md
+DEPLOY-*.md
+DESCOBRIR-*.sql
+ESCLARECIMENTO-*.md
+EXECUTAR-*.sql
+FALLBACK-*.md
+FEATURE-*.md
+FIX-*.md
+FLUXOGRAMA-*.md
+GUIA-*.md
+INDICE-*.md
+INSTRUCOES-*.md
+LEIA-*.md
+ONDE-*.md
+PROBLEMA-*.md
+QUICK-*.md
+RANKING-*.md
+RELATORIO-*.md
+REMOVE-*.md
+RESPOSTA-*.md
+RESUMO-*.md
+SCRIPTS-*.md
+SECURITY-*.md
+SOLUCAO-*.md
+SUMARIO-*.md
+TESTE-*.md
+TROUBLESHOOTING-*.md
+UI-*.md
+UPDATE-*.md
+VISUAL-*.md
+
+# SQL scripts (not part of deployed app)
+supabase-*.sql
+descobrir-*.sql
+UPDATE-*.sql
+FIX-RLS-*.sql
+SOLUCAO-*.sql
+TESTE-RAPIDO-*.sql
+
+# Files with emoji prefixes
+⚡-*.md
+
+# Backup files
+*.BACKUP
+
+# Local js/ folder (duplicates of root-level files)
+js/
+
+# Dev tools
+node_modules/
+.claude/
+
+# Design system extras (not deployed)
+design-system-apple.css
+exemplo-uso-design-system.html
+README-DESIGN-SYSTEM.md
+
+# Debug/test scripts
+teste-*.js
+script-verificar-versao.js
