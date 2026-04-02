@@ -20001,35 +20001,72 @@ async function prepararContextoDados(pergunta = '') {
             .slice(0, 20);
         filtroAplicado = 'pedidos abertos';
     }
-    // 🔍 Perguntas GERAIS (estatísticas)
-    else if (perguntaLower.includes('quantos') || perguntaLower.includes('total') || 
+    // 🔍 Perguntas ANALÍTICAS (histograma, pareto, tendências) → enviar TODOS os dados
+    else if (perguntaLower.includes('histograma') || perguntaLower.includes('pareto') ||
+             perguntaLower.includes('tendência') || perguntaLower.includes('tendencia') ||
+             perguntaLower.includes('distribuição') || perguntaLower.includes('distribuicao') ||
+             perguntaLower.includes('análise') || perguntaLower.includes('analise') ||
+             perguntaLower.includes('estatística') || perguntaLower.includes('estatistica') ||
+             perguntaLower.includes('gráfico') || perguntaLower.includes('grafico') ||
+             perguntaLower.includes('ranking') || perguntaLower.includes('top ') ||
+             perguntaLower.includes('média') || perguntaLower.includes('media') ||
+             perguntaLower.includes('frequência') || perguntaLower.includes('frequencia') ||
+             perguntaLower.includes('padrão') || perguntaLower.includes('padrao') ||
+             perguntaLower.includes('componente') || perguntaLower.includes('máquina') ||
+             perguntaLower.includes('maquina') || perguntaLower.includes('por hora') ||
+             perguntaLower.includes('por dia') || perguntaLower.includes('por semana') ||
+             perguntaLower.includes('por mês') || perguntaLower.includes('por mes') ||
+             perguntaLower.includes('todos os dados') || perguntaLower.includes('todo o horizonte') ||
+             perguntaLower.includes('todas as ots') || perguntaLower.includes('todos os pedidos')) {
+        pedidosFiltrados = AppState.requests;
+        filtroAplicado = `análise completa (${AppState.requests.length} pedidos)`;
+    }
+    // 🔍 Perguntas GERAIS (estatísticas simples)
+    else if (perguntaLower.includes('quantos') || perguntaLower.includes('total') ||
              perguntaLower.includes('resumo') || perguntaLower.includes('geral')) {
         // ✅ NÃO enviar pedidos detalhados, apenas estatísticas
         pedidosFiltrados = [];
         filtroAplicado = 'estatísticas apenas';
     }
-    // 🔍 Default: últimos 10 pedidos (se nenhum filtro)
+    // 🔍 Default: últimos 50 pedidos (se nenhum filtro)
     else {
         pedidosFiltrados = AppState.requests
             .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora))
-            .slice(0, 10);
-        filtroAplicado = 'últimos 10 pedidos';
+            .slice(0, 50);
+        filtroAplicado = 'últimos 50 pedidos';
     }
     
-    // Mapear campos mínimos
+    // Mapear campos (incluindo componente/máquina)
     const pedidosParaEnviar = pedidosFiltrados.map(p => ({
         id: p.id,
         tipo: p.tipo,
         area: p.areaEquipamento,
+        componente: p.componente || '',
         empresa: p.empresa,
         estado: p.estado,
         prioridade: p.prioridade,
         urgente: p.urgente,
-        data: p.dataHora
+        data: p.dataHora,
+        descricao: p.descricao || ''
     }));
     
     console.log(`🤖 Contexto adaptativo: ${filtroAplicado} (${pedidosParaEnviar.length} pedidos)`);
     
+    // ===================================
+    // 2b. AGREGAÇÕES POR COMPONENTE/MÁQUINA (todos os pedidos)
+    // ===================================
+    const componentesAll = {};
+    AppState.requests.forEach(p => {
+        const key = p.componente
+            ? `${p.areaEquipamento} → ${p.componente}`
+            : (p.areaEquipamento || 'Sem área');
+        componentesAll[key] = (componentesAll[key] || 0) + 1;
+    });
+    const topComponentes = Object.entries(componentesAll)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .map(([comp, count]) => `${comp}: ${count} pedidos`);
+
     // ===================================
     // 3. RETORNAR CONTEXTO
     // ===================================
@@ -20044,6 +20081,7 @@ async function prepararContextoDados(pergunta = '') {
         },
         tipos,
         topAreas,
+        topComponentes,
         // ✅ NOVO: Pedidos filtrados baseados na pergunta
         pedidosRelevantes: pedidosParaEnviar,
         filtroAplicado: filtroAplicado,
