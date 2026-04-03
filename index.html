@@ -19365,7 +19365,7 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
 
     // Markdown: links, bold, italic, lists, line breaks
     let htmlContent = textoProcessado
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (match, text, url) => {
             // PDF links open in modal, other links open in new tab
             if (url.includes('/manuais/') && url.includes('.pdf')) {
                 return `<a href="javascript:void(0)" onclick="abrirPdfModal('${url.replace(/'/g, "\\'")}')" style="color:var(--color-blue);text-decoration:underline;cursor:pointer;">${text}</a>`;
@@ -20191,16 +20191,17 @@ window.enviarPerguntaChatbot = async function() {
                 }
 
                 if (pdfUrl) {
-                    // Convert patterns like "Ver página 39", "(página 39)", "(páginas 57-84)" to markdown links
+                    // Convert page references to markdown links
+                    // Match: (Ver página 39), Ver página 39, (páginas 57-84), página 39
                     respostaFinal = respostaFinal
-                        .replace(/\(Ver páginas? (\d+)(?:-(\d+))?\)/gi, (match, p1) => {
-                            return `([Ver página ${p1}](${pdfUrl}#page=${p1}))`;
-                        })
-                        .replace(/Ver páginas? (\d+)(?:-(\d+))?(?!\])/gi, (match, p1) => {
+                        .replace(/\(?Ver páginas?\s+(\d+)(?:\s*-\s*(\d+))?\)?/gi, (match, p1) => {
                             return `[Ver página ${p1}](${pdfUrl}#page=${p1})`;
                         })
-                        .replace(/\(páginas? (\d+)(?:-(\d+))?\)/gi, (match, p1) => {
-                            return `([ver página ${p1}](${pdfUrl}#page=${p1}))`;
+                        .replace(/\(páginas?\s+(\d+)(?:\s*-\s*(\d+))?\)/gi, (match, p1) => {
+                            return `[ver página ${p1}](${pdfUrl}#page=${p1})`;
+                        })
+                        .replace(/(?<!\[.*?)página\s+(\d+)(?!\d)(?!.*?\]\()/gi, (match, p1) => {
+                            return `[página ${p1}](${pdfUrl}#page=${p1})`;
                         });
                 }
 
