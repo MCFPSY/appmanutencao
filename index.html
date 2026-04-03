@@ -19398,10 +19398,10 @@ function abrirPdfModal(url) {
     const pdfUrl = url.replace(/#page=\d+/, '');
     const viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}${pagina ? '#page=' + pagina : ''}`;
 
-    // Mobile: open PDF.js viewer in new tab (iframes render poorly on mobile)
+    // Mobile: open PDF directly (PDF.js viewer has CORS issues on mobile Safari)
     const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (isMobile) {
-        window.open(viewerUrl, '_blank');
+        window.open(url, '_blank');
         return;
     }
 
@@ -20199,18 +20199,25 @@ window.enviarPerguntaChatbot = async function() {
                 }
 
                 if (pdfUrl) {
-                    // Convert page references to markdown links
-                    // Match: (Ver página 39), Ver página 39, (páginas 57-84), página 39
-                    respostaFinal = respostaFinal
-                        .replace(/\(?Ver páginas?\s+(\d+)(?:\s*-\s*(\d+))?\)?/gi, (match, p1) => {
-                            return `[Ver página ${p1}](${pdfUrl}#page=${p1})`;
-                        })
-                        .replace(/\(páginas?\s+(\d+)(?:\s*-\s*(\d+))?\)/gi, (match, p1) => {
-                            return `[ver página ${p1}](${pdfUrl}#page=${p1})`;
-                        })
-                        .replace(/(?<!\[.*?)página\s+(\d+)(?!\d)(?!.*?\]\()/gi, (match, p1) => {
-                            return `[página ${p1}](${pdfUrl}#page=${p1})`;
-                        });
+                    // Skip post-processing if Gemini already generated markdown links
+                    const hasMarkdownLinks = /\[[^\]]+\]\(https?:\/\//.test(respostaFinal);
+                    if (hasMarkdownLinks) {
+                        // Gemini generated links — just clean up any raw URLs left as text
+                        // Remove raw URLs that appear after markdown links (duplicate)
+                        respostaFinal = respostaFinal.replace(/\]\(([^)]+)\)\s*\(https?:\/\/[^)]+\)/g, ']($1)');
+                    } else {
+                        // Gemini didn't generate links — convert page references
+                        respostaFinal = respostaFinal
+                            .replace(/\(?Ver páginas?\s+(\d+)(?:\s*-\s*(\d+))?\)?/gi, (match, p1) => {
+                                return `[Ver página ${p1}](${pdfUrl}#page=${p1})`;
+                            })
+                            .replace(/\(páginas?\s+(\d+)(?:\s*-\s*(\d+))?\)/gi, (match, p1) => {
+                                return `[página ${p1}](${pdfUrl}#page=${p1})`;
+                            })
+                            .replace(/página\s+(\d+)(?!\d)(?![^[]*\])/gi, (match, p1) => {
+                                return `[página ${p1}](${pdfUrl}#page=${p1})`;
+                            });
+                    }
                 }
 
                 adicionarMensagemChat(respostaFinal, 'assistant');
