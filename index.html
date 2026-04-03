@@ -10300,277 +10300,88 @@ async function extractTextFromPDF(file, progressCallback = null) {
         if (textoCompleto.length < 500) {
             console.log('📊 Texto nativo insuficiente:', textoCompleto.length, 'caracteres (< 500)');
             console.log('🔬 Iniciando OCR com Tesseract.js...');
-            
+
             if (typeof Tesseract === 'undefined') {
                 console.error('❌ Tesseract.js não está carregado! OCR não disponível.');
                 throw new Error('OCR não disponível. PDF escaneado sem texto extraível.');
             }
-            
+
             usouOCR = true;
             textoCompleto = '';
             textosPorPagina = {};
-            imagensPorPagina = {}; // 🆕 Reset para OCR (já declarado acima)
-            
-            // Criar worker do Tesseract (reutilizável) com configuração otimizada
-            console.log('🔧 Configurando Tesseract.js com detecção de layout...');
+
+            // Create Tesseract worker
             const worker = await Tesseract.createWorker('por', 1, {
                 logger: (m) => {
                     if (m.status === 'recognizing text' && progressCallback) {
-                        const progress = Math.round(m.progress * 100);
-                        progressCallback(`OCR Premium: ${progress}%`);
+                        const pctPage = Math.round(m.progress * 100);
+                        progressCallback(`OCR: ${pctPage}%`);
                     }
                 }
             });
-            
-            // 🆕 Configurar parâmetros do Tesseract para melhor qualidade
             await worker.setParameters({
-                tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD, // Detectar orientação e layout
+                tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD,
                 preserve_interword_spaces: '1'
             });
-            
-            // 🆕 v3.7.6.0: Passar primeiro rápido para detectar páginas com tabelas
-            console.log('🔍 Passo 1/2: Detectando páginas com tabelas...');
-            const paginasComTabelas = new Set();
-            
-            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                const page = await pdf.getPage(pageNum);
-                const canvas = await pdfPageToImage(page, 2.0);
-                const imageRegions = detectImageRegions(canvas);
-                
-                if (imageRegions.length > 0) {
-                    paginasComTabelas.add(pageNum);
-                    console.log(`  📊 Página ${pageNum}: ${imageRegions.length} tabela(s)/diagrama(s)`);
-                }
-            }
-            
-            console.log(`✅ ${paginasComTabelas.size} páginas com tabelas detectadas`);
-            console.log('');
-            console.log('🔍 Passo 2/2: OCR com qualidade adaptativa...');
-            
-            // Processar cada página com OCR PREMIUM
-            const manualId = crypto.randomUUID(); // ID temporário para imagens
-            
+
+            // Single pass: render each page and OCR it
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                 if (progressCallback) {
-                    progressCallback(`OCR Premium: Página ${pageNum}/${pdf.numPages}`);
+                    progressCallback(`OCR: Página ${pageNum}/${pdf.numPages}`);
                 }
-                
-                const temTabelas = paginasComTabelas.has(pageNum);
-                const scale = temTabelas ? 2.5 : 2.0;
-                
-                console.log(`🔬 OCR Premium - Página ${pageNum}/${pdf.numPages}... ${temTabelas ? '📊 (COM TABELAS - Scale 5.0)' : '(Scale 3.0)'}`);
-                
+
                 const page = await pdf.getPage(pageNum);
-                
-                // 🆕 Usar scale adaptativo + pré-processamento otimizado
-                const canvas = await pdfPageToImage(page, scale);
-                
-                // 🆕 Para páginas com tabelas, aplicar binarização
-                if (temTabelas) {
-                    preprocessImageForOCR(canvas, {
-                        contrast: true,
-                        sharpen: true,
-                        denoise: true,
-                        binarize: true, // 🆕 Binarização para tabelas
-                        contrastFactor: 2.0 // 🆕 Contraste maior
-                    });
-                    console.log('  🎨 Pré-processamento agressivo aplicado');
-                }
-                
-                // 🆕 Detectar e extrair imagens/tabelas
-                const imageRegions = detectImageRegions(canvas);
-                const imagensExtraidas = [];
-                
-                if (imageRegions.length > 0) {
-                    console.log(`  📊 Extraindo ${imageRegions.length} imagem(ns)...`);
-                    
-                    for (let idx = 0; idx < imageRegions.length; idx++) {
-                        const region = imageRegions[idx];
-                        
-                        // Extrair região como imagem
-                        const regionCanvas = extractImageRegion(canvas, region);
-                        const regionBlob = await canvasToBlob(regionCanvas);
-                        
-                        // 🆕 v3.8.3.10.20: Filtrar imagens muito pequenas (< 50KB) - Simplificar bucket
-                        const MIN_IMAGE_SIZE = 50 * 1024; // 50KB (anteriormente 20KB)
-                        if (regionBlob.size < MIN_IMAGE_SIZE) {
-                            console.log(`    ⏭️ ${region.type} ${idx + 1} ignorada (${(regionBlob.size / 1024).toFixed(1)}KB < 50KB)`);
-                            continue; // Pular esta imagem
-                        }
-                        
-                        try {
-                            // Upload image with generic name (skip GPT-4 Vision for speed)
-                            const typeLabel = region.type.toLowerCase();
-                            const indexStr = String(idx).padStart(2, '0');
-                            const fileName = `${manualId}/page_${String(pageNum).padStart(3, '0')}_${typeLabel}_${indexStr}.png`;
+                const canvas = await pdfPageToImage(page, 2.0);
 
-                            const formData = new FormData();
-                            formData.append('file', regionBlob, fileName.split('/').pop());
-
-                            const uploadUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/manuais/${fileName}`;
-                            const uploadResponse = await fetch(uploadUrl, {
-                                method: 'POST',
-                                headers: {
-                                    'apikey': SUPABASE_CONFIG.ANON_KEY,
-                                    'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`
-                                },
-                                body: formData
-                            });
-
-                            if (uploadResponse.ok) {
-                                const finalImageUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${fileName}`;
-                                console.log(`    ✅ Upload: ${fileName.split('/').pop()} (${(regionBlob.size / 1024).toFixed(1)}KB)`);
-                                imagensExtraidas.push({
-                                    url: finalImageUrl,
-                                    type: region.type,
-                                    score: region.score,
-                                    gpt_metadata: null
-                                });
-                            }
-                        } catch (uploadError) {
-                            console.error(`    ❌ Erro upload ${region.type} ${idx + 1}:`, uploadError);
-                        }
-                    }
-                    
-                    imagensPorPagina[pageNum] = imagensExtraidas;
-                }
-                
-                // Extrair texto com OCR
                 const { data: { text, confidence } } = await worker.recognize(canvas);
                 const textoPage = text.trim();
-                
+
                 textosPorPagina[pageNum] = textoPage;
-                textoCompleto += textoPage + '\n\n';
-                
+                textoCompleto += `[Página ${pageNum}]\n${textoPage}\n\n`;
+
                 const confIcon = confidence > 90 ? '✅' : confidence > 75 ? '⚠️' : '❌';
                 console.log(`  ${confIcon} Página ${pageNum}: ${textoPage.length} chars (confiança: ${Math.round(confidence)}%)`);
             }
-            
-            // Terminar worker
+
             await worker.terminate();
-            console.log('✅ OCR Premium concluído!');
-            console.log(`📊 Estatísticas finais:`);
-            console.log(`   - Texto extraído: ${textoCompleto.length} caracteres`);
-            console.log(`   - Páginas com imagens/tabelas: ${Object.keys(imagensPorPagina).length}`);
-            
-            // 🆕 v3.8.3.10: Adicionar referências a imagens no texto COM METADATA GPT-4
-            for (const [pageNum, images] of Object.entries(imagensPorPagina)) {
-                if (images && images.length > 0) {
-                    const pageText = textosPorPagina[pageNum] || '';
-                    let imageRefs = '\n\n';
-                    
-                    images.forEach((img, idx) => {
-                        const metadata = img.gpt_metadata;
-                        
-                        if (metadata && metadata.numero) {
-                            // 🆕 GPT-4 identificou o número da figura/tabela!
-                            const tipoLabel = metadata.tipo || img.type;
-                            const numero = metadata.numero;
-                            const descricao = metadata.descricao || '';
-                            
-                            imageRefs += `📊 [${tipoLabel.toUpperCase()} ${numero}]: ${img.url}\n`;
-                            if (descricao) {
-                                imageRefs += `   Descrição: ${descricao}\n`;
-                            }
-                            if (metadata.componentes && metadata.componentes.length > 0) {
-                                imageRefs += `   Componentes: ${metadata.componentes.join(', ')}\n`;
-                            }
-                        } else {
-                            // Fallback: formato antigo
-                            const emoji = img.type === 'table' ? '📊' : '🖼️';
-                            imageRefs += `${emoji} [${img.type.toUpperCase()} ${idx + 1}]: ${img.url}\n`;
-                        }
-                    });
-                    
-                    textosPorPagina[pageNum] = pageText + imageRefs;
-                }
-            }
-            
-            // 🆕 v3.7.6.10: Re-criar textoCompleto COM as URLs das imagens
+            console.log(`✅ OCR concluído: ${textoCompleto.length} caracteres`);
+
+        } else {
+            // Native text: add page markers for chatbot reference
             textoCompleto = '';
             for (let p = 1; p <= pdf.numPages; p++) {
                 if (textosPorPagina[p]) {
-                    textoCompleto += textosPorPagina[p] + '\n\n';
+                    textoCompleto += `[Página ${p}]\n${textosPorPagina[p]}\n\n`;
                 }
             }
-            console.log('✅ [CHUNKING] Texto completo atualizado com URLs de imagens');
-            
-        } else {
-            console.log('✅ Texto nativo extraído com sucesso (PDF não escaneado)');
+            console.log('✅ Texto nativo extraído com sucesso');
         }
         
-        // PASSO 3: 🆕 v3.7.6.10 - Dividir texto em chunks inteligentes (por capítulos)
-        console.log('🧠 [CHUNKING] Iniciando divisão inteligente do manual...');
+        // PASSO 3: Dividir texto em secções
         const chunks = dividirEmSeccoes(textoCompleto, pdf.numPages);
-        
-        // Converter chunks para o formato esperado pela API do Supabase
-        console.log(`🔍 [DEBUG] Chunks retornados:`, chunks.length);
-        
-        // 🆕 v3.8.0: Processar chunks com auto-tagging
+
         for (let idx = 0; idx < chunks.length; idx++) {
             const chunk = chunks[idx];
-            console.log(`🔍 [DEBUG] Chunk ${idx + 1}:`, {
-                titulo: chunk.titulo,
-                textoLength: chunk.texto?.length || 0,
-                temTexto: !!chunk.texto
-            });
-            
-            // 🆕 v3.8.0: Detectar tags automaticamente
-            const tags = await detectarTagsAutomaticas(chunk.texto || '');
-            
-            // 🆕 v3.8.3.10: Extrair URLs e METADATA de imagens desta secção
-            const imagensSecao = [];
-            const imagensMetadata = []; // 🆕 Array separado para metadata GPT-4
-            
-            if (imagensPorPagina && Object.keys(imagensPorPagina).length > 0) {
-                for (let p = chunk.paginaInicio; p <= chunk.paginaFim; p++) {
-                    if (imagensPorPagina[p]) {
-                        // Adicionar URLs e metadata das imagens desta página
-                        imagensPorPagina[p].forEach(img => {
-                            imagensSecao.push(img.url);
-                            
-                            // 🆕 v3.8.3.10: Guardar metadata GPT-4 se existir
-                            if (img.gpt_metadata) {
-                                imagensMetadata.push({
-                                    url: img.url,
-                                    ...img.gpt_metadata
-                                });
-                            }
-                        });
-                    }
-                }
-            }
-            
-            if (imagensSecao.length > 0) {
-                console.log(`  📊 Secção "${chunk.titulo}": ${imagensSecao.length} imagem(ns) encontrada(s)`);
-                if (imagensMetadata.length > 0) {
-                    console.log(`     🔍 ${imagensMetadata.length} com metadata GPT-4 Vision`);
-                }
-            }
-            
             secoes.push({
-                secao: chunk.titulo,                // Título do capítulo
-                conteudo: chunk.texto,              // Texto completo do capítulo
-                pagina_inicio: chunk.paginaInicio,  // Página estimada
-                pagina_fim: chunk.paginaFim,        // Página estimada
-                palavras_chave: chunk.palavrasChave, // Keywords extraídas
-                tags: tags,                         // 🆕 v3.8.0: Tags auto-detectadas
-                imagens_urls: imagensSecao,         // 🆕 v3.8.1: URLs de imagens/tabelas
-                imagens_metadata: imagensMetadata,  // 🆕 v3.8.3.10: Metadata GPT-4 Vision
+                secao: chunk.titulo,
+                conteudo: chunk.texto,
+                pagina_inicio: chunk.paginaInicio,
+                pagina_fim: chunk.paginaFim,
+                palavras_chave: chunk.palavrasChave || [],
+                tags: [],
+                imagens_urls: [],
+                imagens_metadata: [],
                 ordem: idx + 1
             });
         }
-        
-        console.log(`✅ [CHUNKING] ${secoes.length} chunks criados com sucesso!`);
-        
-        console.log(`✅ Texto extraído: ${textoCompleto.length} caracteres, ${secoes.length} secções`);
-        console.log(`📊 Método usado: ${usouOCR ? 'OCR (Tesseract.js)' : 'Texto nativo (PDF.js)'}`);
-        
+
+        console.log(`✅ ${secoes.length} secções, ${textoCompleto.length} chars, método: ${usouOCR ? 'OCR' : 'nativo'}`);
+
         return {
             textoCompleto,
             numPaginas: pdf.numPages,
             secoes,
-            usouOCR  // Informar se usou OCR
+            usouOCR
         };
         
     } catch (error) {
@@ -20177,7 +19988,11 @@ async function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
                     num_paginas: m.num_paginas,
                     // 🆕 v3.7.6.13: Filtrar secções por relevância baseado em keywords (async)
                     conteudo: temConteudo
-                        ? await filtrarSecoesRelevantes(AppState.manuaisConteudo[m.id], pergunta)
+                        ? AppState.manuaisConteudo[m.id].map(s => ({
+                            titulo: s.secao,
+                            paginas: `${s.pagina_inicio}-${s.pagina_fim}`,
+                            texto: s.conteudo
+                        }))
                         : []
                 };
             })
