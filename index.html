@@ -9021,12 +9021,13 @@ async function initializeApp() {
         return;
     }
 
-    // Setup event listeners only once
-    if (!APP_INITIALIZED) {
+    // Setup event listeners only once (use separate flag — APP_INITIALIZED resets on failed auth)
+    if (!window._eventListenersReady) {
         cleanOldDataFromLocalStorage();
         await unregisterServiceWorkers();
         setupEventListeners();
         setupOnlineOfflineListeners();
+        window._eventListenersReady = true;
     }
 
     const isAuthenticated = await checkAuthentication();
