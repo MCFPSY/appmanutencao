@@ -668,17 +668,16 @@ ${pergunta}
 - Se os dados contêm tabelas de manutenção, lubrificação, especificações, etc. → **reproduz os dados em formato de tabela markdown**.
 - Se os dados contêm listas de procedimentos → **mostra os passos detalhados**.
 - Se os dados contêm valores técnicos (temperaturas, pressões, intervalos) → **inclui os valores exatos**.
-- Indica sempre a página de referência com um LINK CLICÁVEL para o PDF.
-- Se os dados do manual incluem um campo "ficheiro_url", usa-o para criar links de página.
-- Formato do link: [Ver página X](FICHEIRO_URL#page=X) — isto abre o PDF diretamente na página certa.
-- Exemplo: Em vez de "A lubrificação está descrita na página 39", diz:
-  "**Plano de Lubrificação** ([Ver página 39](https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/abc.pdf#page=39)):
-  | Componente | Lubrificante | Periodicidade |
-  |---|---|---|
-  | Rolamentos | Massa consistente | Trimestral |
-  | Correntes | Óleo SAE 30 | Mensal |"
-- Para conteúdo visual (esquemas elétricos, diagramas) que não pode ser mostrado como texto, inclui o link direto:
-  "Os esquemas elétricos encontram-se no Anexo III: [Ver páginas 57-84](FICHEIRO_URL#page=57)"
+- **LINKS PARA PÁGINAS DO PDF (OBRIGATÓRIO):**
+  * Nos dados do manual existe SEMPRE um campo "ficheiro_url" com o URL completo do PDF (ex: https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/xxxxx.pdf)
+  * SEMPRE que mencionares uma página, cria um link markdown clicável: [Ver página X](URL_DO_FICHEIRO#page=X)
+  * Usa o valor REAL do campo ficheiro_url dos dados — NÃO inventes URLs
+  * Exemplo correto (se ficheiro_url for "https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/25310b69.pdf"):
+    "**8.1. Lubrificação** ([Ver página 39](https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/25310b69.pdf#page=39)):"
+  * Para esquemas elétricos e diagramas visuais:
+    "Os esquemas elétricos encontram-se no Anexo III: [Ver esquemas (páginas 57-84)](https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/25310b69.pdf#page=57)"
+  * NUNCA coloque o URL em texto simples — usa SEMPRE o formato markdown [texto](url)
+  * NUNCA digas "O manual pode ser acedido através do seguinte URL:" — em vez disso, coloca links inline nas secções relevantes
 
 **🚨 REGRA ESPECIAL PARA ÍNDICE DE MANUAIS:**
 - Se a pergunta mencionar "índice" ou "índice completo" de um manual:
