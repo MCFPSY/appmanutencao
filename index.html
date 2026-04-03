@@ -8469,15 +8469,15 @@ async function handleLogin(event) {
         
         hideLoginModal();
         showUserInterface();
-        
+
         setTimeout(() => {
             applyUserAutoFill();
             applyPermissions();
         }, 200);
-        
-        // 🔥 CARREGAR DADOS DO SUPABASE
+
+        // Carregar dados e inicializar app completa
         if (AppState.isOnline) await loadDataFromSupabase();
-        renderRequestsList();
+        await initializeApp();
         
     } catch (e) {
         console.error('❌ Erro ao fazer login:', e);
@@ -9003,27 +9003,28 @@ async function initializeApp() {
         renderRequestsList();
         return;
     }
-    
-    // 🧹 LIMPEZA AUTOMÁTICA DIÁRIA (primeiro que tudo!)
-    cleanOldDataFromLocalStorage();
-    
-    await unregisterServiceWorkers();
-    setupEventListeners();
-    setupOnlineOfflineListeners();
-    
+
+    // Setup event listeners only once
+    if (!APP_INITIALIZED) {
+        cleanOldDataFromLocalStorage();
+        await unregisterServiceWorkers();
+        setupEventListeners();
+        setupOnlineOfflineListeners();
+    }
+
     const isAuthenticated = await checkAuthentication();
-    
+
     if (!isAuthenticated) {
         APP_INITIALIZED = false;
         return;
     }
-    
+
     APP_INITIALIZED = true;
-    
+
     // Carregando localStorage
     loadFromLocalStorage();
     console.log('📊 Pedidos do localStorage:', AppState.requests?.length || 0);
-    
+
     loadSavedUserName();
     
     // 🔥 v3.8.3.10.27.75: SINCRONIZAÇÃO EM BACKGROUND (não bloqueia)
