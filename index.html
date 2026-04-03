@@ -1403,77 +1403,6 @@
             margin-bottom: var(--spacing-lg);
         }
         
-        /* PDF Actions */
-        .pdf-actions {
-            display: flex;
-            gap: var(--spacing-sm);
-            margin-top: var(--spacing-lg);
-            flex-wrap: wrap;
-        }
-        
-        .pdf-actions .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: var(--spacing-xs);
-        }
-        
-        .pdf-actions .btn svg {
-            width: 18px;
-            height: 18px;
-        }
-        
-        /* PDF Viewer Container */
-        .pdf-viewer-container {
-            margin-top: var(--spacing-lg);
-            padding: 0;
-            overflow: hidden;
-        }
-        
-        .pdf-viewer-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: var(--spacing-md) var(--spacing-lg);
-            border-bottom: 1px solid var(--color-border);
-            background-color: var(--color-background);
-        }
-        
-        .pdf-viewer-header h3 {
-            font-size: 1.125rem;
-            font-weight: var(--font-weight-semibold);
-            color: var(--color-text-primary);
-            margin: 0;
-        }
-        
-        .pdf-viewer {
-            width: 100%;
-            height: 80vh;
-            min-height: 600px;
-            background-color: #525659;
-            position: relative;
-        }
-        
-        .pdf-viewer iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-        
-        /* Loading State for PDF */
-        .pdf-viewer.loading::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 40px;
-            height: 40px;
-            border: 3px solid var(--color-border);
-            border-top-color: var(--color-blue);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
         .pdf-viewer.loading::after {
             content: 'Carregando PDF...';
             position: absolute;
@@ -1946,29 +1875,6 @@
                 flex-direction: column;
             }
             
-            /* PDF Viewer Mobile */
-            .pdf-actions {
-                flex-direction: column;
-                gap: var(--spacing-xs);
-            }
-            
-            .pdf-actions .btn {
-                width: 100%;
-                justify-content: center;
-            }
-            
-            .pdf-viewer {
-                height: 70vh;
-                min-height: 400px;
-            }
-            
-            .pdf-viewer-header {
-                padding: var(--spacing-sm) var(--spacing-md);
-            }
-            
-            .pdf-viewer-header h3 {
-                font-size: 1rem;
-            }
         }
         
         /* Mobile Pequeno (iPhone SE, etc) */
@@ -2056,10 +1962,6 @@
                 padding: 2px 8px;
             }
             
-            .pdf-viewer {
-                height: 60vh;
-                min-height: 300px;
-            }
         }
         
         /* Mobile Extra Pequeno (iPhone 12/13/14 width) */
@@ -6512,78 +6414,8 @@
         <!-- 📚 DOCUMENTOS Tab (merge de Autónomas + Manuais) v3.8.3.10.27.38 -->
         <section class="tab-content" id="tab-documentos">
             <div class="container">
-                <div class="card">
-                    <h2 class="card-title">🔧 Manutenções Autónomas MCF</h2>
-                    <p class="card-description">Selecione uma máquina para visualizar os procedimentos de manutenção.</p>
-                    
-                    <!-- Seletor de Máquina -->
-                    <div class="form-group">
-                        <label class="form-label" for="machineSelect">Máquina</label>
-                        <select class="form-input" id="machineSelect">
-                            <option value="">Selecione uma máquina</option>
-                            <option value="crivo">Crivo de excêntrico</option>
-                            <option value="destrocador">Destroçador</option>
-                            <option value="l01-dupla">L01 - Dupla</option>
-                            <option value="l01-multiserra">L01 - Multiserra</option>
-                            <option value="l01-paletizadora">L01 - Paletizadora</option>
-                            <option value="l01-retestadeira">L01 - Retestadeira</option>
-                            <option value="l01-tracador">L01 - Traçador</option>
-                            <option value="l02-charriot">L02 - Charriot</option>
-                            <option value="l02-retestadeira">L02 - Retestadeira</option>
-                            <option value="l03-alinhadeira">L03 - Alinhadeira</option>
-                            <option value="l03-paletizadora">L03 - Paletizadora</option>
-                            <option value="l03-retestadeira">L03 - Retestadeira</option>
-                            <option value="tinas">Tinas impregnante</option>
-                        </select>
-                    </div>
-
-                    <!-- Ações PDF -->
-                    <div class="pdf-actions" id="pdfActions" style="display: none;">
-                        <button class="btn btn-secondary" id="downloadPdfBtn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-                            </svg>
-                            Download
-                        </button>
-                        <button class="btn btn-secondary" id="printPdfBtn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-                                <rect x="6" y="14" width="12" height="8"/>
-                            </svg>
-                            Imprimir
-                        </button>
-                        <!-- ❌ v3.8.3.10.27.38: Botão "Abrir no Google Drive" REMOVIDO (migração para Supabase) -->
-                    </div>
-                </div>
-
-                <!-- Visualizador PDF -->
-                <div class="card pdf-viewer-container" id="pdfViewerContainer" style="display: none;">
-                    <div class="pdf-viewer-header">
-                        <h3 id="pdfTitle">Procedimento de Manutenção</h3>
-                        <button class="btn-icon" id="closePdfBtn" title="Fechar">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="18" y1="6" x2="6" y2="18"/>
-                                <line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="pdf-viewer">
-                        <iframe id="pdfIframe" frameborder="0" allowfullscreen></iframe>
-                    </div>
-                </div>
-
-                <!-- Empty State -->
-                <div id="pdfEmptyState" class="empty-state">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                    <h3>Selecione uma Máquina</h3>
-                    <p>Escolha uma máquina acima para visualizar os standards de manutenção MCF</p>
-                </div>
-                
                 <!-- ───────────────────────────────────────────────────────────── -->
-                <!-- SECÇÃO 2: MANUAIS DISPONÍVEIS -->
+                <!-- SECÇÃO: MANUAIS DISPONÍVEIS -->
                 <!-- ───────────────────────────────────────────────────────────── -->
                 
                 <div class="card" style="margin-top: var(--spacing-xl);">
@@ -6600,32 +6432,68 @@
                             Atualizar
                         </button>
                     </div>
-                    
+
+                    <!-- Filtros Empresa + Equipamento -->
+                    <div style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
+                        <div class="form-group" style="flex: 1; margin: 0;">
+                            <label class="form-label" for="manuaisEmpresaFilter">Empresa</label>
+                            <select class="form-input" id="manuaisEmpresaFilter">
+                                <option value="">Todas</option>
+                                <option value="MCF">MCF</option>
+                                <option value="PSY">PSY</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1; margin: 0;">
+                            <label class="form-label" for="manuaisEquipamentoFilter">Equipamento</label>
+                            <select class="form-input" id="manuaisEquipamentoFilter">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <!-- Lista de Manuais -->
                     <div id="manuaisLista">
                         <div class="loading-spinner">A carregar manuais...</div>
                     </div>
-                    
+
                     <!-- Empty State -->
                     <div id="manuaisEmptyState" class="empty-state-small" style="display: none;">
                         <p>📚 Nenhum manual carregado ainda. Faça upload do primeiro manual abaixo!</p>
                     </div>
                 </div>
-                
+
                 <!-- ───────────────────────────────────────────────────────────── -->
-                <!-- SECÇÃO 3: UPLOAD DE NOVO MANUAL -->
+                <!-- SECÇÃO: UPLOAD DE NOVO MANUAL -->
                 <!-- ───────────────────────────────────────────────────────────── -->
-                
+
                 <div class="card" style="margin-top: var(--spacing-xl);">
-                    <h2 class="card-title">📤 Upload de Novo Manual</h2>
-                    <p class="card-description">Adicione novos manuais de instrução para consulta pelo Chatbot IA</p>
-                    
-                    <form id="uploadManualForm" class="maintenance-form">
+                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="const body = this.nextElementSibling; const arrow = this.querySelector('.upload-toggle-arrow'); body.style.display = body.style.display === 'none' ? 'block' : 'none'; arrow.style.transform = body.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                        <div>
+                            <h2 class="card-title" style="margin: 0;">📤 Upload de Novo Manual</h2>
+                            <p class="card-description" style="margin-top: 8px;">Adicione novos manuais de instrução para consulta pelo Chatbot IA</p>
+                        </div>
+                        <svg class="upload-toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 24px; height: 24px; transition: transform 0.2s; transform: rotate(-90deg); flex-shrink: 0;">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </div>
+                    <div style="display: none;">
+                    <form id="uploadManualForm" class="maintenance-form" style="margin-top: var(--spacing-md);">
+                        <!-- Empresa -->
+                        <div class="form-group">
+                            <label class="form-label" for="uploadEmpresa">Empresa *</label>
+                            <select class="form-input" id="uploadEmpresa" required>
+                                <option value="">Selecione a empresa</option>
+                                <option value="MCF">MCF</option>
+                                <option value="PSY">PSY</option>
+                            </select>
+                        </div>
+
                         <!-- Equipamento -->
                         <div class="form-group">
-                            <label class="form-label" for="manualEquipamento">Equipamento *</label>
-                            <input type="text" class="form-input" id="manualEquipamento" 
-                                   placeholder="ex: Alinhadeira L03" required>
+                            <label class="form-label" for="uploadEquipamento">Equipamento *</label>
+                            <select class="form-input" id="uploadEquipamento" required disabled>
+                                <option value="">Escolha primeiro a empresa</option>
+                            </select>
                         </div>
                         
                         <!-- Título -->
@@ -6677,6 +6545,7 @@
                         <div style="width: 100%; height: 8px; background: var(--color-border); border-radius: 4px; overflow: hidden;">
                             <div id="uploadProgressBar" style="width: 0%; height: 100%; background: var(--color-blue); transition: width 0.3s;"></div>
                         </div>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -8206,74 +8075,6 @@ const CONFIG = {
     },
     PLANNING_WEEKS: 2,
     INCLUDE_WEEKENDS: true,
-    MACHINES: {
-        // 🚀 v3.8.3.10.27.40: URLs migradas para Supabase Storage (autonomas/)
-        'crivo': { 
-            name: 'Crivo de excêntrico', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/crivo-de-excentrico.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/crivo-de-excentrico.pdf' 
-        },
-        'destrocador': { 
-            name: 'Destroçador', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/destrocador.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/destrocador.pdf' 
-        },
-        'l01-dupla': { 
-            name: 'L01 - Dupla', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---dupla.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---dupla.pdf' 
-        },
-        'l01-multiserra': { 
-            name: 'L01 - Multiserra', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---multiserra.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---multiserra.pdf' 
-        },
-        'l01-paletizadora': { 
-            name: 'L01 - Paletizadora', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---paletizadora.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---paletizadora.pdf' 
-        },
-        'l01-retestadeira': { 
-            name: 'L01 - Retestadeira', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---retestadeira.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---retestadeira.pdf' 
-        },
-        'l01-tracador': { 
-            name: 'L01 - Traçador', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---tracador.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l01---tracador.pdf' 
-        },
-        'l02-charriot': { 
-            name: 'L02 - Charriot', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l02---charriot.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l02---charriot.pdf' 
-        },
-        'l02-retestadeira': { 
-            name: 'L02 - Retestadeira', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l02---retestadeira.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l02---retestadeira.pdf' 
-        },
-        'l03-alinhadeira': { 
-            name: 'L03 - Alinhadeira', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---alinhadeira.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---alinhadeira.pdf' 
-        },
-        'l03-paletizadora': { 
-            name: 'L03 - Paletizadora', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---paletizadora.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---paletizadora.pdf' 
-        },
-        'l03-retestadeira': { 
-            name: 'L03 - Retestadeira', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---retestadeira.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/l03---retestadeira.pdf' 
-        },
-        'tinas': { 
-            name: 'Tinas impregnante', 
-            url: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/tinas-impregnante.pdf', 
-            embedUrl: 'https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/autonomas/tinas-impregnante.pdf' 
-        }
-    },
     
     // ❌ REMOVIDO v3.7.0.9: Migrado para Supabase (tabela lista_equipamentos)
     // Os equipamentos agora são carregados dinamicamente do Supabase
@@ -8533,7 +8334,6 @@ const AppState = {
 // Artigos, movimentos e pedidos são carregados do Supabase
 // Se não houver dados, app mostra erro (não usa dados falsos)
 
-let currentMachine = null;
 
 // ============================================
 // SISTEMA DE AUTENTICAÇÃO
@@ -9249,7 +9049,6 @@ async function initializeApp() {
     
     renderRequestsList();
     await initializePlanning();  // ✅ v3.7.0.8: AWAIT para carregar planeamento do Supabase
-    initializeAutonomousMaintenance();
     initializeStockModule();
     
     // 🆕 v3.8.3.10.27.42: Inicializar Revisões e Multiselect
@@ -10497,16 +10296,10 @@ async function extractTextFromPDF(file, progressCallback = null) {
             textoCompleto += textoPage + '\n\n';
         }
         
-        // PASSO 2: Se não encontrou texto (PDF escaneado), usar OCR PREMIUM
-        // 🔴 v3.7.6.2: FORÇAR OCR EM TODOS OS PDFs para testar detecção de tabelas
-        // Threshold: 999999 caracteres (FORÇAR OCR sempre)
-        if (textoCompleto.length < 999999) { // 🔴 TESTE: Era 500, agora 999999
-            console.log('🔴 MODO TESTE: OCR FORÇADO em TODOS os PDFs (threshold: 999999)');
-            console.log(`📊 Texto nativo encontrado: ${textoCompleto.length} caracteres`);
-            console.log('🔬 Iniciando OCR ULTRA (v3.7.6.2) com Tesseract.js...');
-            console.log('⏱️ ATENÇÃO: OCR de alta qualidade pode levar 10-15 minutos');
-            console.log('🎯 Melhorias ativadas: Pré-processamento + Scale adaptativo (3.0-5.0) + Extração de imagens');
-            console.log('🆕 v3.7.6.2: Thresholds ULTRA-AGRESSIVOS (gridSize 25px, tableScore>8, minArea 3000px²)');
+        // PASSO 2: Se não encontrou texto suficiente (PDF escaneado), usar OCR
+        if (textoCompleto.length < 500) {
+            console.log('📊 Texto nativo insuficiente:', textoCompleto.length, 'caracteres (< 500)');
+            console.log('🔬 Iniciando OCR com Tesseract.js...');
             
             if (typeof Tesseract === 'undefined') {
                 console.error('❌ Tesseract.js não está carregado! OCR não disponível.');
@@ -10541,7 +10334,7 @@ async function extractTextFromPDF(file, progressCallback = null) {
             
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                 const page = await pdf.getPage(pageNum);
-                const canvas = await pdfPageToImage(page, 3.5); // 🆕 v3.7.6.2: Scale AUMENTADO para melhor detecção (2.0→3.5)
+                const canvas = await pdfPageToImage(page, 2.0);
                 const imageRegions = detectImageRegions(canvas);
                 
                 if (imageRegions.length > 0) {
@@ -10563,7 +10356,7 @@ async function extractTextFromPDF(file, progressCallback = null) {
                 }
                 
                 const temTabelas = paginasComTabelas.has(pageNum);
-                const scale = temTabelas ? 5.0 : 3.0; // 🆕 Scale maior para páginas com tabelas
+                const scale = temTabelas ? 2.5 : 2.0;
                 
                 console.log(`🔬 OCR Premium - Página ${pageNum}/${pdf.numPages}... ${temTabelas ? '📊 (COM TABELAS - Scale 5.0)' : '(Scale 3.0)'}`);
                 
@@ -10606,67 +10399,14 @@ async function extractTextFromPDF(file, progressCallback = null) {
                         }
                         
                         try {
-                            // ⚡ v3.8.3.10.8: OTIMIZAÇÃO - Analisar ANTES do upload
-                            // Assim fazemos upload DIRETO com nome correto (evita criar 2 ficheiros)
-                            
-                            // 1. Analisar imagem com GPT-4 Vision (antes do upload!)
-                            let metadata = null;
-                            const textoPage = textosPorPagina[pageNum] || '';
-                            const dataUrl = regionCanvas.toDataURL('image/png');
-                            
-                            console.log(`    🔍 Analisando ${region.type} ${idx + 1} com GPT-4 Vision...`);
-                            metadata = await analisarImagemComGPT4Vision(dataUrl, textoPage, pageNum);
-                            
-                            // 🔍 DEBUG: Log completo da metadata recebida
-                            console.log(`    🔍 [DEBUG] Metadata recebida do GPT-4 Vision:`, JSON.stringify(metadata, null, 2));
-                            
-                            // 2. Determinar nome do ficheiro (com ou sem metadata)
-                            let fileName;
-                            
-                            // 🔍 DEBUG: Verificar condição
-                            console.log(`    🔍 [DEBUG] Decisão de nome: metadata=${!!metadata}, metadata.tipo="${metadata?.tipo}"`);
-                            
-                            if (metadata && metadata.tipo) {
-                                // 🆕 v3.8.3.10.21: Gerar nome descritivo SEMPRE que GPT-4 identificar o tipo
-                                const tipo = metadata.tipo.toLowerCase().replace(/[^a-z0-9]/g, '');
-                                const tags = metadata.tags || [];
-                                
-                                // Gerar nome baseado no tipo e tags
-                                let nomeBase;
-                                if (tipo === 'esquema' || tags.includes('esquema_eletrico')) {
-                                    nomeBase = 'esquema_eletrico';
-                                } else if (tipo === 'indice' || tags.includes('indice')) {
-                                    // 🆕 v3.8.3.10.27.9: Detecção de índices
-                                    nomeBase = 'indice_manual';
-                                } else if (tipo === 'diagrama') {
-                                    const subtipo = tags.find(t => ['lubrificacao', 'componentes', 'instalacao'].includes(t));
-                                    nomeBase = subtipo ? `diagrama_${subtipo}` : 'diagrama';
-                                } else if (tipo === 'tabela') {
-                                    const subtipo = tags.find(t => ['especificacoes', 'manutencao', 'problemas'].includes(t));
-                                    nomeBase = subtipo ? `tabela_${subtipo}` : 'tabela';
-                                } else if (tipo === 'anexo') {
-                                    const numero = metadata.numero ? `_${metadata.numero}` : '';
-                                    nomeBase = `anexo${numero}`;
-                                } else {
-                                    nomeBase = tipo;
-                                }
-                                
-                                // Adicionar índice sequencial
-                                fileName = `${manualId}/${nomeBase}_${String(idx + 1).padStart(2, '0')}.png`;
-                                
-                                console.log(`    ✅ GPT-4 identificou: ${tipo} - "${metadata.titulo || 'sem título'}" → ${nomeBase}_${String(idx + 1).padStart(2, '0')}.png`);
-                            } else {
-                                // Fallback: nome genérico se GPT-4 não identificar
-                                const typeLabel = region.type.toLowerCase();
-                                const indexStr = String(idx).padStart(2, '0');
-                                fileName = `${manualId}/page_${String(pageNum).padStart(3, '0')}_${typeLabel}_${indexStr}.png`;
-                                console.log(`    ⚠️ GPT-4 não identificou tipo, usando nome genérico: ${fileName.split('/').pop()}`);
-                            }
-                            
-                            // 3. Upload DIRETO com nome final (não cria ficheiro temporário!)
+                            // Upload image with generic name (skip GPT-4 Vision for speed)
+                            const typeLabel = region.type.toLowerCase();
+                            const indexStr = String(idx).padStart(2, '0');
+                            const fileName = `${manualId}/page_${String(pageNum).padStart(3, '0')}_${typeLabel}_${indexStr}.png`;
+
                             const formData = new FormData();
                             formData.append('file', regionBlob, fileName.split('/').pop());
-                            
+
                             const uploadUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/manuais/${fileName}`;
                             const uploadResponse = await fetch(uploadUrl, {
                                 method: 'POST',
@@ -10676,133 +10416,26 @@ async function extractTextFromPDF(file, progressCallback = null) {
                                 },
                                 body: formData
                             });
-                            
-                            if (!uploadResponse.ok) {
-                                console.error(`    ❌ Erro ao fazer upload: ${uploadResponse.status}`);
-                                throw new Error(`Erro no upload: ${uploadResponse.status}`);
+
+                            if (uploadResponse.ok) {
+                                const finalImageUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${fileName}`;
+                                console.log(`    ✅ Upload: ${fileName.split('/').pop()} (${(regionBlob.size / 1024).toFixed(1)}KB)`);
+                                imagensExtraidas.push({
+                                    url: finalImageUrl,
+                                    type: region.type,
+                                    score: region.score,
+                                    gpt_metadata: null
+                                });
                             }
-                            
-                            const finalImageUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${fileName}`;
-                            console.log(`    ✅ Upload completo: ${fileName.split('/').pop()} (${(regionBlob.size / 1024).toFixed(1)}KB)`);
-                            
-                            // 4. Guardar imagem com metadata
-                            imagensExtraidas.push({
-                                url: finalImageUrl,
-                                type: region.type,
-                                score: region.score,
-                                gpt_metadata: metadata
-                            });
                         } catch (uploadError) {
-                            console.error(`    ❌ Erro ao fazer upload/análise da ${region.type} ${idx + 1}:`, uploadError);
+                            console.error(`    ❌ Erro upload ${region.type} ${idx + 1}:`, uploadError);
                         }
                     }
                     
                     imagensPorPagina[pageNum] = imagensExtraidas;
                 }
                 
-                // 🆕 v3.8.3.10.27.9: FALLBACK - Análise da página inteira se nenhuma região foi detectada
-                if (regions.length === 0) {
-                    console.log(`  🔍 Nenhuma região detectada na página ${pageNum}, analisando página inteira...`);
-                    
-                    try {
-                        // Converter canvas para data URL
-                        const dataUrl = canvas.toDataURL('image/png');
-                        
-                        // Analisar com GPT-4 Vision
-                        const metadata = await analisarImagemComGPT4Vision(dataUrl, textoPage, pageNum);
-                        
-                        if (metadata && metadata.tipo) {
-                            // Tipos que QUEREMOS salvar a página inteira
-                            const tiposRelevantes = ['indice', 'esquema', 'tabela', 'diagrama', 'anexo'];
-                            
-                            if (tiposRelevantes.includes(metadata.tipo)) {
-                                console.log(`  ✅ GPT-4 detectou '${metadata.tipo}' na página inteira! Salvando...`);
-                                
-                                // Gerar nome descritivo
-                                const tipo = metadata.tipo.toLowerCase().replace(/[^a-z0-9]/g, '');
-                                const tags = metadata.tags || [];
-                                let nomeBase = tipo;
-                                
-                                // Lógica de renomeação (igual à atual)
-                                if (tipo === 'esquema' || tags.includes('esquema_eletrico')) {
-                                    nomeBase = 'esquema_eletrico';
-                                } else if (tipo === 'diagrama') {
-                                    const subtipo = tags.find(t => ['lubrificacao', 'componentes', 'instalacao'].includes(t));
-                                    nomeBase = subtipo ? `diagrama_${subtipo}` : 'diagrama';
-                                } else if (tipo === 'tabela') {
-                                    if (tags.includes('indice')) {
-                                        nomeBase = 'indice_manual';
-                                    } else {
-                                        const subtipo = tags.find(t => ['especificacoes', 'manutencao', 'problemas'].includes(t));
-                                        nomeBase = subtipo ? `tabela_${subtipo}` : 'tabela';
-                                    }
-                                } else if (tipo === 'indice') {
-                                    nomeBase = 'indice_manual';
-                                } else if (tipo === 'anexo' && metadata.numero) {
-                                    nomeBase = `anexo_${metadata.numero}`;
-                                }
-                                
-                                // Contar índice para nome único
-                                const imagensExistentes = imagensPorPagina[pageNum] || [];
-                                const idx = imagensExistentes.length;
-                                const fileName = `${manualId}/${nomeBase}_${String(idx + 1).padStart(2, '0')}.png`;
-                                
-                                console.log(`  📝 Nome do ficheiro: ${fileName.split('/').pop()}`);
-                                
-                                // Upload da página inteira
-                                canvas.toBlob(async (blob) => {
-                                    if (!blob) {
-                                        console.error('  ❌ Erro ao converter canvas para blob');
-                                        return;
-                                    }
-                                    
-                                    try {
-                                        const formData = new FormData();
-                                        formData.append('file', blob, fileName.split('/').pop());
-                                        
-                                        const uploadResponse = await fetch(`${SUPABASE_CONFIG.URL}/storage/v1/object/manuais/${fileName}`, {
-                                            method: 'POST',
-                                            headers: {
-                                                'apikey': SUPABASE_CONFIG.ANON_KEY,
-                                                'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
-                                                'x-upsert': 'true'
-                                            },
-                                            body: formData
-                                        });
-                                        
-                                        if (!uploadResponse.ok) {
-                                            throw new Error(`Upload falhou: ${uploadResponse.status}`);
-                                        }
-                                        
-                                        const finalImageUrl = `${SUPABASE_CONFIG.URL}/storage/v1/object/public/manuais/${fileName}`;
-                                        console.log(`  ✅ Página inteira salva: ${fileName.split('/').pop()} (${(blob.size / 1024).toFixed(1)}KB)`);
-                                        
-                                        // Adicionar às imagens extraídas
-                                        if (!imagensPorPagina[pageNum]) {
-                                            imagensPorPagina[pageNum] = [];
-                                        }
-                                        imagensPorPagina[pageNum].push({
-                                            url: finalImageUrl,
-                                            type: metadata.tipo,
-                                            score: 100, // Página inteira sempre tem score alto
-                                            gpt_metadata: metadata
-                                        });
-                                    } catch (uploadError) {
-                                        console.error(`  ❌ Erro ao fazer upload da página inteira:`, uploadError);
-                                    }
-                                }, 'image/png');
-                            } else {
-                                console.log(`  ℹ️ Tipo '${metadata.tipo}' não é relevante, ignorando página.`);
-                            }
-                        } else {
-                            console.log(`  ℹ️ GPT-4 não detectou conteúdo relevante na página ${pageNum}.`);
-                        }
-                    } catch (fallbackError) {
-                        console.error(`  ⚠️ Erro na análise fallback da página ${pageNum}:`, fallbackError);
-                    }
-                }
-                
-                // Extrair texto com OCR (alta qualidade)
+                // Extrair texto com OCR
                 const { data: { text, confidence } } = await worker.recognize(canvas);
                 const textoPage = text.trim();
                 
@@ -10949,52 +10582,49 @@ async function extractTextFromPDF(file, progressCallback = null) {
 /**
  * Processar e fazer upload de manual completo
  */
-async function processarManual(equipamento, titulo, descricao, file) {
+async function processarManual(empresa, equipamento, titulo, descricao, file) {
     try {
         // 1. Extrair texto do PDF (com callback de progresso)
         setProgress('A extrair texto do PDF...', 10);
         const { textoCompleto, numPaginas, secoes, usouOCR } = await extractTextFromPDF(file, (msg) => {
             setProgress(msg, 10 + Math.random() * 20); // 10-30%
         });
-        
+
         if (usouOCR) {
             console.log('🔬 Texto extraído via OCR (Tesseract.js)');
         }
-        
-        // 2. Upload do PDF para Storage PRIMEIRO (para ter URL)
+
+        // 2. Upload do PDF para Storage
         setProgress('A fazer upload do PDF...', 30);
-        // Criar ID temporário para o ficheiro
         const tempId = crypto.randomUUID();
         const pdfUrl = await window.SupabaseAPI.uploadManualPDF(tempId, file);
         console.log('✅ PDF enviado:', pdfUrl);
-        
-        // 3. Criar registo do manual no Supabase (agora com URL)
+
+        // 3. Criar registo do manual no Supabase
         setProgress('A criar registo do manual...', 50);
-        
-        // Extrair área e nome do equipamento
-        // Ex: "Alinhadeira L03" → area: "L03", nome: "Alinhadeira"
-        // Ex: "Destroçador" → area: "Triagem", nome: "Destroçador"
+
+        // Extract area and component from selected equipment (format: "L03 - Alinhadeira")
         let equipamentoArea = 'Geral';
         let equipamentoNome = equipamento;
-        
-        console.log('🔍 [DEBUG] equipamento original:', equipamento);
-        
-        // Tentar detectar área (L01, L02, L03, etc)
-        const matchArea = equipamento.match(/L0[123]|Triagem|Silo/i);
-        if (matchArea) {
-            equipamentoArea = matchArea[0];
-            equipamentoNome = equipamento.replace(matchArea[0], '').trim();
+        const selectedOption = document.getElementById('uploadEquipamento')?.selectedOptions[0];
+        if (selectedOption && selectedOption.dataset.area) {
+            equipamentoArea = selectedOption.dataset.area;
+            equipamentoNome = selectedOption.dataset.componente || equipamento;
+        } else {
+            // Fallback: parse from string
+            const parts = equipamento.split(' - ');
+            if (parts.length === 2) {
+                equipamentoArea = parts[0].trim();
+                equipamentoNome = parts[1].trim();
+            }
         }
-        
-        console.log('🔍 [DEBUG] equipamentoArea:', equipamentoArea);
-        console.log('🔍 [DEBUG] equipamentoNome:', equipamentoNome);
-        
+
         const manualData = {
             equipamento_area: equipamentoArea,
-            equipamento_nome: equipamentoNome || equipamento,
+            equipamento_nome: equipamentoNome,
             titulo: titulo,
             descricao: descricao || '',
-            empresa: 'MCF', // Default MCF (pode ser alterado depois)
+            empresa: empresa,
             ficheiro_url: pdfUrl,
             ficheiro_nome: file.name,
             tamanho_kb: Math.round(file.size / 1024),
@@ -11243,29 +10873,86 @@ async function carregarManuaisBackground() {
 }
 
 /**
- * Carregar lista de manuais
+ * Populate equipamento filter dropdown for Manuais list
+ */
+function populateManuaisEquipamentoFilter(empresa) {
+    const select = document.getElementById('manuaisEquipamentoFilter');
+    if (!select) return;
+    select.innerHTML = '<option value="">Todos</option>';
+    if (!empresa) return;
+    const equipamentos = AppState.equipamentos.filter(e => e.empresa === empresa);
+    const areas = [...new Set(equipamentos.map(e => e.area))].sort();
+    areas.forEach(area => {
+        const option = document.createElement('option');
+        option.value = area;
+        option.textContent = area;
+        select.appendChild(option);
+    });
+}
+
+/**
+ * Populate equipamento dropdown for Upload form (cascading from empresa)
+ */
+function populateUploadEquipamento(empresa) {
+    const select = document.getElementById('uploadEquipamento');
+    if (!select) return;
+    select.innerHTML = '<option value="">Selecione o equipamento</option>';
+    if (!empresa) {
+        select.disabled = true;
+        select.innerHTML = '<option value="">Escolha primeiro a empresa</option>';
+        return;
+    }
+    select.disabled = false;
+    const equipamentos = AppState.equipamentos.filter(e => e.empresa === empresa);
+    const seen = new Set();
+    equipamentos.sort((a, b) => (a.area + a.componente).localeCompare(b.area + b.componente)).forEach(e => {
+        const label = `${e.area} - ${e.componente}`;
+        if (seen.has(label)) return;
+        seen.add(label);
+        const option = document.createElement('option');
+        option.value = label;
+        option.dataset.area = e.area;
+        option.dataset.componente = e.componente;
+        option.textContent = label;
+        select.appendChild(option);
+    });
+}
+
+/**
+ * Carregar lista de manuais (with filtering)
  */
 async function carregarManuais() {
     try {
         const lista = document.getElementById('manuaisLista');
         const emptyState = document.getElementById('manuaisEmptyState');
-        
+
         lista.innerHTML = '<div class="loading-spinner">A carregar manuais...</div>';
-        
+
         const manuais = await window.SupabaseAPI.getManuais();
-        
-        // ✅ Guardar no AppState para uso no chatbot
+
+        // Guardar no AppState para uso no chatbot (unfiltered)
         AppState.manuais = manuais;
-        
-        if (manuais.length === 0) {
+
+        // Apply filters
+        const empresaFilter = document.getElementById('manuaisEmpresaFilter')?.value;
+        const equipamentoFilter = document.getElementById('manuaisEquipamentoFilter')?.value;
+        let manuaisFiltrados = manuais;
+        if (empresaFilter) {
+            manuaisFiltrados = manuaisFiltrados.filter(m => m.empresa === empresaFilter);
+        }
+        if (equipamentoFilter) {
+            manuaisFiltrados = manuaisFiltrados.filter(m => m.equipamento_area === equipamentoFilter);
+        }
+
+        if (manuaisFiltrados.length === 0) {
             lista.innerHTML = '';
             emptyState.style.display = 'block';
             return;
         }
-        
+
         emptyState.style.display = 'none';
-        
-        lista.innerHTML = manuais.map(m => `
+
+        lista.innerHTML = manuaisFiltrados.map(m => `
             <div class="manual-card">
                 <div class="manual-card-header">
                     <div>
@@ -11539,53 +11226,73 @@ function setupEventListeners() {
         clearPlanningFilters.addEventListener('click', clearPlanningFiltersFunc);
     }
     
+    // 📚 Manuais: Filtros Empresa + Equipamento (lista)
+    const manuaisEmpresaFilter = document.getElementById('manuaisEmpresaFilter');
+    const manuaisEquipamentoFilter = document.getElementById('manuaisEquipamentoFilter');
+    if (manuaisEmpresaFilter) {
+        manuaisEmpresaFilter.addEventListener('change', (e) => {
+            populateManuaisEquipamentoFilter(e.target.value);
+            carregarManuais();
+        });
+    }
+    if (manuaisEquipamentoFilter) {
+        manuaisEquipamentoFilter.addEventListener('change', () => carregarManuais());
+    }
+
+    // 📚 Upload: Empresa → Equipamento cascading
+    const uploadEmpresa = document.getElementById('uploadEmpresa');
+    if (uploadEmpresa) {
+        uploadEmpresa.addEventListener('change', (e) => {
+            populateUploadEquipamento(e.target.value);
+        });
+    }
+
     // 📚 Event listener para formulário de upload de manuais
     const uploadManualForm = document.getElementById('uploadManualForm');
     if (uploadManualForm) {
         uploadManualForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             try {
-                const equipamento = document.getElementById('manualEquipamento').value;
+                const empresa = document.getElementById('uploadEmpresa').value;
+                const equipamentoSelect = document.getElementById('uploadEquipamento');
+                const equipamento = equipamentoSelect.value;
                 const titulo = document.getElementById('manualTitulo').value;
                 const descricao = document.getElementById('manualDescricao').value;
                 const fileInput = document.getElementById('manualPDF');
                 const file = fileInput.files[0];
-                
+
                 if (!file) {
-                    showToast('❌ Por favor selecione um ficheiro PDF', 'error');
+                    showToast('Por favor selecione um ficheiro PDF', 'error');
                     return;
                 }
-                
-                // Validar tamanho (50MB max)
+
                 if (file.size > 50 * 1024 * 1024) {
-                    showToast('❌ Ficheiro muito grande! Máximo: 50MB', 'error');
+                    showToast('Ficheiro muito grande! Máximo: 50MB', 'error');
                     return;
                 }
-                
-                // Validar tipo
+
                 if (file.type !== 'application/pdf') {
-                    showToast('❌ Apenas ficheiros PDF são permitidos', 'error');
+                    showToast('Apenas ficheiros PDF são permitidos', 'error');
                     return;
                 }
-                
-                console.log('📚 A processar manual:', { equipamento, titulo, file: file.name });
-                
-                // Processar manual
-                await processarManual(equipamento, titulo, descricao, file);
-                
-                showToast('✅ Manual processado com sucesso!', 'success');
-                
-                // Limpar formulário
+
+                console.log('📚 A processar manual:', { empresa, equipamento, titulo, file: file.name });
+
+                await processarManual(empresa, equipamento, titulo, descricao, file);
+
+                showToast('Manual processado com sucesso!', 'success');
+
                 uploadManualForm.reset();
+                document.getElementById('uploadEquipamento').disabled = true;
+                document.getElementById('uploadEquipamento').innerHTML = '<option value="">Escolha primeiro a empresa</option>';
                 document.getElementById('uploadProgress').style.display = 'none';
-                
-                // Recarregar lista
+
                 await carregarManuais();
-                
+
             } catch (error) {
                 console.error('❌ Erro ao processar manual:', error);
-                showToast('❌ Erro ao processar manual: ' + error.message, 'error');
+                showToast('Erro ao processar manual: ' + error.message, 'error');
                 document.getElementById('uploadProgress').style.display = 'none';
             }
         });
@@ -16500,76 +16207,6 @@ function formatDateKey(date) {
 function formatDateShort(date) { return date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
 function formatDateLong2(date) { return date.toLocaleDateString('pt-PT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }); }
 
-// MANUTENÇÕES AUTÓNOMAS
-function initializeAutonomousMaintenance() {
-    const machineSelect = document.getElementById('machineSelect');
-    const closePdfBtn = document.getElementById('closePdfBtn');
-    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
-    const printPdfBtn = document.getElementById('printPdfBtn');
-    // ❌ v3.8.3.10.27.38: openOneDriveBtn REMOVIDO (migração para Supabase)
-    
-    machineSelect.addEventListener('change', function() {
-        const machineKey = this.value;
-        if (!machineKey) { hidePdfViewer(); return; }
-        const machine = CONFIG.MACHINES[machineKey];
-        if (!machine) { showToast('Máquina não encontrada.', 'error'); return; }
-        loadPdfForMachine(machineKey, machine);
-    });
-    
-    closePdfBtn.addEventListener('click', function() { hidePdfViewer(); machineSelect.value = ''; });
-    downloadPdfBtn.addEventListener('click', function() { if (currentMachine) { window.open(currentMachine.url, '_blank'); showToast('Abrindo download...', 'info'); } });
-    printPdfBtn.addEventListener('click', function() {
-        if (currentMachine) {
-            try {
-                const iframe = document.getElementById('pdfIframe');
-                iframe.contentWindow.print();
-            } catch (error) {
-                const printWindow = window.open(currentMachine.embedUrl, '_blank');
-                if (printWindow) printWindow.onload = function() { printWindow.print(); };
-            }
-        }
-    });
-    // ❌ v3.8.3.10.27.38: Event listener do openOneDriveBtn REMOVIDO (migração para Supabase)
-}
-
-function loadPdfForMachine(machineKey, machine) {
-    const pdfActions = document.getElementById('pdfActions');
-    const pdfViewerContainer = document.getElementById('pdfViewerContainer');
-    const pdfEmptyState = document.getElementById('pdfEmptyState');
-    const pdfIframe = document.getElementById('pdfIframe');
-    const pdfTitle = document.getElementById('pdfTitle');
-    const pdfViewer = document.querySelector('.pdf-viewer');
-    currentMachine = machine;
-    pdfViewer.classList.add('loading');
-    pdfEmptyState.style.display = 'none';
-    pdfActions.style.display = 'flex';
-    pdfViewerContainer.style.display = 'block';
-    pdfTitle.textContent = `Procedimento: ${machine.name}`;
-    
-    // 🚀 v3.8.3.10.27.38: Usar embedUrl se existir (Supabase), senão usar URL antiga (OneDrive)
-    const pdfUrl = machine.embedUrl || machine.url;
-    pdfIframe.src = pdfUrl;
-    
-    console.log(`📄 Carregando PDF: ${machine.name}`, pdfUrl);
-    
-    setTimeout(() => { pdfViewer.classList.remove('loading'); }, 2000);
-    setTimeout(() => { pdfViewerContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300);
-    showToast(`Carregando: ${machine.name}`, 'info');
-}
-
-function hidePdfViewer() {
-    const pdfActions = document.getElementById('pdfActions');
-    const pdfViewerContainer = document.getElementById('pdfViewerContainer');
-    const pdfEmptyState = document.getElementById('pdfEmptyState');
-    const pdfIframe = document.getElementById('pdfIframe');
-    const pdfViewer = document.querySelector('.pdf-viewer');
-    currentMachine = null;
-    pdfIframe.src = '';
-    pdfViewer.classList.remove('loading');
-    pdfActions.style.display = 'none';
-    pdfViewerContainer.style.display = 'none';
-    pdfEmptyState.style.display = 'flex';
-}
 
 // ============================================
 // ============================================
@@ -20444,98 +20081,82 @@ async function buscarManuaisFullText(pergunta, maxResultados = 5) {
  * Buscar manuais relevantes baseados na pergunta
  */
 async function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
-    // 🆕 v3.7.7.4: Usar keywords do Supabase em vez de lista hardcoded!
     const perguntaLower = pergunta.toLowerCase();
-    
-    // Carregar keywords do Supabase (ou fallback)
-    const topicosKeywords = await carregarKeywords();
-    
-    // Juntar TODAS as keywords de TODOS os tópicos numa única lista
-    const todasKeywords = Object.values(topicosKeywords).flat();
-    
-    console.log('🔍 [MANUAIS] Keywords carregadas:', todasKeywords.length, 'palavras');
-    console.log('🔍 [MANUAIS] Pergunta:', pergunta);
-    
-    // Verificar se a pergunta contém QUALQUER keyword
-    const mencionaManual = todasKeywords.some(palavra => perguntaLower.includes(palavra.toLowerCase()));
-    
-    console.log('🔍 [MANUAIS] Menciona manual/keyword?', mencionaManual);
-    
-    // 🆕 v3.8.3.9: BUSCA HÍBRIDA - Tentar full-text MESMO SEM keywords
-    let resultadosFullText = [];
-    if (!mencionaManual && equipamentosMencionados.length === 0) {
-        console.log('⚠️ [MANUAIS] Nenhuma keyword detectada, tentando busca full-text...');
-        
-        // Tentar busca full-text como fallback
-        resultadosFullText = await buscarManuaisFullText(pergunta, 3);
-        
-        if (resultadosFullText.length === 0) {
-            console.log('❌ [MANUAIS] Full-text também não encontrou resultados');
-            return null;  // Não incluir manuais se não forem relevantes
-        }
-        
-        console.log(`✅ [MANUAIS] Full-text encontrou ${resultadosFullText.length} resultados!`);
-        
-        // Retornar resultados do full-text diretamente
-        return {
-            disponivel: true,
-            fonte: 'fulltext',
-            manuais: resultadosFullText.map(r => ({
-                manual: {
-                    id: r.manual_id,
-                    titulo: r.manual_titulo,
-                    equipamento_area: r.equipamento_area,
-                    equipamento_nome: r.equipamento_nome
-                },
-                secoes: [{
-                    titulo: r.secao,
-                    paginas: `${r.pagina_inicio}-${r.pagina_fim}`,
-                    texto: r.conteudo,
-                    relevancia: r.relevancia,
-                    imagens_urls: [],
-                    tags: []
-                }]
-            }))
-        };
-    }
-    
-    console.log('✅ [MANUAIS] Keywords detectadas! Buscando manuais...');
-    
-    // Se houver manuais carregados no AppState (carregados quando tab é aberta)
+
+    // No manuals loaded? Exit early
     if (!AppState.manuais || AppState.manuais.length === 0) {
         return {
             disponivel: false,
             mensagem: 'Nenhum manual carregado no sistema ainda.'
         };
     }
-    
-    // Filtrar manuais relevantes
-    let manuaisRelevantes = AppState.manuais;
-    
-    // 🆕 v3.7.6.9: Detectar equipamentos mencionados na pergunta (não só em pedidos)
-    // 🆕 v3.8.3.10.16: Procurar em equipamento_nome E equipamento_area
-    const equipamentosNaPergunta = AppState.manuais
-        .filter(m => m.ativo)
-        .filter(m => {
-            const nome = (m.equipamento_nome || '').toLowerCase();
-            const area = (m.equipamento_area || '').toLowerCase();
-            return perguntaLower.includes(nome) || perguntaLower.includes(area);
-        })
-        .map(m => m.equipamento_nome || m.equipamento_area);
-    
-    if (equipamentosMencionados.length > 0 || equipamentosNaPergunta.length > 0) {
-        // Filtrar por equipamento mencionado (de pedidos OU de manuais)
-        const todosEquipamentos = [...equipamentosMencionados, ...equipamentosNaPergunta];
-        // 🆕 v3.8.3.10.16: Procurar em equipamento_nome E equipamento_area
-        manuaisRelevantes = AppState.manuais.filter(m => 
-            todosEquipamentos.some(eq => {
+
+    // STEP 1: Match manuals by title, equipment name, or area mentioned in question
+    let manuaisRelevantes = AppState.manuais.filter(m => {
+        if (!m.ativo) return false;
+        const titulo = (m.titulo || '').toLowerCase();
+        const nome = (m.equipamento_nome || '').toLowerCase();
+        const area = (m.equipamento_area || '').toLowerCase();
+        // Check if question mentions this manual's title, equipment, or area
+        return (titulo && titulo.length > 2 && perguntaLower.includes(titulo))
+            || (nome && nome.length > 2 && perguntaLower.includes(nome))
+            || (area && area.length > 2 && perguntaLower.includes(area))
+            || equipamentosMencionados.some(eq => {
                 const eqLower = eq.toLowerCase();
-                const nome = (m.equipamento_nome || '').toLowerCase();
-                const area = (m.equipamento_area || '').toLowerCase();
                 return nome.includes(eqLower) || area.includes(eqLower);
-            })
-        );
+            });
+    });
+
+    // STEP 2: If user says "manual" but no specific match, search ALL manuals
+    if (manuaisRelevantes.length === 0 && perguntaLower.includes('manual')) {
+        console.log('🔍 [MANUAIS] "manual" mencionado mas sem match direto, incluindo todos');
+        manuaisRelevantes = AppState.manuais.filter(m => m.ativo);
     }
+
+    // STEP 3: If still nothing, try keyword-based detection as fallback
+    if (manuaisRelevantes.length === 0) {
+        const topicosKeywords = await carregarKeywords();
+        const todasKeywords = Object.values(topicosKeywords).flat();
+        const mencionaKeyword = todasKeywords.some(palavra => perguntaLower.includes(palavra.toLowerCase()));
+
+        if (mencionaKeyword) {
+            manuaisRelevantes = AppState.manuais.filter(m => m.ativo);
+        }
+    }
+
+    // STEP 4: Last resort — try full-text search in Supabase
+    if (manuaisRelevantes.length === 0) {
+        try {
+            const resultadosFullText = await buscarManuaisFullText(pergunta, 3);
+            if (resultadosFullText.length > 0) {
+                return {
+                    disponivel: true,
+                    fonte: 'fulltext',
+                    manuais: resultadosFullText.map(r => ({
+                        manual: {
+                            id: r.manual_id,
+                            titulo: r.manual_titulo,
+                            equipamento_area: r.equipamento_area,
+                            equipamento_nome: r.equipamento_nome
+                        },
+                        secoes: [{
+                            titulo: r.secao,
+                            paginas: `${r.pagina_inicio}-${r.pagina_fim}`,
+                            texto: r.conteudo,
+                            relevancia: r.relevancia,
+                            imagens_urls: [],
+                            tags: []
+                        }]
+                    }))
+                };
+            }
+        } catch (e) {
+            console.error('⚠️ [MANUAIS] Full-text search failed:', e);
+        }
+        return null;
+    }
+
+    console.log(`🔍 [MANUAIS] ${manuaisRelevantes.length} manuais relevantes encontrados`);
     
     // Se encontrou manuais relevantes, incluir secções de conteúdo
     if (manuaisRelevantes.length > 0) {
