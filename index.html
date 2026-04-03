@@ -6073,6 +6073,23 @@
         </section>
 
         <!-- 🆕 v3.8.3.10.27.10: Modal de Relatório de OTs -->
+        <!-- Modal PDF Viewer -->
+        <div id="modalPdfViewer" class="modal" style="display: none;">
+            <div class="modal-overlay" onclick="fecharModalPdf()"></div>
+            <div class="modal-content" style="max-width: 95%; width: 1200px; height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
+                <div class="modal-header" style="flex-shrink: 0;">
+                    <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 24px;">📄</span>
+                        <span id="modalPdfTitle">Manual</span>
+                    </h2>
+                    <button class="modal-close" onclick="fecharModalPdf()">&times;</button>
+                </div>
+                <div class="modal-body" style="flex: 1; padding: 0; overflow: hidden;">
+                    <iframe id="modalPdfIframe" style="width: 100%; height: 100%; border: none;"></iframe>
+                </div>
+            </div>
+        </div>
+
         <div id="modalRelatorio" class="modal" style="display: none;">
             <div class="modal-content" style="max-width: 95%; width: 1400px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
                 <div class="modal-header" style="flex-shrink: 0;">
@@ -11110,7 +11127,7 @@ function setupEventListeners() {
         });
     }
     
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal(); fecharModalPdf(); } });
     
     // ⚡ Event listeners para Equipamentos/Componentes
     const areaSelect = document.getElementById('areaEquipamento');
@@ -19347,7 +19364,13 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
 
     // Markdown: links, bold, italic, lists, line breaks
     let htmlContent = textoProcessado
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--color-blue);text-decoration:underline;">$1</a>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+            // PDF links open in modal, other links open in new tab
+            if (url.includes('/manuais/') && url.includes('.pdf')) {
+                return `<a href="javascript:void(0)" onclick="abrirPdfModal('${url.replace(/'/g, "\\'")}')" style="color:var(--color-blue);text-decoration:underline;cursor:pointer;">${text}</a>`;
+            }
+            return `<a href="${url}" target="_blank" style="color:var(--color-blue);text-decoration:underline;">${text}</a>`;
+        })
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/\n- /g, '\n• ')
@@ -19365,6 +19388,29 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
 /**
  * Mostrar/esconder status de loading
  */
+/**
+ * Open PDF in modal viewer at a specific page
+ */
+function abrirPdfModal(url) {
+    const modal = document.getElementById('modalPdfViewer');
+    const iframe = document.getElementById('modalPdfIframe');
+    const title = document.getElementById('modalPdfTitle');
+    if (!modal || !iframe) return;
+    // Extract page from hash if present
+    const pageMatch = url.match(/#page=(\d+)/);
+    const pagina = pageMatch ? pageMatch[1] : '';
+    title.textContent = pagina ? `Manual - Página ${pagina}` : 'Manual';
+    iframe.src = url;
+    modal.style.display = 'flex';
+}
+
+function fecharModalPdf() {
+    const modal = document.getElementById('modalPdfViewer');
+    const iframe = document.getElementById('modalPdfIframe');
+    if (modal) modal.style.display = 'none';
+    if (iframe) iframe.src = '';
+}
+
 function mostrarChatbotStatus(mostrar = true, mensagemCustom = null) {
     const status = document.getElementById('chatbotStatus');
     if (status) {
