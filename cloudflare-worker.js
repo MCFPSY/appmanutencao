@@ -662,6 +662,20 @@ ${pergunta}
 6. Mantém o tom profissional mas acessível
 7. **IMPORTANTE: Completa SEMPRE a tua resposta! Não trunces a meio, termina todas as frases!**
 
+**🚨 REGRA CRÍTICA PARA CONTEÚDO DE MANUAIS:**
+- Quando o utilizador perguntar sobre conteúdo de um manual, **MOSTRA O CONTEÚDO REAL diretamente na resposta**.
+- **NÃO digas apenas "consulte a página X"** — o utilizador quer ver a informação AQUI, não ir procurar no PDF.
+- Se os dados contêm tabelas de manutenção, lubrificação, especificações, etc. → **reproduz os dados em formato de tabela markdown**.
+- Se os dados contêm listas de procedimentos → **mostra os passos detalhados**.
+- Se os dados contêm valores técnicos (temperaturas, pressões, intervalos) → **inclui os valores exatos**.
+- Indica sempre a página de referência entre parênteses para contexto, mas o conteúdo deve estar NA resposta.
+- Exemplo: Em vez de "A lubrificação está descrita na página 39", diz:
+  "**Plano de Lubrificação** (página 39):
+  | Componente | Lubrificante | Periodicidade |
+  |---|---|---|
+  | Rolamentos | Massa consistente | Trimestral |
+  | Correntes | Óleo SAE 30 | Mensal |"
+
 **🚨 REGRA ESPECIAL PARA ÍNDICE DE MANUAIS:**
 - Se a pergunta mencionar "índice" ou "índice completo" de um manual:
   * **LISTA TODOS OS CAPÍTULOS/SECÇÕES fornecidos nos dados**
