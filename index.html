@@ -20171,8 +20171,36 @@ window.enviarPerguntaChatbot = async function() {
                     throw new Error('Resposta inválida do servidor: campo "resposta" ausente');
                 }
                 
-                // Processar resposta normalmente
+                // Post-process: convert page references to clickable links
                 let respostaFinal = data.resposta;
+
+                // Find the manual's PDF URL from context
+                let pdfUrl = null;
+                if (contexto.manuais && contexto.manuais.manuais) {
+                    const firstManual = contexto.manuais.manuais[0];
+                    pdfUrl = firstManual?.ficheiro_url || firstManual?.manual?.ficheiro_url;
+                }
+                if (!pdfUrl && contexto.manuais && contexto.manuais.disponivel) {
+                    // Try alternate structure
+                    for (const m of (contexto.manuais.manuais || [])) {
+                        if (m.ficheiro_url) { pdfUrl = m.ficheiro_url; break; }
+                    }
+                }
+
+                if (pdfUrl) {
+                    // Convert patterns like "Ver página 39", "(página 39)", "(páginas 57-84)" to markdown links
+                    respostaFinal = respostaFinal
+                        .replace(/\(Ver páginas? (\d+)(?:-(\d+))?\)/gi, (match, p1) => {
+                            return `([Ver página ${p1}](${pdfUrl}#page=${p1}))`;
+                        })
+                        .replace(/Ver páginas? (\d+)(?:-(\d+))?(?!\])/gi, (match, p1) => {
+                            return `[Ver página ${p1}](${pdfUrl}#page=${p1})`;
+                        })
+                        .replace(/\(páginas? (\d+)(?:-(\d+))?\)/gi, (match, p1) => {
+                            return `([ver página ${p1}](${pdfUrl}#page=${p1}))`;
+                        });
+                }
+
                 adicionarMensagemChat(respostaFinal, 'assistant');
                 
                 // ✅ SUCESSO! Sair do try-catch principal
