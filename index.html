@@ -19397,11 +19397,13 @@ function abrirPdfModal(url) {
     const iframe = document.getElementById('modalPdfIframe');
     const title = document.getElementById('modalPdfTitle');
     if (!modal || !iframe) return;
-    // Extract page from hash if present
     const pageMatch = url.match(/#page=(\d+)/);
     const pagina = pageMatch ? pageMatch[1] : '';
     title.textContent = pagina ? `Manual - Página ${pagina}` : 'Manual';
-    iframe.src = url;
+    // Use PDF.js viewer for reliable page navigation on all devices
+    const pdfUrl = url.replace(/#page=\d+/, '');
+    const viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}${pagina ? '#page=' + pagina : ''}`;
+    iframe.src = viewerUrl;
     modal.style.display = 'flex';
 }
 
