@@ -19398,20 +19398,20 @@ function abrirPdfModal(url) {
     const pdfUrl = url.replace(/#page=\d+/, '');
     const viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}${pagina ? '#page=' + pagina : ''}`;
 
-    // Mobile: open PDF directly (PDF.js viewer has CORS issues on mobile Safari)
-    const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isMobile) {
-        window.open(url, '_blank');
-        return;
-    }
-
-    // Desktop: open in modal with PDF.js viewer
     const modal = document.getElementById('modalPdfViewer');
     const iframe = document.getElementById('modalPdfIframe');
     const title = document.getElementById('modalPdfTitle');
     if (!modal || !iframe) return;
     title.textContent = pagina ? `Manual - Página ${pagina}` : 'Manual';
-    iframe.src = viewerUrl;
+
+    // Mobile: use Google Docs Viewer (works in iframe on iOS, no CORS issues)
+    const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+        iframe.src = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdfUrl)}`;
+    } else {
+        // Desktop: PDF.js viewer with page navigation
+        iframe.src = viewerUrl;
+    }
     modal.style.display = 'flex';
 }
 
