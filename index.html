@@ -19393,16 +19393,24 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
  * Open PDF in modal viewer at a specific page
  */
 function abrirPdfModal(url) {
+    const pageMatch = url.match(/#page=(\d+)/);
+    const pagina = pageMatch ? pageMatch[1] : '';
+    const pdfUrl = url.replace(/#page=\d+/, '');
+    const viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}${pagina ? '#page=' + pagina : ''}`;
+
+    // Mobile: open PDF.js viewer in new tab (iframes render poorly on mobile)
+    const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+        window.open(viewerUrl, '_blank');
+        return;
+    }
+
+    // Desktop: open in modal with PDF.js viewer
     const modal = document.getElementById('modalPdfViewer');
     const iframe = document.getElementById('modalPdfIframe');
     const title = document.getElementById('modalPdfTitle');
     if (!modal || !iframe) return;
-    const pageMatch = url.match(/#page=(\d+)/);
-    const pagina = pageMatch ? pageMatch[1] : '';
     title.textContent = pagina ? `Manual - Página ${pagina}` : 'Manual';
-    // Use PDF.js viewer for reliable page navigation on all devices
-    const pdfUrl = url.replace(/#page=\d+/, '');
-    const viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}${pagina ? '#page=' + pagina : ''}`;
     iframe.src = viewerUrl;
     modal.style.display = 'flex';
 }
