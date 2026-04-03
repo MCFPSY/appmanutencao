@@ -3,9 +3,9 @@
 // Suporte offline e cache de recursos
 // ================================================
 
-const CACHE_NAME = 'manutencao-v19';
-const STATIC_CACHE = 'manutencao-static-v19';
-const DYNAMIC_CACHE = 'manutencao-dynamic-v19';
+const CACHE_NAME = 'manutencao-v20';
+const STATIC_CACHE = 'manutencao-static-v20';
+const DYNAMIC_CACHE = 'manutencao-dynamic-v20';
 
 // Recursos para cache no install
 const STATIC_ASSETS = [
@@ -74,39 +74,44 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     
-    // Estratégia: Cache First, Network Fallback
-    event.respondWith(
-        caches.match(request)
-            .then((cachedResponse) => {
-                if (cachedResponse) {
-                    // Retornar do cache e atualizar em background
-                    updateCache(request);
-                    return cachedResponse;
-                }
-                
-                // Não está no cache, buscar da rede
-                return fetch(request)
-                    .then((networkResponse) => {
-                        // Cachear recursos dinamicamente
-                        if (request.method === 'GET' && !url.href.includes('chrome-extension')) {
-                            return caches.open(DYNAMIC_CACHE)
-                                .then((cache) => {
-                                    cache.put(request, networkResponse.clone());
-                                    return networkResponse;
-                                });
-                        }
-                        return networkResponse;
-                    })
-                    .catch((error) => {
-                        console.error('[Service Worker] Fetch failed:', error);
-                        
-                        // Retornar página offline se disponível
-                        if (request.destination === 'document') {
-                            return caches.match('/index.html');
-                        }
-                    });
-            })
-    );
+    // Estratégia: Network First para HTML, Cache First para assets estáticos
+    const isHTML = request.destination === 'document' || url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname === '';
+
+    if (isHTML) {
+        // Network First para HTML — sempre obter a versão mais recente
+        event.respondWith(
+            fetch(request)
+                .then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        const clone = networkResponse.clone();
+                        caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, clone));
+                    }
+                    return networkResponse;
+                })
+                .catch(() => {
+                    return caches.match(request) || caches.match('/index.html');
+                })
+        );
+    } else {
+        // Cache First para assets (JS libs, CSS, imagens)
+        event.respondWith(
+            caches.match(request)
+                .then((cachedResponse) => {
+                    if (cachedResponse) return cachedResponse;
+                    return fetch(request)
+                        .then((networkResponse) => {
+                            if (request.method === 'GET' && !url.href.includes('chrome-extension')) {
+                                const clone = networkResponse.clone();
+                                caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, clone));
+                            }
+                            return networkResponse;
+                        })
+                        .catch((error) => {
+                            console.error('[Service Worker] Fetch failed:', error);
+                        });
+                })
+        );
+    }
 });
 
 // ============================================
