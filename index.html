@@ -19309,13 +19309,50 @@ function adicionarMensagemChat(mensagem, tipo = 'user') {
         console.log(`✅ [INLINE-v3.8.2.12] ${imagesFound.length} imagens inseridas inline (no lugar dos URLs)!`);
     }
     
-    // Suportar markdown básico (negrito, itálico, listas)
-    let htmlContent = mensagemComImagensInline
+    // Converter markdown tables para HTML antes do processamento geral
+    let textoProcessado = mensagemComImagensInline;
+    const linhas = textoProcessado.split('\n');
+    let htmlParts = [];
+    let i = 0;
+    while (i < linhas.length) {
+        // Detectar início de tabela markdown (linha com |)
+        if (linhas[i].includes('|') && linhas[i].trim().startsWith('|')) {
+            let tableRows = [];
+            while (i < linhas.length && linhas[i].includes('|') && linhas[i].trim().startsWith('|')) {
+                const row = linhas[i].trim();
+                // Ignorar linha separadora (|---|---|)
+                if (/^\|[\s-:|]+\|$/.test(row)) { i++; continue; }
+                const cells = row.split('|').filter((c, idx, arr) => idx > 0 && idx < arr.length - 1).map(c => c.trim());
+                tableRows.push(cells);
+                i++;
+            }
+            if (tableRows.length > 0) {
+                let tableHtml = '<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:0.9em;">';
+                tableRows.forEach((cells, rowIdx) => {
+                    const tag = rowIdx === 0 ? 'th' : 'td';
+                    const bg = rowIdx === 0 ? 'background:var(--color-background);font-weight:600;' : '';
+                    tableHtml += '<tr>' + cells.map(c =>
+                        `<${tag} style="border:1px solid var(--color-border);padding:6px 10px;text-align:left;${bg}">${c}</${tag}>`
+                    ).join('') + '</tr>';
+                });
+                tableHtml += '</table>';
+                htmlParts.push(tableHtml);
+            }
+        } else {
+            htmlParts.push(linhas[i]);
+            i++;
+        }
+    }
+    textoProcessado = htmlParts.join('\n');
+
+    // Markdown: links, bold, italic, lists, line breaks
+    let htmlContent = textoProcessado
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--color-blue);text-decoration:underline;">$1</a>')
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/\n- /g, '\n• ')
         .replace(/\n/g, '<br>');
-    
+
     contentDiv.innerHTML = htmlContent;
     
     messageDiv.appendChild(contentDiv);
@@ -19987,6 +20024,7 @@ async function buscarManuaisRelevantes(pergunta, equipamentosMencionados = []) {
                     titulo: m.titulo,
                     descricao: m.descricao,
                     num_paginas: m.num_paginas,
+                    ficheiro_url: m.ficheiro_url || '',
                     // 🆕 v3.7.6.13: Filtrar secções por relevância baseado em keywords (async)
                     conteudo: temConteudo
                         ? AppState.manuaisConteudo[m.id].map(s => ({

@@ -668,13 +668,17 @@ ${pergunta}
 - Se os dados contêm tabelas de manutenção, lubrificação, especificações, etc. → **reproduz os dados em formato de tabela markdown**.
 - Se os dados contêm listas de procedimentos → **mostra os passos detalhados**.
 - Se os dados contêm valores técnicos (temperaturas, pressões, intervalos) → **inclui os valores exatos**.
-- Indica sempre a página de referência entre parênteses para contexto, mas o conteúdo deve estar NA resposta.
+- Indica sempre a página de referência com um LINK CLICÁVEL para o PDF.
+- Se os dados do manual incluem um campo "ficheiro_url", usa-o para criar links de página.
+- Formato do link: [Ver página X](FICHEIRO_URL#page=X) — isto abre o PDF diretamente na página certa.
 - Exemplo: Em vez de "A lubrificação está descrita na página 39", diz:
-  "**Plano de Lubrificação** (página 39):
+  "**Plano de Lubrificação** ([Ver página 39](https://wegftalccimrnnlmoiyn.supabase.co/storage/v1/object/public/manuais/abc.pdf#page=39)):
   | Componente | Lubrificante | Periodicidade |
   |---|---|---|
   | Rolamentos | Massa consistente | Trimestral |
   | Correntes | Óleo SAE 30 | Mensal |"
+- Para conteúdo visual (esquemas elétricos, diagramas) que não pode ser mostrado como texto, inclui o link direto:
+  "Os esquemas elétricos encontram-se no Anexo III: [Ver páginas 57-84](FICHEIRO_URL#page=57)"
 
 **🚨 REGRA ESPECIAL PARA ÍNDICE DE MANUAIS:**
 - Se a pergunta mencionar "índice" ou "índice completo" de um manual:
